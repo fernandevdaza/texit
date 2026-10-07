@@ -1,0 +1,16 @@
+{
+  "name": "@texit/compile-server",
+  "version": "0.1.0",
+  "private": true,
+  "license": "AGPL-3.0-or-later",
+  "description": "Reference TexIt remote compile server (protocol v1): latexmk or tectonic over HTTP + JSON. Zero dependencies.",
+  "type": "module",
+  "main": "server.mjs",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node server.mjs",
+    "test": "node --test test/*.test.mjs"
+  }
+}

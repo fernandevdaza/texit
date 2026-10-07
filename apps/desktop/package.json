@@ -1,0 +1,39 @@
+{
+  "name": "@texit/desktop",
+  "productName": "TexIt",
+  "version": "0.1.0",
+  "private": true,
+  "license": "AGPL-3.0-or-later",
+  "description": "TexIt — open-source collaborative LaTeX editor",
+  "author": "TexIt contributors",
+  "homepage": "https://github.com/texit-app/texit",
+  "main": "dist-electron/main.cjs",
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "build:main": "node scripts/build-main.mjs --production",
+    "build:web": "pnpm --filter @texit/web build",
+    "copy:web": "node scripts/copy-web.mjs",
+    "build": "pnpm run build:web && pnpm run build:main && pnpm run copy:web",
+    "start": "electron .",
+    "dist": "pnpm run build && electron-builder --config electron-builder.yml --publish never",
+    "dist:dir": "pnpm run build && electron-builder --config electron-builder.yml --dir --publish never",
+    "icons": "node scripts/make-icons.mjs",
+    "smoke": "node scripts/build-main.mjs && electron . --smoke",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run --passWithNoTests"
+  },
+  "//": "Everything is bundled by esbuild into dist-electron/, so all packages are devDependencies (electron-builder then ships no node_modules).",
+  "dependencies": {},
+  "devDependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.1",
+    "@texit/core": "workspace:*",
+    "@types/cross-spawn": "^6.0.6",
+    "chokidar": "^5.0.0",
+    "cross-spawn": "^7.0.6",
+    "electron": "^44.6.0",
+    "electron-builder": "^26.15.3",
+    "electron-updater": "^6.8.9",
+    "esbuild": "^0.28.2",
+    "zod": "^4.6.5"
+  }
+}

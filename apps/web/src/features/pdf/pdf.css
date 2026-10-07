@@ -1,0 +1,370 @@
+/*
+ * PDF viewer styles. Page chrome + the pieces of pdf.js' viewer CSS that the
+ * text and annotation layers need (we don't import pdf_viewer.css: it sets
+ * global `:root` rules such as `color-scheme` that would fight the app theme).
+ */
+
+.tx-pdf-scroller {
+  position: absolute;
+  inset: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  outline: none;
+  /* Avoid scrollbar appearance changing the fit-width scale back and forth. */
+  scrollbar-gutter: stable;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.tx-pdf-pages {
+  position: relative;
+  --scale-factor: 1;
+}
+
+.tx-pdf-page {
+  --user-unit: 1;
+  --total-scale-factor: calc(var(--scale-factor) * var(--user-unit));
+  --scale-round-x: 1px;
+  --scale-round-y: 1px;
+  position: absolute;
+  top: 0;
+  left: 0;
+  direction: ltr;
+  contain: layout style;
+  border-radius: 1px;
+  box-shadow:
+    0 0 0 1px rgb(15 15 30 / 0.05),
+    0 1px 2px rgb(15 15 30 / 0.06),
+    0 6px 20px -4px rgb(15 15 30 / 0.12);
+}
+
+.dark .tx-pdf-page {
+  box-shadow:
+    0 0 0 1px rgb(255 255 255 / 0.06),
+    0 2px 4px rgb(0 0 0 / 0.4),
+    0 12px 32px -6px rgb(0 0 0 / 0.65);
+}
+
+/* The paper: canvas container, filtered in dark mode (placeholder included). */
+.tx-pdf-paper {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background: #fff;
+}
+
+.tx-pdf-paper:not(.is-rendered)::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(100deg, transparent 30%, rgb(0 0 0 / 0.035) 50%, transparent 70%);
+  background-size: 250% 100%;
+  animation: tx-pdf-shimmer 1.4s linear infinite;
+}
+
+@keyframes tx-pdf-shimmer {
+  from { background-position: 120% 0; }
+  to { background-position: -120% 0; }
+}
+
+.tx-pdf-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.tx-pdf-detail {
+  position: absolute;
+  display: block;
+}
+
+[data-pdf-dark='invert'] .tx-pdf-paper {
+  filter: invert(0.92) hue-rotate(180deg) contrast(0.92) brightness(1.04);
+}
+
+[data-pdf-dark='dim'] .tx-pdf-paper {
+  filter: brightness(0.8) contrast(1.06) saturate(0.92);
+}
+
+/* ───────────── Overlay: SyncTeX highlights, markers, ripple ───────────── */
+
+.tx-pdf-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 4;
+}
+
+.tx-pdf-hl {
+  position: absolute;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--tx-accent) 22%, transparent);
+  box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--tx-accent) 55%, transparent);
+}
+
+.tx-pdf-hl.tx-pdf-hl-flash {
+  animation: tx-pdf-hl-flash 2.5s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+}
+
+.tx-pdf-hl.tx-pdf-hl-soft {
+  box-shadow: none;
+  background: color-mix(in srgb, var(--tx-accent) 14%, transparent);
+  animation: tx-pdf-hl-soft 1.7s ease-out forwards;
+}
+
+@keyframes tx-pdf-hl-flash {
+  0% { opacity: 0; transform: scale(1.06); }
+  10% { opacity: 1; transform: scale(1); }
+  65% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+@keyframes tx-pdf-hl-soft {
+  0% { opacity: 0; }
+  15% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+.tx-pdf-pointer {
+  position: absolute;
+  left: 6px;
+  width: 0;
+  height: 0;
+  margin-top: -6px;
+  border-style: solid;
+  border-width: 6px 0 6px 9px;
+  border-color: transparent transparent transparent var(--tx-accent);
+  filter: drop-shadow(0 1px 2px rgb(0 0 0 / 0.25));
+}
+
+.tx-pdf-pointer.tx-pdf-hl-flash {
+  animation: tx-pdf-pointer 2.5s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+}
+
+.tx-pdf-pointer.tx-pdf-hl-soft {
+  animation: tx-pdf-hl-soft 1.7s ease-out forwards;
+}
+
+@keyframes tx-pdf-pointer {
+  0% { opacity: 0; transform: translateX(-8px); }
+  12% { opacity: 1; transform: translateX(0); }
+  70% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+.tx-pdf-marker {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  margin-top: -1px;
+  background: linear-gradient(90deg, var(--tx-accent), color-mix(in srgb, var(--tx-accent) 0%, transparent) 70%);
+  animation: tx-pdf-hl-soft 1.5s ease-out forwards;
+}
+
+.tx-pdf-ripple {
+  position: absolute;
+  width: 28px;
+  height: 28px;
+  margin: -14px 0 0 -14px;
+  border-radius: 999px;
+  border: 2px solid var(--tx-accent);
+  animation: tx-pdf-ripple 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+}
+
+@keyframes tx-pdf-ripple {
+  from { opacity: 0.9; transform: scale(0.3); }
+  to { opacity: 0; transform: scale(1.4); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tx-pdf-hl, .tx-pdf-pointer, .tx-pdf-ripple, .tx-pdf-paper::after { animation-duration: 0.01s !important; }
+}
+
+/* ───────────── pdf.js text layer ───────────── */
+
+.tx-pdf-page .textLayer {
+  color-scheme: only light;
+  position: absolute;
+  text-align: initial;
+  inset: 0;
+  overflow: clip;
+  opacity: 1;
+  line-height: 1;
+  letter-spacing: normal;
+  word-spacing: normal;
+  text-size-adjust: none;
+  -webkit-text-size-adjust: none;
+  forced-color-adjust: none;
+  transform-origin: 0 0;
+  caret-color: CanvasText;
+  z-index: 1;
+  --min-font-size: 1;
+  --text-scale-factor: calc(var(--total-scale-factor) * var(--min-font-size));
+  --min-font-size-inv: calc(1 / var(--min-font-size));
+}
+
+.tx-pdf-page .textLayer :is(span, br) {
+  color: transparent;
+  position: absolute;
+  white-space: pre;
+  cursor: text;
+  transform-origin: 0% 0%;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.tx-pdf-page .textLayer > :not(.markedContent),
+.tx-pdf-page .textLayer .markedContent span:not(.markedContent) {
+  z-index: 1;
+  --font-height: 0;
+  font-size: calc(var(--text-scale-factor) * var(--font-height));
+  --scale-x: 1;
+  --rotate: 0deg;
+  transform: rotate(var(--rotate)) scaleX(var(--scale-x)) scale(var(--min-font-size-inv));
+}
+
+.tx-pdf-page .textLayer .markedContent {
+  display: contents;
+}
+
+.tx-pdf-page .textLayer ::selection {
+  background: color-mix(in srgb, var(--tx-accent) 32%, transparent);
+  color: transparent;
+}
+
+.tx-pdf-page .textLayer br::selection {
+  background: transparent;
+}
+
+.tx-pdf-page .textLayer .endOfContent {
+  display: block;
+  position: absolute;
+  inset: 100% 0 0;
+  z-index: 0;
+  cursor: default;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.tx-pdf-page .textLayer.selecting .endOfContent {
+  top: 0;
+}
+
+/* Find hits (spans inserted inside the text layer's runs). */
+.tx-pdf-page .textLayer .tx-find-hit {
+  position: static;
+  margin: -1px;
+  padding: 1px;
+  border-radius: 3px;
+  background-color: rgb(255 196 0 / 0.38);
+}
+
+.tx-pdf-page .textLayer .tx-find-hit.is-selected {
+  background-color: rgb(255 120 0 / 0.5);
+  box-shadow: 0 0 0 1px rgb(255 120 0 / 0.75);
+}
+
+/* ───────────── pdf.js annotation layer (links) ───────────── */
+
+.tx-pdf-page .annotationLayer {
+  color-scheme: only light;
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  transform-origin: 0 0;
+  z-index: 3;
+}
+
+.tx-pdf-page .annotationLayer section {
+  position: absolute;
+  text-align: initial;
+  pointer-events: auto;
+  box-sizing: border-box;
+  transform-origin: 0 0;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.tx-pdf-page .textLayer.selecting ~ .annotationLayer section {
+  pointer-events: none;
+}
+
+.tx-pdf-page .annotationLayer .linkAnnotation > a {
+  position: absolute;
+  font-size: 1em;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: 2px;
+  cursor: pointer;
+  transition: background-color 0.12s;
+}
+
+.tx-pdf-page .annotationLayer .linkAnnotation:not(.hasBorder) > a:hover {
+  background-color: color-mix(in srgb, var(--tx-accent) 14%, transparent);
+}
+
+.tx-pdf-page .annotationLayer .linkAnnotation.hasBorder:hover {
+  background-color: color-mix(in srgb, var(--tx-accent) 14%, transparent);
+}
+
+.tx-pdf-page .annotationLayer .overlaidText {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+  display: inline-block;
+  overflow: hidden;
+}
+
+.tx-pdf-page .annotationLayer :is(.popupAnnotation, .popup) {
+  display: none;
+}
+
+/* ───────────── thumbnails ───────────── */
+
+.tx-pdf-thumb canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+[data-pdf-dark='invert'] .tx-pdf-thumb-paper {
+  filter: invert(0.92) hue-rotate(180deg) contrast(0.92) brightness(1.04);
+}
+
+[data-pdf-dark='dim'] .tx-pdf-thumb-paper {
+  filter: brightness(0.8) contrast(1.06) saturate(0.92);
+}
+
+/* ───────────── empty state & progress ───────────── */
+
+.tx-empty-line {
+  animation: tx-empty-line 1.6s ease-in-out infinite;
+  transform-box: fill-box;
+  transform-origin: left center;
+}
+
+@keyframes tx-empty-line {
+  0% { transform: scaleX(0.15); opacity: 0.4; }
+  45% { transform: scaleX(1); opacity: 1; }
+  100% { transform: scaleX(1); opacity: 0.55; }
+}
+
+.tx-progress-indeterminate {
+  animation: tx-progress-indeterminate 1.25s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+}
+
+@keyframes tx-progress-indeterminate {
+  from { left: -35%; }
+  to { left: 100%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tx-empty-line, .tx-progress-indeterminate { animation-duration: 0.01s !important; animation-iteration-count: 1 !important; }
+}

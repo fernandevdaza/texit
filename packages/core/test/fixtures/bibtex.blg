@@ -1,0 +1,19 @@
+This is BibTeX, Version 0.99d (TeX Live 2023)
+Capacity: max_strings=200000, hash_size=200000, hash_prime=170003
+The top-level auxiliary file: main.aux
+The style file: plainnat.bst
+Database file #1: references.bib
+I was expecting a `,' or a `}'---line 12 of file references.bib
+ :   title = "A study
+ :                    of things"
+I'm skipping whatever remains of this entry
+Repeated entry---line 30 of file references.bib
+ : @article{knuth84
+ :                 ,
+I'm skipping whatever remains of this entry
+Warning--I didn't find a database entry for "lamport94"
+Warning--empty journal in smith2020
+Warning--I'm ignoring knuth84's extra "title" field
+--line 41 of file references.bib
+You've used 2 entries,
+(There were 2 error messages)

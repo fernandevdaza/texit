@@ -1,0 +1,28 @@
+{
+  "name": "texit",
+  "private": true,
+  "version": "0.1.0",
+  "description": "TexIt — open-source, local-first, collaborative LaTeX editor for web, macOS, Windows and Linux.",
+  "license": "AGPL-3.0-or-later",
+  "type": "module",
+  "packageManager": "pnpm@11.20.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "pnpm --filter @texit/web dev",
+    "build": "pnpm --filter @texit/web build",
+    "preview": "pnpm --filter @texit/web preview",
+    "desktop:dev": "pnpm --filter @texit/desktop dev",
+    "desktop:build": "pnpm --filter @texit/desktop build",
+    "desktop:dist": "pnpm --filter @texit/desktop dist",
+    "assets:busytex": "node scripts/fetch-busytex-assets.mjs",
+    "typecheck": "pnpm -r --parallel typecheck",
+    "test": "pnpm -r --parallel test"
+  },
+  "devDependencies": {
+    "typescript": "~5.9.3",
+    "vitest": "^5.0.3",
+    "@types/node": "^22.15.0"
+  }
+}

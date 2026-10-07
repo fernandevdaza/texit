@@ -1,0 +1,10 @@
+[0] Config.pm:307> INFO - This is Biber 2.19
+[0] Config.pm:310> INFO - Logfile is 'main.blg'
+[45] biber:340> INFO - === Wed Oct  7, 2026, 09:12:01
+[61] Biber.pm:419> INFO - Reading 'main.bcf'
+[120] Biber.pm:977> INFO - Found 3 citekeys in bib section 0
+[133] Utils.pm:410> WARN - BibTeX subsystem: /tmp/biber_tmp_7d1x/references.bib_31337.utf8, line 14, warning: 2 characters of junk seen at toplevel
+[140] Utils.pm:395> ERROR - BibTeX subsystem: /tmp/biber_tmp_7d1x/references.bib_31337.utf8, line 22, syntax error: found "author", expected end of entry ("}" or ",")
+[151] Biber.pm:1393> WARN - I didn't find a database entry for 'missing2021' (section 0)
+[180] Biber.pm:131> INFO - WARNINGS: 2
+[180] Biber.pm:135> INFO - ERRORS: 1

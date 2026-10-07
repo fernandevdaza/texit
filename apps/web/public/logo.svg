@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <title>TexIt</title>
+  <defs>
+    <linearGradient id="bg" x1="96" y1="64" x2="928" y2="960" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#4f46e5"/>
+      <stop offset="0.55" stop-color="#6d3df0"/>
+      <stop offset="1" stop-color="#9333ea"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="300" cy="220" r="620" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.28"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="mark" x1="0" y1="280" x2="0" y2="780" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#e9e5ff"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="18" stdDeviation="22" flood-color="#1e1065" flood-opacity="0.35"/>
+    </filter>
+  </defs>
+  <!-- macOS-style rounded square with margin -->
+  <rect x="100" y="100" width="824" height="824" rx="186" fill="url(#bg)"/>
+  <rect x="100" y="100" width="824" height="824" rx="186" fill="url(#glow)"/>
+  <rect x="101.5" y="101.5" width="821" height="821" rx="184.5" fill="none" stroke="#ffffff" stroke-opacity="0.18" stroke-width="3"/>
+  <g filter="url(#shadow)" fill="url(#mark)">
+    <!-- Crossbar with serif drops (TeX-like) -->
+    <path d="M276 292h472a20 20 0 0 1 20 20v78a14 14 0 0 1-24 10l-38-40H592v350l52 14a18 18 0 0 1 13 17v21a12 12 0 0 1-12 12H379a12 12 0 0 1-12-12v-21a18 18 0 0 1 13-17l52-14V360H318l-38 40a14 14 0 0 1-24-10v-78a20 20 0 0 1 20-20z"/>
+  </g>
+  <!-- Lowered "E" bar (the TeX baseline drop) + text cursor accent -->
+  <rect x="626" y="540" width="132" height="34" rx="17" fill="#c4b5fd"/>
+  <rect x="626" y="612" width="92" height="34" rx="17" fill="#c4b5fd" fill-opacity="0.75"/>
+  <rect x="780" y="514" width="22" height="158" rx="11" fill="#ffffff" fill-opacity="0.9"/>
+</svg>

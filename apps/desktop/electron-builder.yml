@@ -1,0 +1,116 @@
+# electron-builder configuration for TexIt desktop.
+# Build first (`pnpm --filter @texit/desktop build`), then `pnpm --filter @texit/desktop dist`.
+appId: org.texit.app
+productName: TexIt
+copyright: Copyright © TexIt contributors — AGPL-3.0-or-later
+artifactName: ${productName}-${version}-${os}-${arch}.${ext}
+
+directories:
+  output: release
+  buildResources: build
+
+# main/preload are fully bundled by esbuild and the web app is copied to web/ by scripts/copy-web.mjs,
+# so no node_modules are shipped.
+files:
+  - dist-electron/**/*
+  - '!dist-electron/**/*.map'
+  - web/**/*
+  - package.json
+extraResources: []
+asar: true
+# Large TeX Live WASM data (only present with TEXIT_BUNDLE_BUSYTEX=1) is streamed from disk, not from the archive.
+asarUnpack:
+  - web/busytex/**
+npmRebuild: false
+nodeGypRebuild: false
+buildDependenciesFromSource: false
+
+protocols:
+  - name: TexIt
+    schemes: [texit]
+
+fileAssociations:
+  - ext: tex
+    name: LaTeX Document
+    description: LaTeX source file
+    mimeType: text/x-tex
+    role: Editor
+    icon: build/icon
+  - ext: ltx
+    name: LaTeX Document
+    mimeType: text/x-tex
+    role: Editor
+    icon: build/icon
+
+mac:
+  category: public.app-category.productivity
+  icon: build/icon.icns
+  target:
+    - target: dmg
+      arch: [arm64, x64]
+    - target: zip
+      arch: [arm64, x64]
+  hardenedRuntime: true
+  gatekeeperAssess: false
+  entitlements: build/entitlements.mac.plist
+  entitlementsInherit: build/entitlements.mac.plist
+  darkModeSupport: true
+  extendInfo:
+    NSDocumentsFolderUsageDescription: TexIt opens and saves your LaTeX projects.
+    NSDesktopFolderUsageDescription: TexIt opens and saves your LaTeX projects.
+    NSDownloadsFolderUsageDescription: TexIt opens and saves your LaTeX projects.
+  # Set CSC_LINK / APPLE_ID / APPLE_APP_SPECIFIC_PASSWORD / APPLE_TEAM_ID in CI to sign & notarize.
+  notarize: false
+
+dmg:
+  sign: false
+  contents:
+    - x: 130
+      y: 220
+    - x: 410
+      y: 220
+      type: link
+      path: /Applications
+
+win:
+  icon: build/icon.ico
+  target:
+    - target: nsis
+      arch: [x64, arm64]
+    - target: portable
+      arch: [x64]
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  deleteAppDataOnUninstall: false
+
+portable:
+  artifactName: ${productName}-${version}-portable.${ext}
+
+linux:
+  icon: build/icons
+  category: Office
+  synopsis: Collaborative, local-first LaTeX editor
+  description: TexIt — open-source, local-first, real-time collaborative LaTeX editor with AI agents.
+  mimeTypes: [text/x-tex, x-scheme-handler/texit]
+  target: [AppImage, deb, rpm]
+  desktop:
+    entry:
+      StartupWMClass: TexIt
+
+deb:
+  depends: [libsecret-1-0]
+  recommends: [latexmk, texlive-latex-recommended]
+
+rpm:
+  depends: [libsecret]
+
+publish:
+  provider: github
+  owner: texit-app
+  repo: texit
+  releaseType: draft

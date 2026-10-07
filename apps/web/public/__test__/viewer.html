@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>PdfViewer harness</title>
+    <!-- Dev-only test harness for features/pdf (needs the Vite dev server). -->
+    <script type="module">
+      import RefreshRuntime from '/@react-refresh';
+      RefreshRuntime.injectIntoGlobalHook(window);
+      window.$RefreshReg$ = () => {};
+      window.$RefreshSig$ = () => (type) => type;
+      window.__vite_plugin_react_preamble_installed__ = true;
+    </script>
+  </head>
+  <body>
+    <div id="root" style="height: 100vh"></div>
+    <script type="module">
+      import { mountHarness } from '/src/features/pdf/dev-harness.tsx';
+      mountHarness(document.getElementById('root'));
+    </script>
+  </body>
+</html>

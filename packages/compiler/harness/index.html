@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>TexIt compiler harness</title>
+    <style>
+      body { font: 14px/1.4 system-ui, sans-serif; margin: 16px; background: #fafafa; color: #111; }
+      button { margin: 0 6px 6px 0; }
+      #status { font-weight: 600; margin: 8px 0; }
+      pre { background: #fff; border: 1px solid #ddd; padding: 8px; max-height: 40vh; overflow: auto; white-space: pre-wrap; font-size: 12px; }
+      table { border-collapse: collapse; margin: 8px 0; }
+      td, th { border: 1px solid #ccc; padding: 2px 8px; text-align: left; font-size: 12px; }
+      iframe { width: 100%; height: 50vh; border: 1px solid #ccc; }
+    </style>
+  </head>
+  <body>
+    <h1>@texit/compiler harness</h1>
+    <div id="buttons"></div>
+    <div id="status">idle</div>
+    <table id="results"><tr><th>case</th><th>backend</th><th>engine</th><th>status</th><th>ms</th><th>pdf bytes</th><th>synctex</th><th>note</th></tr></table>
+    <iframe id="pdf" title="PDF"></iframe>
+    <pre id="log"></pre>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>

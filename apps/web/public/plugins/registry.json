@@ -1,0 +1,76 @@
+{
+  "version": 1,
+  "plugins": [
+    {
+      "id": "org.texit.examples.hello",
+      "name": "Hello world",
+      "description": "The smallest useful plugin: a command, a status-bar item, a sidebar panel and a setting. Start here when writing your own.",
+      "author": "TexIt examples",
+      "version": "1.0.0",
+      "url": "hello-world.js",
+      "icon": "hand",
+      "tags": [
+        "example",
+        "starter"
+      ],
+      "permissions": [
+        "project:read",
+        "editor",
+        "ui"
+      ]
+    },
+    {
+      "id": "org.texit.examples.unicode2latex",
+      "name": "Unicode → LaTeX",
+      "description": "Convert accented letters, smart quotes, dashes, Greek letters and math symbols pasted from Word or PDFs into portable LaTeX.",
+      "author": "TexIt examples",
+      "version": "1.0.0",
+      "url": "unicode-to-latex.js",
+      "icon": "languages",
+      "tags": [
+        "unicode",
+        "cleanup"
+      ],
+      "permissions": [
+        "editor",
+        "project:read",
+        "project:write"
+      ]
+    },
+    {
+      "id": "org.texit.examples.worddiff",
+      "name": "Word diff",
+      "description": "Git-style word diff ({+added+} [-removed-]) between two project files, or the active file and the clipboard.",
+      "author": "TexIt examples",
+      "version": "1.0.0",
+      "url": "word-diff.js",
+      "icon": "git-compare-arrows",
+      "tags": [
+        "diff",
+        "review"
+      ],
+      "permissions": [
+        "project:read",
+        "editor",
+        "ui"
+      ]
+    },
+    {
+      "id": "org.texit.examples.todos",
+      "name": "TODO list",
+      "description": "Collects % TODO / FIXME comments and \\todo{} notes from every file into a sidebar panel with a status-bar counter.",
+      "author": "TexIt examples",
+      "version": "1.0.0",
+      "url": "todo-list.js",
+      "icon": "list-todo",
+      "tags": [
+        "review",
+        "productivity"
+      ],
+      "permissions": [
+        "project:read",
+        "ui"
+      ]
+    }
+  ]
+}

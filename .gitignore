@@ -1,0 +1,16 @@
+node_modules
+dist
+dist-electron
+release
+out
+.DS_Store
+*.log
+.vite
+coverage
+# Large TeX Live WASM assets (fetched with `pnpm assets:busytex`)
+apps/web/public/busytex/
+.env
+.env.*
+!.env.example
+apps/desktop/web/
+release/

@@ -1,0 +1,214 @@
+/* First-run hero visual. Sizes use cqw so the whole composition scales. */
+
+.hx {
+  container-type: inline-size;
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1 / 0.86;
+}
+
+.hx-glow {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(9cqw);
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+.hx-editor {
+  position: absolute;
+  left: 0;
+  top: 9%;
+  width: 66%;
+  height: 76%;
+  border-radius: 2.4cqw;
+  background: color-mix(in srgb, var(--tx-surface) 92%, transparent);
+  border: 1px solid var(--tx-border-strong);
+  box-shadow: 0 2cqw 6cqw -2cqw rgb(0 0 0 / 0.25), 0 0 0 1px rgb(0 0 0 / 0.02);
+  backdrop-filter: blur(12px);
+  overflow: hidden;
+  animation: hx-float-a 9s ease-in-out infinite;
+}
+
+.hx-bar {
+  display: flex;
+  align-items: center;
+  gap: 1cqw;
+  height: 6.4cqw;
+  padding: 0 2.2cqw;
+  border-bottom: 1px solid var(--tx-border);
+  background: var(--tx-surface-2);
+}
+.hx-dot { width: 1.4cqw; height: 1.4cqw; border-radius: 99px; }
+.hx-tab {
+  margin-left: 1.4cqw;
+  font-size: 1.75cqw;
+  padding: 0.6cqw 1.6cqw;
+  border-radius: 1cqw;
+  color: var(--tx-fg-subtle);
+}
+.hx-tab.is-active { background: var(--tx-surface); color: var(--tx-fg); box-shadow: 0 0 0 1px var(--tx-border); }
+
+.hx-code {
+  font-family: var(--font-mono);
+  font-size: 1.85cqw;
+  line-height: 1.75;
+  padding: 2cqw 0;
+  color: var(--tx-fg-muted);
+  white-space: pre;
+}
+.hx-line { display: flex; position: relative; }
+.hx-line.is-active { background: color-mix(in srgb, var(--tx-accent) 7%, transparent); }
+.hx-ln { width: 6cqw; padding-right: 2cqw; text-align: right; color: var(--tx-fg-subtle); opacity: 0.6; flex-shrink: 0; }
+.hx-cmd { color: #7c3aed; }
+.hx-env { color: #2563eb; }
+.hx-math { color: #0d9488; }
+.hx-com { color: var(--tx-fg-subtle); font-style: italic; }
+.hx-sec { color: var(--tx-fg); font-weight: 650; }
+:where(.dark) .hx-cmd { color: #b69cff; }
+:where(.dark) .hx-env { color: #7cb3ff; }
+:where(.dark) .hx-math { color: #2dd4bf; }
+
+.hx-typing {
+  display: inline-block;
+  overflow: hidden;
+  vertical-align: bottom;
+  animation: hx-type 7s steps(30, end) infinite;
+}
+.hx-caret {
+  display: inline-block;
+  width: 0.28cqw;
+  height: 1.3em;
+  margin-left: 0.1cqw;
+  vertical-align: -0.25em;
+  background: var(--tx-accent);
+  animation: hx-blink 1s steps(1) infinite;
+}
+
+.hx-peer {
+  position: absolute;
+  width: 0.3cqw;
+  height: 1.4em;
+  top: 0.15em;
+  background: #ec4899;
+  animation: hx-peer 10s ease-in-out infinite;
+}
+.hx-peer::after {
+  content: attr(data-name);
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  font-family: var(--font-sans);
+  font-size: 1.35cqw;
+  font-weight: 600;
+  line-height: 1.5;
+  padding: 0 0.9cqw;
+  border-radius: 0.6cqw 0.6cqw 0.6cqw 0;
+  color: #fff;
+  background: #ec4899;
+  white-space: nowrap;
+}
+
+.hx-pdf {
+  position: absolute;
+  right: 0;
+  top: 0;
+  width: 47%;
+  aspect-ratio: 1 / 1.3;
+  background: #fff;
+  color: #16161a;
+  border-radius: 0.6cqw;
+  box-shadow: 0 0.3cqw 0.8cqw rgb(0 0 0 / 0.08), 0 4cqw 9cqw -3cqw rgb(0 0 0 / 0.42);
+  padding: 5cqw 4.6cqw;
+  font-family: KaTeX_Main, "Latin Modern Roman", Georgia, serif;
+  overflow: hidden;
+  animation: hx-float-b 8s ease-in-out infinite;
+}
+.hx-pdf .katex { font-size: 1.9cqw; }
+.hx-sync {
+  position: absolute;
+  inset: -0.6cqw -1cqw;
+  border-radius: 0.8cqw;
+  background: color-mix(in srgb, var(--tx-accent) 14%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--tx-accent) 40%, transparent);
+  animation: hx-pulse 3.2s ease-in-out infinite;
+}
+
+.hx-chip {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 1.2cqw;
+  padding: 1.1cqw 1.8cqw;
+  border-radius: 99px;
+  font-size: 1.75cqw;
+  font-weight: 550;
+  white-space: nowrap;
+  color: var(--tx-fg);
+  background: color-mix(in srgb, var(--tx-elevated) 88%, transparent);
+  border: 1px solid var(--tx-border-strong);
+  box-shadow: 0 1.6cqw 4cqw -1.6cqw rgb(0 0 0 / 0.3);
+  backdrop-filter: blur(14px);
+  opacity: 0;
+  animation: hx-chip-in 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards, hx-float-c 6s ease-in-out infinite;
+}
+.hx-chip svg { width: 2cqw; height: 2cqw; }
+.hx-bubble {
+  border-radius: 2cqw;
+  white-space: normal;
+  width: 40%;
+  align-items: flex-start;
+  padding: 1.6cqw 2cqw;
+  line-height: 1.4;
+  font-weight: 450;
+  font-size: 1.65cqw;
+}
+
+.hx-dots span {
+  display: inline-block;
+  width: 0.8cqw;
+  height: 0.8cqw;
+  margin-right: 0.5cqw;
+  border-radius: 99px;
+  background: var(--tx-accent);
+  animation: hx-dot 1.2s ease-in-out infinite;
+}
+.hx-dots span:nth-child(2) { animation-delay: 0.15s; }
+.hx-dots span:nth-child(3) { animation-delay: 0.3s; }
+
+@keyframes hx-type {
+  0%, 8% { width: 0; }
+  55%, 92% { width: 30ch; }
+  100% { width: 0; }
+}
+@keyframes hx-blink { 50% { opacity: 0; } }
+@keyframes hx-float-a { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-0.8cqw); } }
+@keyframes hx-float-b { 0%, 100% { transform: translateY(0) rotate(0.6deg); } 50% { transform: translateY(1cqw) rotate(0.2deg); } }
+@keyframes hx-float-c { 0%, 100% { translate: 0 0; } 50% { translate: 0 -0.7cqw; } }
+@keyframes hx-chip-in { from { opacity: 0; transform: translateY(1.5cqw) scale(0.96); } to { opacity: 1; transform: none; } }
+@keyframes hx-pulse { 0%, 100% { opacity: 0.35; } 50% { opacity: 1; } }
+@keyframes hx-dot { 0%, 100% { opacity: 0.25; transform: translateY(0); } 40% { opacity: 1; transform: translateY(-0.4cqw); } }
+@keyframes hx-peer {
+  0%, 18% { left: 22cqw; }
+  30%, 58% { left: 33cqw; }
+  70%, 100% { left: 14cqw; }
+}
+
+/* Background grid behind the hero */
+.hx-grid {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(to right, color-mix(in srgb, var(--tx-border) 55%, transparent) 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in srgb, var(--tx-border) 55%, transparent) 1px, transparent 1px);
+  background-size: 56px 56px;
+  mask-image: radial-gradient(ellipse 70% 60% at 50% 20%, black, transparent 75%);
+}
+
+.hx-rise { opacity: 0; animation: hx-chip-in 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+
+@media (prefers-reduced-motion: reduce) {
+  .hx *, .hx-rise, .hx { animation: none !important; opacity: 1 !important; }
+  .hx-typing { width: 30ch; }
+}
