@@ -1,0 +1,130 @@
+This is pdfTeX, Version 3.141592653-2.6-1.40.25 (TeX Live 2023) (preloaded format=pdflatex 2023.5.1)  7 OCT 2026 09:12
+entering extended mode
+ restricted \write18 enabled.
+ %&-line parsing enabled.
+**main.tex
+(./main.tex
+LaTeX2e <2022-11-01> patch level 1
+L3 programming layer <2023-02-22>
+(/usr/local/texlive/2023/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2022/07/02 v1.4n Standard LaTeX document class
+(/usr/local/texlive/2023/texmf-dist/tex/latex/base/size11.clo
+File: size11.clo 2022/07/02 v1.4n Standard LaTeX file (size option)
+)
+\c@part=\count185
+\c@section=\count186
+)
+(/usr/local/texlive/2023/texmf-dist/tex/latex/amsmath/amsmath.sty
+Package: amsmath 2022/04/08 v2.17n AMS math features
+\@mathmargin=\skip49
+
+For additional information on amsmath, use the `?' option.
+(/usr/local/texlive/2023/texmf-dist/tex/latex/amsmath/amstext.sty
+Package: amstext 2021/08/26 v2.01 AMS text
+)
+LaTeX Info: Redefining \frac on input line 234.
+)
+(/usr/local/texlive/2023/texmf-dist/tex/latex/hyperref/hyperref.sty
+Package: hyperref 2023-02-07 v7.00v Hypertext links for LaTeX
+Package hyperref Info: Hyper figures OFF on input line 4177.
+)
+
+! LaTeX Error: File `fancypkg.sty' not found.
+
+Type X to quit or <RETURN> to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+<read *> 
+         
+l.5 \usepackage
+               {nicetables}^^M
+*** (cannot \read from terminal in nonstop modes)
+
+(./main.aux)
+\openout1 = `main.aux'.
+
+LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 7.
+LaTeX Font Info:    ... okay on input line 7.
+
+Package hyperref Warning: Token not allowed in a PDF string (Unicode):
+(hyperref)                removing `math shift' on input line 12.
+
+
+LaTeX Warning: Reference `fig:results' on page 1 undefined on input line 15.
+
+(./chapters/introduction.tex
+./chapters/introduction.tex:3: Undefined control sequence.
+l.3 This is \bfseries\textbff
+                              {important}.
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+
+Overfull \hbox (15.31474pt too wide) in paragraph at lines 7--9
+[]\OT1/cmr/m/n/10.95 This line contains a URL (see \OT1/cmtt/m/n/10.95 http://e
+xample.com/a/very/long/path) |
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 11--11
+
+ []
+
+[1{/usr/local/texlive/2023/texmf-var/fonts/map/pdftex/updmap/pdftex.map}]
+LaTeX Font Warning: Font shape `OT1/cmr/bx/sc' undefined
+(Font)              using `OT1/cmr/bx/n' instead on input line 20.
+
+) (./chapters/results.tex
+Package natbib Warning: Citation `smith2020' on page 2 undefined on input line 
+4.
+
+Runaway argument?
+{This caption never ends \par \end {figure} 
+./chapters/results.tex:30: Paragraph ended before \caption was complete.
+<to be read again> 
+                   \par 
+l.30 
+     
+I suspect you've forgotten a `}', causing me to apply this
+control sequence to too much text. How can we recover?
+My plan is to forget the whole thing and hope for the best.
+
+[2]
+Overfull \vbox (12.0pt too high) has occurred while \output is active []
+
+) (/tmp/build/a1b2c3/./appendix/proofs.tex
+LaTeX Warning: `h' float specifier changed to `ht'.
+
+)
+Underfull \vbox (badness 10000) has occurred while \output is active []
+
+ [3]
+pdfTeX warning (ext4): destination with the same identifier (name{page.1}) has 
+been already used, duplicate ignored
+<to be read again> 
+                   \relax 
+l.40 \newpage
+              [4] (./main.aux)
+
+LaTeX Warning: There were undefined references.
+
+
+LaTeX Warning: Label(s) may have changed. Rerun to get cross-references right.
+
+
+Package biblatex Warning: Please (re)run Biber on the file:
+(biblatex)                main
+(biblatex)                and rerun LaTeX afterwards.
+
+ )
+(\end occurred inside a group at level 1)
+Here is how much of TeX's memory you used:
+ 5042 strings out of 476025
+Output written on main.pdf (4 pages, 123456 bytes).
+PDF statistics:
+ 95 PDF objects out of 1000 (max. 8388607)

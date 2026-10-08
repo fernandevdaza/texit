@@ -5,6 +5,7 @@ release
 out
 .DS_Store
 *.log
+!**/test/fixtures/*.log
 .vite
 coverage
 # Large TeX Live WASM assets (fetched with `pnpm assets:busytex`)
