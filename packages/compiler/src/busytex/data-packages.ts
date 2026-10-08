@@ -177,6 +177,29 @@ function requirementsOfScan(scan: LatexScan, out: Set<string>): void {
 }
 
 /**
+ * Packages that replace Computer Modern for T1-encoded text. Without one of them,
+ * `\usepackage[T1]{fontenc}` uses the EC fonts, whose Type 1 versions (cm-super)
+ * only ship in the larger data packages.
+ */
+const T1_FONT_PACKAGES = new Set([
+  'lmodern', 'cm-super', 'fontspec', 'mathptmx', 'times', 'newtxtext', 'newpxtext', 'tgtermes', 'tgpagella', 'tgheros',
+  'tgschola', 'tgbonum', 'tgcursor', 'tgadventor', 'tgchorus', 'palatino', 'mathpazo', 'libertine', 'libertinus',
+  'libertinust1math', 'fourier', 'kpfonts', 'charter', 'XCharter', 'bookman', 'helvet', 'courier', 'avant', 'utopia',
+  'erewhon', 'garamondx', 'ebgaramond', 'baskervillef', 'Alegreya', 'sourceserifpro', 'sourcesanspro', 'roboto',
+  'opensans', 'fira', 'FiraSans', 'noto', 'merriweather', 'crimson', 'cochineal', 'stix', 'stix2', 'step', 'mlmodern',
+  'anyfontsize', 'ae', 'aecompl', 'pslatex', 'concrete', 'ccfonts', 'eulervm', 'arev', 'iwona', 'kurier', 'antpolt',
+]);
+
+function needsCmSuper(scans: LatexScan[]): boolean {
+  let t1 = false;
+  for (const scan of scans) {
+    if (scan.packages.some((p) => T1_FONT_PACKAGES.has(p.name))) return false;
+    if (packageOptions(scan, 'fontenc').some((o) => /^T1$/i.test(o.trim()))) t1 = true;
+  }
+  return t1;
+}
+
+/**
  * File names (basenames such as `tikz.sty`, `beamer.cls`, `plainnat.bst`) the
  * project needs from TeX Live, from every `.tex`/`.sty`/`.cls` file in it.
  * Alternatives are joined with `|` (any of them satisfies the requirement).
@@ -185,12 +208,16 @@ function requirementsOfScan(scan: LatexScan, out: Set<string>): void {
 export function collectRequirements(files: ProjectFile[]): string[] {
   const out = new Set<string>();
   const local = new Set<string>();
+  const scans: LatexScan[] = [];
   for (const f of files) {
     const path = normalizePath(f.path);
     local.add(basename(path));
     if (!SCANNED_EXTENSIONS.has(extname(path))) continue;
-    requirementsOfScan(scanLatex(fileText(f.content)), out);
+    const scan = scanLatex(fileText(f.content));
+    scans.push(scan);
+    requirementsOfScan(scan, out);
   }
+  if (needsCmSuper(scans)) out.add('cm-super-t1.enc');
   return [...out].filter((n) => !n.split('|').some((alt) => local.has(alt))).sort();
 }
 
@@ -273,6 +300,10 @@ export function findMissingFiles(log: string): string[] {
     add(extname(n) ? n : `${n}.tex`);
   }
   for (const m of log.matchAll(/language definition file (\S+?\.ldf) was not found/g)) add(m[1]);
+  // pdfTeX: "!pdfTeX error: … (file cm-super-t1.enc): cannot open encoding file" / "… Type 1 font file".
+  for (const m of log.matchAll(/\(file ([^)\s]+)\): cannot open (?:encoding|Type 1 font|font)/g)) add(m[1]);
+  // babel ≥ 3.x: `\usepackage[spanish]{babel}` without spanish.ldf → "Unknown option 'spanish'".
+  for (const m of log.matchAll(/Package babel Error: Unknown option [`']([A-Za-z-]+)'/g)) add(`${m[1]}.ldf`);
   for (const m of log.matchAll(/I couldn't open style file (\S+)/g)) add(m[1].endsWith('.bst') ? m[1] : `${m[1]}.bst`);
   for (const m of log.matchAll(/! Font [^=\n]*=([^\s]+?)(?: at [^\n]*?| scaled [^\n]*?)? not loadable: Metric \(TFM\) file/g)) add(`${m[1]}.tfm`);
   for (const m of log.matchAll(/kpathsea: Running mktextfm (\S+)/g)) add(`${m[1]}.tfm`);

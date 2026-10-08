@@ -2690,17 +2690,16 @@ const articuloEsMain = String.raw`% ============================================
 % ---------------------------------------------------------------------
 %  Plantilla de artículo con babel en español: títulos traducidos
 %  (Resumen, Figura, Tabla, Referencias), separación silábica correcta
-%  y comillas latinas con \enquote{...}. La opción provide=* carga el
-%  idioma desde los archivos .ini de babel (funciona también en el motor
-%  del navegador). Las referencias están al final, en el entorno
-%  thebibliography.
+%  y comillas latinas con \enquote{...}. La opción es-tabla escribe
+%  «Tabla» en lugar de «Cuadro». Las referencias están al final, en el
+%  entorno thebibliography.
 %  Motor: pdfLaTeX.
 % =====================================================================
 \documentclass[11pt,a4paper]{article}
 
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
-\usepackage[spanish, provide=*]{babel}
+\usepackage[spanish,es-tabla]{babel}
 \usepackage{lmodern}
 \usepackage{microtype}
 \usepackage[margin=2.5cm]{geometry}

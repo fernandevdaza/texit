@@ -40,6 +40,7 @@ import {
   type TierSelection,
 } from './data-packages';
 import { allLogText, buildBusyTexLog, summarizeCommands } from './log';
+import { TexAddons, providedNames } from './addons';
 import { BusyTexWorkerClient, type BusyTexAssetUrls, type BusyTexCompileInput, type BusyTexCompileOutput, type BusyTexDriver } from './worker-client';
 
 export interface BusyTexBackendOptions {
@@ -77,6 +78,11 @@ export interface BusyTexBackendOptions {
   fetch?: typeof fetch;
   /** Label override. */
   label?: string;
+  /**
+   * Directory with TeX Live add-ons (`manifest.json` + files that the data packages lack, e.g. babel
+   * language definitions). Default: `../texlive-addons/` relative to `basePath`. `false` disables them.
+   */
+  addonsUrl?: string | false;
 }
 
 const DRIVERS: Record<TexEngine, BusyTexDriver> = {
@@ -116,6 +122,7 @@ export class BusyTexBackend implements ExtendedCompileBackend {
   private indexPromise: Promise<DataPackageIndex | null> | null = null;
   private assetCheck: { ok: boolean; detail?: string; at: number } | null = null;
   private cacheVersionChecked = false;
+  private addons: TexAddons;
 
   private phase: Phase = 'idle';
   private detail = 'Not started — TeX Live is downloaded on first compile';
@@ -136,6 +143,24 @@ export class BusyTexBackend implements ExtendedCompileBackend {
     } catch (err) {
       this.baseUrlError = `Invalid BusyTeX basePath "${opts.basePath}": ${errorMessage(err)}`;
     }
+    let addonsUrl: string | null = null;
+    if (opts.addonsUrl !== false && this.baseUrl) {
+      try {
+        const u = opts.addonsUrl ?? '../texlive-addons/';
+        addonsUrl = new URL(u.endsWith('/') ? u : `${u}/`, this.baseUrl).href;
+      } catch {
+        addonsUrl = null;
+      }
+    }
+    this.addons = new TexAddons(addonsUrl, this.fetchFn);
+  }
+
+  /** Add-on files (e.g. `spanish.ldf`) the request needs, placed next to the main file. */
+  private async addonFiles(wanted: Iterable<string>, files: { path: string }[], mainPath: string): Promise<{ path: string; contents: Uint8Array }[]> {
+    const names = await this.addons.resolve(wanted, providedNames(files.map((f) => f.path)));
+    if (!names.length) return [];
+    const dir = dirname(mainPath);
+    return (await this.addons.load(names)).map((f) => ({ path: dir ? `${dir}/${f.name}` : f.name, contents: f.content }));
   }
 
   // ───────────────────────────── public API ─────────────────────────────
@@ -262,13 +287,18 @@ export class BusyTexBackend implements ExtendedCompileBackend {
       const index = await this.loadIndex();
       const sel = await this.selectForFiles(files, req.engine);
       emit(this.describeSelection(sel, index));
-      if (sel.unknown.length && index?.complete) {
-        const shown = sel.unknown.slice(0, 8).map((u) => u.split('|')[0]).join(', ');
-        emit(`[busytex] Not in any TeX Live data package${this.opts.remoteEndpoint ? ' (will try the remote endpoint)' : ''}: ${shown}${sel.unknown.length > 8 ? ', …' : ''}`);
+      // Files no data package has (babel languages, IEEEtran…) may come from the add-ons pack.
+      const addonFiles = await this.addonFiles(sel.unknown, files, mainPath);
+      const addonNames = new Set(addonFiles.map((f) => f.path.split('/').pop()!));
+      if (addonFiles.length) emit(`[busytex] Add-ons: ${[...addonNames].join(', ')}`);
+      const stillUnknown = sel.unknown.filter((u) => !u.split('|').some((alt) => addonNames.has(alt)));
+      if (stillUnknown.length && index?.complete) {
+        const shown = stillUnknown.slice(0, 8).map((u) => u.split('|')[0]).join(', ');
+        emit(`[busytex] Not in any TeX Live data package${this.opts.remoteEndpoint ? ' (will try the remote endpoint)' : ''}: ${shown}${stillUnknown.length > 8 ? ', …' : ''}`);
       }
 
       const input: BusyTexCompileInput = {
-        files: files.map((f) => ({ path: f.path, contents: typeof f.content === 'string' ? f.content : compactBytes(f.content) })),
+        files: [...files.map((f) => ({ path: f.path, contents: typeof f.content === 'string' ? f.content : compactBytes(f.content) })), ...addonFiles],
         mainTexPath: mainPath,
         bibtex: bibTool === 'bibtex' || bibTool === 'biber',
         biber: bibTool === 'biber',
@@ -284,6 +314,18 @@ export class BusyTexBackend implements ExtendedCompileBackend {
 
       let out = await this.runCompile(input, sel.tier, req, emit);
       let success = out.exitCode === 0 && !!out.pdf;
+
+      // A file only discovered at run time (\babelprovide, \selectlanguage, nested packages…) may be an add-on.
+      if (!success) {
+        const missing = findMissingFiles(allLogText(out.logs, out.log));
+        const extra = await this.addonFiles(missing, input.files, mainPath);
+        if (extra.length) {
+          emit(`[busytex] Missing ${extra.map((f) => f.path.split('/').pop()).join(', ')} — retrying with TeX Live add-ons`);
+          input.files = [...input.files, ...extra];
+          out = await this.runCompile(input, sel.tier, req, emit);
+          success = out.exitCode === 0 && !!out.pdf;
+        }
+      }
 
       if (!success && this.opts.autoEscalate !== false) {
         const missing = findMissingFiles(allLogText(out.logs, out.log));
