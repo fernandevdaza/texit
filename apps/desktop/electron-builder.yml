@@ -92,6 +92,9 @@ portable:
   artifactName: ${productName}-${version}-portable.${ext}
 
 linux:
+  # The npm package name (@texit/desktop) is not a valid file name: name the binary explicitly.
+  executableName: texit
+  syncDesktopName: true
   icon: build/icons
   category: Office
   synopsis: Collaborative, local-first LaTeX editor

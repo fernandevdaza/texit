@@ -1,5 +1,5 @@
 {
- "version": 1,
+ "version": 2,
  "texlive": "2026",
  "files": {
   "IEEEtran.bst": "ieee/IEEEtran.bst",
@@ -77,5 +77,30 @@
   "swissgerman.ldf": "babel/babel-german/swissgerman.ldf",
   "turkish.ldf": "babel/babel-turkish/turkish.ldf",
   "welsh.ldf": "babel/babel-welsh/welsh.ldf"
+ },
+ "bundles": {
+  "newtx": {
+   "description": "newtx 1.756 \u2014 Times-like text and math fonts (newtxtext, newtxmath), plus binhex.tex from kastrup",
+   "triggers": [
+    "newtx.sty",
+    "newtxtext.sty",
+    "newtxmath.sty"
+   ],
+   "requires": [
+    "fontaxes.sty",
+    "mweights.sty",
+    "xstring.sty",
+    "etextools.sty",
+    "trimspaces.sty",
+    "xpatch.sty",
+    "scalefnt.sty",
+    "centernot.sty"
+   ],
+   "pdfMapFiles": [
+    "newtx.map"
+   ],
+   "archive": "fonts/newtx.zip",
+   "fileCount": 1022
+  }
  }
 }

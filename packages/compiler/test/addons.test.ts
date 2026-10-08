@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { TexAddons, providedNames } from '../src/busytex/addons';
+import { zipSync, strToU8 } from 'fflate';
+import { TexAddons, providedNames, withPdfMapFiles } from '../src/busytex/addons';
 import { findMissingFiles } from '../src/busytex/data-packages';
 
 const manifest = {
@@ -11,13 +12,23 @@ const manifest = {
     'babel-german.def': 'babel/babel-german/babel-german.def',
     'IEEEtran.cls': 'ieee/IEEEtran.cls',
   },
+  bundles: {
+    newtx: {
+      triggers: ['newtxtext.sty', 'newtxmath.sty'],
+      archive: 'fonts/newtx.zip',
+      requires: ['fontaxes.sty', 'xstring.sty'],
+      pdfMapFiles: ['newtx.map'],
+    },
+  },
 };
+const newtxZip = zipSync({ 'newtxtext.sty': strToU8('%% text'), 'newtxmath.sty': strToU8('%% math'), 'newtx.map': strToU8('ntx') });
 
 function fakeFetch(calls: string[]): typeof fetch {
   return (async (input: RequestInfo | URL) => {
     const url = String(input);
     calls.push(url);
     if (url.endsWith('manifest.json')) return new Response(JSON.stringify(manifest));
+    if (url.endsWith('.zip')) return new Response(newtxZip);
     return new Response(new TextEncoder().encode(`%% ${url.split('/').pop()}`));
   }) as typeof fetch;
 }
@@ -69,5 +80,32 @@ describe('font requirements', () => {
   it('detects missing encoding/font files in pdfTeX errors', () => {
     const log = '!pdfTeX error: /bin/busytex (file cm-super-t1.enc): cannot open encoding file f\nor reading';
     expect(findMissingFiles(log)).toContain('cm-super-t1.enc');
+  });
+});
+
+describe('add-on bundles', () => {
+  it('plans a whole bundle from a trigger, with its TeX Live dependencies and map files', async () => {
+    const a = new TexAddons('https://x.test/texlive-addons/', fakeFetch([]));
+    const plan = await a.plan(['newtxtext.sty', 'newtxmath.sty', 'spanish.ldf', 'tikz.sty'], new Set());
+    expect(plan.bundles).toEqual(['newtx']);
+    expect(plan.requires).toEqual(['fontaxes.sty', 'xstring.sty']);
+    expect(plan.pdfMapFiles).toEqual(['newtx.map']);
+    expect(plan.satisfied.sort()).toEqual(['newtxmath.sty', 'newtxtext.sty', 'spanish.ldf']);
+    const files = await a.loadPlan(plan, new Set(['newtx.map']));
+    expect(files.map((f) => f.name).sort()).toEqual(['newtxmath.sty', 'newtxtext.sty', 'romanidx.sty', 'spanish.ldf']);
+  });
+  it('downloads a bundle archive once', async () => {
+    const calls: string[] = [];
+    const a = new TexAddons('https://x.test/texlive-addons/', fakeFetch(calls));
+    const plan = await a.plan(['newtxtext.sty'], new Set());
+    await a.loadPlan(plan);
+    await a.loadPlan(plan);
+    expect(calls.filter((c) => c.endsWith('.zip'))).toHaveLength(1);
+  });
+  it('activates map files on line 1 without shifting lines', () => {
+    const src = '\\documentclass{article}\n\\begin{document}x\\end{document}';
+    const out = withPdfMapFiles(src, ['newtx.map']);
+    expect(out.split('\n')).toHaveLength(src.split('\n').length);
+    expect(out.startsWith('\\ifdefined\\pdfmapfile\\pdfmapfile{=newtx.map}\\fi\\documentclass')).toBe(true);
   });
 });

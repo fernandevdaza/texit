@@ -1,10 +1,11 @@
 {
   "name": "@texit/desktop",
   "productName": "TexIt",
+  "desktopName": "texit.desktop",
   "version": "0.1.0",
   "private": true,
   "license": "AGPL-3.0-or-later",
-  "description": "TexIt — open-source collaborative LaTeX editor",
+  "description": "TexIt \u2014 open-source collaborative LaTeX editor",
   "author": "Fernando Daza (https://github.com/fernandevdaza)",
   "homepage": "https://github.com/fernandevdaza/texit",
   "main": "dist-electron/main.cjs",

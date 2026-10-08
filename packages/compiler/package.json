@@ -17,6 +17,7 @@
   "dependencies": {
     "@texit/core": "workspace:*",
     "@texit/plugin-api": "workspace:*",
+    "fflate": "^0.8.3",
     "texlyre-busytex": "^1.4.0"
   },
   "devDependencies": {

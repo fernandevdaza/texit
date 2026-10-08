@@ -149,6 +149,8 @@ export async function loadDataPackageIndex(
 
 const SCANNED_EXTENSIONS = new Set(['tex', 'ltx', 'latex', 'sty', 'cls', 'dtx', 'bbx', 'cbx']);
 const PLAIN_OPTION_RE = /^[A-Za-z][A-Za-z-]*$/;
+const BABEL_NON_LANGUAGE_RE =
+  /^(?:[a-z]{2}-[a-z]+|activeacute|activegrave|KeepShorthandsActive|noconfigs|showlanguages|silent|safe|math|shorthands|base|nocase|hyphenmap|bidi|layout|provide|import|main|headfoot|config|strings|debug)$/;
 
 function requirementsOfScan(scan: LatexScan, out: Set<string>): void {
   for (const c of scan.classes) out.add(`${c}.cls`);
@@ -161,7 +163,8 @@ function requirementsOfScan(scan: LatexScan, out: Set<string>): void {
   for (const opt of packageOptions(scan, 'babel')) {
     const main = /^main\s*=\s*([A-Za-z-]+)$/.exec(opt)?.[1];
     if (main) out.add(`${main}.ldf`);
-    else if (PLAIN_OPTION_RE.test(opt)) out.add(`${opt}.ldf`);
+    // Language-specific modifiers (`es-tabla`, `es-noquoting`, `fr-…`) and babel's own options are not languages.
+    else if (PLAIN_OPTION_RE.test(opt) && !BABEL_NON_LANGUAGE_RE.test(opt)) out.add(`${opt}.ldf`);
   }
   for (const opt of packageOptions(scan, 'biblatex')) {
     const m = /^(style|bibstyle|citestyle)\s*=\s*([\w-]+)$/.exec(opt);

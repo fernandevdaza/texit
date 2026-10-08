@@ -278,6 +278,9 @@ importers:
       '@texit/plugin-api':
         specifier: workspace:*
         version: link:../plugin-api
+      fflate:
+        specifier: ^0.8.3
+        version: 0.8.3
       texlyre-busytex:
         specifier: ^1.4.0
         version: 1.4.0

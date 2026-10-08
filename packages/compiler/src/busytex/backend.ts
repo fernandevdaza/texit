@@ -40,7 +40,7 @@ import {
   type TierSelection,
 } from './data-packages';
 import { allLogText, buildBusyTexLog, summarizeCommands } from './log';
-import { TexAddons, providedNames } from './addons';
+import { EMPTY_PLAN, TexAddons, providedNames, withPdfMapFiles, type AddonPlan } from './addons';
 import { BusyTexWorkerClient, type BusyTexAssetUrls, type BusyTexCompileInput, type BusyTexCompileOutput, type BusyTexDriver } from './worker-client';
 
 export interface BusyTexBackendOptions {
@@ -155,12 +155,12 @@ export class BusyTexBackend implements ExtendedCompileBackend {
     this.addons = new TexAddons(addonsUrl, this.fetchFn);
   }
 
-  /** Add-on files (e.g. `spanish.ldf`) the request needs, placed next to the main file. */
-  private async addonFiles(wanted: Iterable<string>, files: { path: string }[], mainPath: string): Promise<{ path: string; contents: Uint8Array }[]> {
-    const names = await this.addons.resolve(wanted, providedNames(files.map((f) => f.path)));
-    if (!names.length) return [];
+  /** Load the planned add-ons as worker files, placed next to the main file. */
+  private async addonFiles(plan: AddonPlan, files: { path: string }[], mainPath: string): Promise<{ path: string; contents: Uint8Array }[]> {
+    if (!plan.files.length && !plan.bundles.length) return [];
     const dir = dirname(mainPath);
-    return (await this.addons.load(names)).map((f) => ({ path: dir ? `${dir}/${f.name}` : f.name, contents: f.content }));
+    const loaded = await this.addons.loadPlan(plan, providedNames(files.map((f) => f.path)));
+    return loaded.map((f) => ({ path: dir ? `${dir}/${f.name}` : f.name, contents: f.content }));
   }
 
   // ───────────────────────────── public API ─────────────────────────────
@@ -287,18 +287,31 @@ export class BusyTexBackend implements ExtendedCompileBackend {
       const index = await this.loadIndex();
       const sel = await this.selectForFiles(files, req.engine);
       emit(this.describeSelection(sel, index));
-      // Files no data package has (babel languages, IEEEtran…) may come from the add-ons pack.
-      const addonFiles = await this.addonFiles(sel.unknown, files, mainPath);
-      const addonNames = new Set(addonFiles.map((f) => f.path.split('/').pop()!));
-      if (addonFiles.length) emit(`[busytex] Add-ons: ${[...addonNames].join(', ')}`);
-      const stillUnknown = sel.unknown.filter((u) => !u.split('|').some((alt) => addonNames.has(alt)));
+      // Files no data package has (babel languages, IEEEtran, newtx…) come from the add-ons pack.
+      const plan = sel.addons ?? EMPTY_PLAN;
+      const addonFiles = await this.addonFiles(plan, files, mainPath);
+      if (addonFiles.length) {
+        const shownNames = [...plan.bundles.map((b) => `${b} (bundle)`), ...plan.files];
+        emit(`[busytex] Add-ons: ${shownNames.slice(0, 12).join(', ')}${shownNames.length > 12 ? ', …' : ''}`);
+      }
+      const satisfied = new Set(plan.satisfied);
+      const stillUnknown = sel.unknown.filter((u) => !satisfied.has(u));
       if (stillUnknown.length && index?.complete) {
         const shown = stillUnknown.slice(0, 8).map((u) => u.split('|')[0]).join(', ');
         emit(`[busytex] Not in any TeX Live data package${this.opts.remoteEndpoint ? ' (will try the remote endpoint)' : ''}: ${shown}${stillUnknown.length > 8 ? ', …' : ''}`);
       }
 
       const input: BusyTexCompileInput = {
-        files: [...files.map((f) => ({ path: f.path, contents: typeof f.content === 'string' ? f.content : compactBytes(f.content) })), ...addonFiles],
+        files: [
+          ...files.map((f) => {
+            const contents = typeof f.content === 'string' ? f.content : compactBytes(f.content);
+            // Font bundles (newtx…) need their map files activated in pdfTeX.
+            return f.path === mainPath && plan.pdfMapFiles.length && typeof contents === 'string'
+              ? { path: f.path, contents: withPdfMapFiles(contents, plan.pdfMapFiles) }
+              : { path: f.path, contents };
+          }),
+          ...addonFiles,
+        ],
         mainTexPath: mainPath,
         bibtex: bibTool === 'bibtex' || bibTool === 'biber',
         biber: bibTool === 'biber',
@@ -318,7 +331,8 @@ export class BusyTexBackend implements ExtendedCompileBackend {
       // A file only discovered at run time (\babelprovide, \selectlanguage, nested packages…) may be an add-on.
       if (!success) {
         const missing = findMissingFiles(allLogText(out.logs, out.log));
-        const extra = await this.addonFiles(missing, input.files, mainPath);
+        const retryPlan = await this.addons.plan(missing, providedNames(input.files.map((f) => f.path)));
+        const extra = retryPlan.bundles.length ? [] : await this.addonFiles(retryPlan, input.files, mainPath);
         if (extra.length) {
           emit(`[busytex] Missing ${extra.map((f) => f.path.split('/').pop()).join(', ')} — retrying with TeX Live add-ons`);
           input.files = [...input.files, ...extra];
@@ -384,14 +398,20 @@ export class BusyTexBackend implements ExtendedCompileBackend {
     return Math.max(0, i);
   }
 
-  private async selectForFiles(files: CompileRequest['files'], engine: TexEngine): Promise<TierSelection> {
+  private async selectForFiles(files: CompileRequest['files'], engine: TexEngine): Promise<TierSelection & { addons?: AddonPlan }> {
     const index = await this.loadIndex();
-    const required = collectRequirements(normalizeFiles(files));
-    const sel = selectDataPackageTier(required, index, {
-      minTier: this.minTierFor(engine),
-      hasRemoteEndpoint: !!this.opts.remoteEndpoint,
-    });
-    return { ...sel, tier: Math.min(sel.tier, this.tiers.length - 1) };
+    const normalized = normalizeFiles(files);
+    const required = collectRequirements(normalized);
+    const opts = { minTier: this.minTierFor(engine), hasRemoteEndpoint: !!this.opts.remoteEndpoint };
+    let sel = selectDataPackageTier(required, index, opts);
+    // Add-ons can satisfy unknown files; their own TeX Live dependencies may need a bigger tier.
+    const addons = await this.addons.plan(sel.unknown, providedNames(normalized.map((f) => f.path)));
+    if (addons.requires.length) {
+      const extended = [...new Set([...required.filter((r) => !addons.satisfied.includes(r)), ...addons.requires])];
+      const again = selectDataPackageTier(extended, index, opts);
+      sel = { ...again, unknown: [...new Set([...again.unknown, ...sel.unknown])] };
+    }
+    return { ...sel, addons, tier: Math.min(sel.tier, this.tiers.length - 1) };
   }
 
   private describeSelection(sel: TierSelection, index: DataPackageIndex | null): string {
