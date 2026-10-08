@@ -124,11 +124,12 @@ página de **[Releases](https://github.com/fernandevdaza/texit/releases)**:
 | Sistema | Archivo |
 |---|---|
 | macOS (Apple Silicon / Intel) | `TexIt-x.y.z-mac-arm64.dmg` · `TexIt-x.y.z-mac-x64.dmg` (y `.zip`) |
-| Windows (x64 / ARM64) | `TexIt-x.y.z-win-x64.exe` · `TexIt-x.y.z-win-arm64.exe` · `TexIt-x.y.z-portable.exe` |
+| Windows (x64 / ARM64) | `TexIt-x.y.z-win.exe` (x64 + ARM64) · `TexIt-x.y.z-portable.exe` |
 | Linux (x64) | `TexIt-x.y.z-linux-x86_64.AppImage` · `…-linux-amd64.deb` · `…-linux-x86_64.rpm` |
 
 > [!NOTE]
-> Las apps todavía no están firmadas. **macOS:** la primera vez, clic derecho sobre la app → *Abrir*
+> Las apps aún no están firmadas con un certificado de pago (en macOS llevan una firma ad-hoc). **macOS:** si dice que
+> no puede verificar al desarrollador, abre *Ajustes del Sistema → Privacidad y seguridad* y pulsa **Abrir igualmente**
 > (o ejecuta `xattr -cr /Applications/TexIt.app`). **Windows:** si aparece SmartScreen, pulsa *Más información* →
 > *Ejecutar de todas formas*.
 

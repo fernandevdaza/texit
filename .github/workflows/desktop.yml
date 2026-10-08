@@ -63,7 +63,8 @@ jobs:
         run: pnpm --filter @texit/desktop build
       - name: Package with electron-builder
         working-directory: apps/desktop
-        run: pnpm exec electron-builder --config electron-builder.yml ${{ matrix.args }} --publish ${{ startsWith(github.ref, 'refs/tags/v') && 'always' || 'never' }}
+        # Never publish from the matrix (three jobs racing on one release); the `release` job below does it.
+        run: pnpm exec electron-builder --config electron-builder.yml ${{ matrix.args }} --publish never
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
@@ -78,4 +79,34 @@ jobs:
             apps/desktop/release/*.AppImage
             apps/desktop/release/*.deb
             apps/desktop/release/*.rpm
+            apps/desktop/release/*.blockmap
+            apps/desktop/release/latest*.yml
           if-no-files-found: error
+
+  # On a vX.Y.Z tag: gather every installer (and the electron-updater metadata) into one GitHub release.
+  release:
+    name: Publish GitHub release
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Create the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          ls -la dist
+          # Release notes: the CHANGELOG section of this version, plus install notes.
+          VERSION="${TAG#v}"
+          awk -v v="$VERSION" '/^## /{p = index($0, "[" v "]") || index($0, " " v " ") || $0 ~ ("^## " v "( |$)")} p' CHANGELOG.md > notes.md || true
+          cat .github/release-notes-footer.md >> notes.md
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" dist/* --clobber
+          else
+            gh release create "$TAG" dist/* --title "TexIt $VERSION" --notes-file notes.md --verify-tag
+          fi

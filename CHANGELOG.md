@@ -5,11 +5,14 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
-## [0.1.0] — 2026-10-07
+## [0.1.0] — 2026-10-08
 
 First public release.
 
 ### Compilation
+- TeX Live add-ons for the in-browser compiler, injected only when a document needs them: babel language files for
+  30 languages (Spanish, Portuguese, French, German, Italian, Catalan…), IEEEtran and the newtx (Times) fonts.
+- `\usepackage[T1]{fontenc}` without a font package selects the TeX Live set that ships cm-super automatically.
 - TeX Live 2026 compiled to WebAssembly (TeXlyre BusyTeX) running in a Web Worker: pdfLaTeX, XeLaTeX and LuaLaTeX with
   BibTeX, Biber and makeindex. Package sets (basic / recommended / extra) are chosen from the packages a project uses
   and cached by the browser for offline use.

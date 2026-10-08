@@ -43,6 +43,10 @@ fileAssociations:
     icon: build/icon
 
 mac:
+  # Ad-hoc signature ("-"): no Apple Developer ID is configured. Apple Silicon refuses to run apps whose
+  # signature is missing/broken ("TexIt is damaged"); an ad-hoc signed app opens after the usual Gatekeeper
+  # confirmation. Replace with a Developer ID + notarize when a certificate is available.
+  identity: "-"
   category: public.app-category.productivity
   icon: build/icon.icns
   target:

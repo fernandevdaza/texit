@@ -120,12 +120,13 @@ Prefer a regular app with real folders on disk? Installers for **macOS, Windows 
 | System | File |
 |---|---|
 | macOS (Apple Silicon / Intel) | `TexIt-x.y.z-mac-arm64.dmg` · `TexIt-x.y.z-mac-x64.dmg` (and `.zip`) |
-| Windows (x64 / ARM64) | `TexIt-x.y.z-win-x64.exe` · `TexIt-x.y.z-win-arm64.exe` · `TexIt-x.y.z-portable.exe` |
+| Windows (x64 / ARM64) | `TexIt-x.y.z-win.exe` (x64 + ARM64) · `TexIt-x.y.z-portable.exe` |
 | Linux (x64) | `TexIt-x.y.z-linux-x86_64.AppImage` · `…-linux-amd64.deb` · `…-linux-x86_64.rpm` |
 
 > [!NOTE]
-> The apps are not code-signed yet. **macOS:** the first time, right-click the app → *Open*
-> (or run `xattr -cr /Applications/TexIt.app`). **Windows:** if SmartScreen appears, click *More info* → *Run anyway*.
+> The apps are not signed with a paid certificate yet (macOS builds carry an ad-hoc signature). **macOS:** if it says
+> it can't verify the developer, open *System Settings → Privacy & Security* and click **Open Anyway** (or run
+> `xattr -cr /Applications/TexIt.app`). **Windows:** if SmartScreen appears, click *More info* → *Run anyway*.
 
 The desktop app is the same app as the web version, plus: projects as **folders on disk** (synced both ways while
 open), **native TeX** (TeX Live / MiKTeX / MacTeX through `latexmk`, or Tectonic — install one of them; the browser
