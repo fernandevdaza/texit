@@ -1,0 +1,152 @@
+<!doctype html>
+<!--
+  README banner (1280×480). Rendered to docs/public/banner.png and banner.es.png by
+  `ONLY=banner pnpm screenshots`. Open it directly in a browser with ?lang=en|es to tweak it.
+  Fonts come from the web app's dependencies (Inter, JetBrains Mono, KaTeX's Computer Modern).
+-->
+<html lang="en"><head><meta charset="utf-8">
+<link rel="stylesheet" href="../../apps/web/node_modules/katex/dist/katex.min.css">
+<script src="../../apps/web/node_modules/katex/dist/katex.min.js"></script>
+<style>
+@font-face { font-family: I; src: url(../../apps/web/node_modules/@fontsource-variable/inter/files/inter-latin-wght-normal.woff2) format('woff2'); font-weight: 100 900; }
+@font-face { font-family: M; src: url(../../apps/web/node_modules/@fontsource-variable/jetbrains-mono/files/jetbrains-mono-latin-wght-normal.woff2) format('woff2'); font-weight: 100 800; }
+@font-face { font-family: CM; src: url(../../apps/web/node_modules/katex/dist/fonts/KaTeX_Main-Regular.woff2) format('woff2'); }
+@font-face { font-family: CM; src: url(../../apps/web/node_modules/katex/dist/fonts/KaTeX_Main-Bold.woff2) format('woff2'); font-weight: 700; }
+@font-face { font-family: CM; src: url(../../apps/web/node_modules/katex/dist/fonts/KaTeX_Main-Italic.woff2) format('woff2'); font-style: italic; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 1280px; height: 480px; overflow: hidden; background: #06050d; }
+.b { position: relative; width: 1280px; height: 480px; overflow: hidden; font-family: I, system-ui, sans-serif; color: #e4e2f3;
+  background:
+    radial-gradient(760px 420px at 92% 112%, rgba(124, 58, 237, .50), transparent 62%),
+    radial-gradient(560px 300px at 70% -18%, rgba(79, 70, 229, .34), transparent 64%),
+    radial-gradient(520px 320px at -8% 118%, rgba(99, 102, 241, .16), transparent 62%),
+    #06050d; }
+.grid { position: absolute; inset: 0;
+  background-image: linear-gradient(rgba(167,139,250,.055) 1px, transparent 1px), linear-gradient(90deg, rgba(167,139,250,.055) 1px, transparent 1px);
+  background-size: 32px 32px; mask-image: radial-gradient(900px 480px at 30% 40%, rgba(0,0,0,.9), transparent 75%); }
+
+/* ── left column ─────────────────────────────── */
+.left { position: absolute; left: 68px; top: 96px; width: 620px; }
+.logo { display: flex; align-items: center; gap: 22px; }
+.logo img { width: 84px; height: 84px; filter: drop-shadow(0 10px 28px rgba(109, 61, 240, .55)); margin-left: -8px; }
+.word { font-family: CM, serif; font-size: 82px; line-height: 1; color: #f7f5ff; letter-spacing: -0.01em; white-space: nowrap; }
+.word .e { display: inline-block; transform: translateY(.2em); margin: 0 -.06em 0 -.1em; }
+.word .it { font-style: italic; color: #c4b5fd; margin-left: .04em; }
+.tag { margin-top: 30px; font-size: 27px; font-weight: 560; letter-spacing: -0.018em; color: #ecebf8; }
+.tag em { font-family: CM, serif; font-style: italic; font-weight: 400; font-size: 31px; color: #c4b5fd; letter-spacing: 0; }
+.sub { margin-top: 14px; font-family: M, monospace; font-size: 13px; letter-spacing: .06em; color: #8f8ab0; }
+.chips { margin-top: 30px; display: flex; flex-wrap: nowrap; gap: 7px; }
+.chip { display: inline-flex; align-items: center; gap: 8px; height: 30px; padding: 0 11px; border-radius: 999px; font-size: 12.5px; white-space: nowrap; font-weight: 560; color: #e4e0ff;
+  background: linear-gradient(180deg, rgba(139, 92, 246, .16), rgba(99, 102, 241, .08)); border: 1px solid rgba(167, 139, 250, .32);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.06); }
+.chip i { width: 6px; height: 6px; border-radius: 50%; background: #a78bfa; box-shadow: 0 0 10px #a78bfa; }
+.chip:nth-child(2) i { background: #34d399; box-shadow: 0 0 10px #34d399; }
+.chip:nth-child(3) i { background: #f0abfc; box-shadow: 0 0 10px #f0abfc; }
+.chip:nth-child(4) i { background: #60a5fa; box-shadow: 0 0 10px #60a5fa; }
+.chip:nth-child(5) i { background: #fbbf24; box-shadow: 0 0 10px #fbbf24; }
+
+/* ── editor window ───────────────────────────── */
+.editor { position: absolute; left: 652px; top: 92px; width: 400px; height: 300px; border-radius: 14px; overflow: hidden;
+  background: linear-gradient(180deg, rgba(22, 19, 40, .94), rgba(14, 12, 27, .96)); border: 1px solid rgba(167, 139, 250, .28);
+  box-shadow: 0 30px 70px rgba(0,0,0,.55), 0 0 0 1px rgba(0,0,0,.4), 0 0 60px rgba(109, 61, 240, .18); }
+.bar { height: 38px; display: flex; align-items: center; gap: 7px; padding: 0 14px; border-bottom: 1px solid rgba(167,139,250,.14); background: rgba(255,255,255,.02); }
+.bar .d { width: 10px; height: 10px; border-radius: 50%; background: #3a3556; }
+.bar .tab { margin-left: 12px; font-family: M, monospace; font-size: 11.5px; color: #d9d4f5; padding: 4px 10px; border-radius: 6px; background: rgba(167,139,250,.12); }
+.bar .tab.off { margin-left: 0; color: #6f6a90; background: none; }
+.code { position: relative; padding: 14px 0 0; font-family: M, monospace; font-size: 12.6px; line-height: 21.5px; color: #cfcbe6; white-space: pre; }
+.ln { display: inline-block; width: 38px; padding-right: 12px; text-align: right; color: #4a4566; }
+.row.cur { background: rgba(167, 139, 250, .07); }
+.c { color: #c4b5fd; }   /* command */
+.k { color: #f0abfc; }   /* environment name */
+.m { color: #7dd3fc; }   /* math */
+.n { color: #fbbf24; }   /* number */
+.g { color: #6f6a90; }   /* braces / punctuation */
+.caret { display: inline-block; width: 2px; height: 16px; background: #34d399; vertical-align: -3px; position: relative; }
+.flag { position: absolute; left: 0; top: 16px; font-family: I, sans-serif; font-size: 10px; font-weight: 650; color: #052e1f; background: #34d399; padding: 1px 6px; border-radius: 0 4px 4px 4px; white-space: nowrap; }
+.status { position: absolute; left: 0; right: 0; bottom: 0; height: 30px; display: flex; align-items: center; gap: 14px; padding: 0 14px; border-top: 1px solid rgba(167,139,250,.14);
+  font-family: M, monospace; font-size: 10.5px; color: #8f8ab0; background: rgba(0,0,0,.18); }
+.status .ok { color: #34d399; }
+.status .sp { flex: 1; }
+
+/* ── PDF page ────────────────────────────────── */
+.pdf { position: absolute; left: 960px; top: 52px; width: 272px; height: 368px; border-radius: 6px; background: #fdfcf9; color: #1b1a22;
+  box-shadow: 0 34px 80px rgba(0,0,0,.6), 0 0 0 1px rgba(255,255,255,.4), 0 0 80px rgba(139, 92, 246, .25); padding: 34px 28px 0 30px; font-family: CM, serif; }
+.pdf .title { text-align: center; font-size: 17px; line-height: 1.2; }
+.pdf .author { text-align: center; font-size: 10.5px; margin-top: 6px; color: #3a3946; }
+.pdf h2 { font-family: CM, serif; font-weight: 700; font-size: 12.5px; margin-top: 20px; }
+.pdf h2 span { margin-right: 10px; }
+.pdf p { font-size: 10.2px; line-height: 1.5; margin-top: 6px; text-align: justify; hyphens: auto; color: #24232c; }
+.pdf .eq { position: relative; margin: 12px 0 10px; text-align: center; font-size: 12.5px; }
+.pdf .eq .no { position: absolute; right: 0; top: 50%; transform: translateY(-50%); font-size: 10.2px; }
+.pdf .hl { position: absolute; left: 22px; right: 18px; height: 0; top: 0; border-radius: 4px; background: rgba(250, 204, 21, .16); border: 1px solid rgba(234, 179, 8, .38); }
+.pdf .lines i { display: block; height: 5px; border-radius: 3px; background: #e6e3ec; margin-top: 8px; }
+.pdf .pg { position: absolute; bottom: 14px; left: 0; right: 0; text-align: center; font-size: 9.5px; color: #55545f; }
+
+/* SyncTeX link between source and PDF */
+.link { position: absolute; left: 1006px; top: 232px; }
+.badge { position: absolute; left: 892px; top: 410px; display: flex; align-items: center; gap: 8px; height: 30px; padding: 0 12px; border-radius: 8px;
+  font-family: M, monospace; font-size: 11px; color: #d9d4f5; background: rgba(20, 17, 36, .92); border: 1px solid rgba(167,139,250,.3); box-shadow: 0 12px 30px rgba(0,0,0,.45); }
+.badge b { color: #34d399; font-weight: 600; }
+</style></head>
+<body><div class="b"><div class="grid"></div>
+  <div class="left">
+    <div class="logo"><img src="../../apps/web/public/logo.svg" alt=""><div class="word">T<span class="e">e</span>x<span class="it">It</span></div></div>
+    <div class="tag" data-en="The LaTeX studio that &lt;em&gt;stays yours.&lt;/em&gt;" data-es="El estudio de LaTeX que &lt;em&gt;sigue siendo tuyo.&lt;/em&gt;"></div>
+    <div class="sub" data-en="Open source · Local-first · Web, macOS, Windows &amp;amp; Linux" data-es="Código abierto · Local-first · Web, macOS, Windows y Linux"></div>
+    <div class="chips">
+      <span class="chip"><i></i><span data-en="TeX Live in WASM" data-es="TeX Live en WASM"></span></span>
+      <span class="chip"><i></i><span data-en="P2P · E2E" data-es="P2P · E2E"></span></span>
+      <span class="chip"><i></i><span data-en="AI agents" data-es="Agentes de IA"></span></span>
+      <span class="chip"><i></i>MCP</span>
+      <span class="chip"><i></i>Plugins</span>
+    </div>
+  </div>
+
+  <div class="editor">
+    <div class="bar"><span class="d"></span><span class="d"></span><span class="d"></span><span class="tab">main.tex</span><span class="tab off">refs.bib</span></div>
+    <div class="code" id="code"></div>
+    <div class="status"><span class="ok">● pdfLaTeX</span><span>TeX Live 2026 · WASM</span><span class="sp"></span><span data-en="2 online" data-es="2 en línea"></span></div>
+  </div>
+
+  <div class="pdf">
+    <div class="hl"></div>
+    <div class="title" data-en="Notes on the Basel Problem" data-es="El problema de Basilea"></div>
+    <div class="author">Ada Lovelace</div>
+    <h2><span>1</span><span data-en="Introduction" data-es="Introducción"></span></h2>
+    <p data-en="Euler showed that the sum of the reciprocals of the squares converges:" data-es="Euler demostró que la suma de los recíprocos de los cuadrados converge:"></p>
+    <div class="eq"><span id="f1"></span><span class="no">(1)</span></div>
+    <p data-en="More generally, for every integer &lt;i&gt;k&lt;/i&gt; ≥ 1," data-es="Más en general, para todo entero &lt;i&gt;k&lt;/i&gt; ≥ 1,"></p>
+    <div class="eq"><span id="f2"></span><span class="no">(2)</span></div>
+    <div class="lines"><i style="width:100%"></i><i style="width:92%"></i><i style="width:64%"></i></div>
+    <div class="pg">1</div>
+  </div>
+
+  <div class="badge"><b>✓</b><span data-en="SyncTeX · source ⇄ PDF" data-es="SyncTeX · fuente ⇄ PDF"></span></div>
+</div>
+<script>
+  // ?lang=en | es  (default en)
+  const lang = new URLSearchParams(location.search).get('lang') === 'es' ? 'es' : 'en'
+  document.documentElement.lang = lang
+  for (const el of document.querySelectorAll('[data-en]')) el.innerHTML = el.dataset[lang]
+
+  const tr = { en: { sec: 'Introduction', txt: 'Euler showed that' }, es: { sec: 'Introducción', txt: 'Euler demostró que' } }[lang]
+  const L = [
+    `<span class="c">\\section</span><span class="g">{</span>${tr.sec}<span class="g">}</span>`,
+    `${tr.txt}<span class="caret"><span class="flag">Grace</span></span>`,
+    `<span class="c">\\begin</span><span class="g">{</span><span class="k">equation</span><span class="g">}</span>`,
+    `  <span class="c">\\sum</span><span class="m">_{n=<span class="n">1</span>}^{</span><span class="c">\\infty</span><span class="m">}</span> <span class="c">\\frac</span><span class="g">{</span><span class="n">1</span><span class="g">}{</span><span class="m">n^<span class="n">2</span></span><span class="g">}</span> <span class="m">=</span> <span class="c">\\frac</span><span class="g">{</span><span class="c">\\pi</span><span class="m">^<span class="n">2</span></span><span class="g">}{</span><span class="n">6</span><span class="g">}</span>`,
+    `<span class="c">\\end</span><span class="g">{</span><span class="k">equation</span><span class="g">}</span>`,
+    ``,
+    `<span class="c">\\zeta</span><span class="m">(2k) = (-<span class="n">1</span>)^{k+<span class="n">1</span>}</span> <span class="c">\\frac</span><span class="g">{</span><span class="m">B_{2k}</span>…`,
+    `<span class="c">\\cite</span><span class="g">{</span>euler1735<span class="g">}</span>`,
+  ]
+  document.getElementById('code').innerHTML = L.map((l, i) => `<div class="row${i === 3 ? ' cur' : ''}"><span class="ln">${i + 12}</span>${l}</div>`).join('')
+
+  katex.render(String.raw`\displaystyle\sum_{n=1}^{\infty} \frac{1}{n^2} = \frac{\pi^2}{6}`, document.getElementById('f1'))
+  katex.render(String.raw`\displaystyle\zeta(2k) = \frac{(-1)^{k+1} B_{2k}\,(2\pi)^{2k}}{2\,(2k)!}`, document.getElementById('f2'))
+  // Highlight equation (1) — the SyncTeX target of the current editor line.
+  const page = document.querySelector('.pdf').getBoundingClientRect()
+  const eq = document.getElementById('f1').getBoundingClientRect()
+  Object.assign(document.querySelector('.pdf .hl').style, { top: eq.top - page.top - 6 + 'px', height: eq.height + 12 + 'px' })
+</script>
+</body></html>

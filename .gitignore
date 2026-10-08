@@ -14,3 +14,4 @@ apps/web/public/busytex/
 !.env.example
 apps/desktop/web/
 release/
+.cache/

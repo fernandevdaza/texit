@@ -2,7 +2,7 @@
   "name": "texit",
   "private": true,
   "version": "0.1.0",
-  "description": "TexIt — open-source, local-first, collaborative LaTeX editor for web, macOS, Windows and Linux.",
+  "description": "TexIt — open-source, local-first LaTeX studio: TeX Live in the browser (WebAssembly), serverless end-to-end-encrypted collaboration, AI agents and plugins, for web, macOS, Windows and Linux.",
   "license": "AGPL-3.0-or-later",
   "type": "module",
   "packageManager": "pnpm@11.20.0",
@@ -18,11 +18,40 @@
     "desktop:dist": "pnpm --filter @texit/desktop dist",
     "assets:busytex": "node scripts/fetch-busytex-assets.mjs",
     "typecheck": "pnpm -r --parallel typecheck",
-    "test": "pnpm -r --parallel test"
+    "test": "pnpm -r --parallel test",
+    "screenshots": "node scripts/screenshots.mjs"
   },
   "devDependencies": {
+    "@types/node": "^22.15.0",
+    "puppeteer-core": "^25.12.0",
     "typescript": "~5.9.3",
-    "vitest": "^5.0.3",
-    "@types/node": "^22.15.0"
-  }
+    "vitest": "^5.0.3"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/fernandevdaza/texit.git"
+  },
+  "homepage": "https://github.com/fernandevdaza/texit",
+  "bugs": {
+    "url": "https://github.com/fernandevdaza/texit/issues"
+  },
+  "author": "Fernando Daza (https://github.com/fernandevdaza)",
+  "keywords": [
+    "latex",
+    "tex",
+    "overleaf-alternative",
+    "pdflatex",
+    "xelatex",
+    "lualatex",
+    "webassembly",
+    "collaborative-editing",
+    "crdt",
+    "yjs",
+    "webrtc",
+    "local-first",
+    "electron",
+    "ai",
+    "mcp",
+    "synctex"
+  ]
 }

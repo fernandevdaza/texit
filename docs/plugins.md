@@ -148,6 +148,7 @@ interface PluginManifest {
   permissions?: PluginPermission[];
   tags?: string[];
   settings?: PluginSettingDef[]; // rendered as a form in the plugin's Settings dialog
+  locales?: Record<string, PluginManifestLocalization>; // translations, see "Localization" (1.2.0)
 }
 interface PluginSettingDef {
   key: string; title: string; description?: string;
@@ -191,6 +192,7 @@ const text = await api.ui.prompt({ title: 'Name?', placeholder: 'Ada', value: ''
 const ok = await api.ui.confirm({ title: 'Delete?', message: 'Sure?', danger: true });
 await api.ui.modal({ title: 'Report', width: 720, render(container, close) { /* DOM */ return () => {}; } });
 api.ui.getTheme(); api.ui.onThemeChange((theme) => {});
+api.ui.getLocale(); api.ui.onLocaleChange((locale) => {});   // 1.2.0, see "Localization"
 ```
 
 Style DOM with the app's CSS variables so it follows light/dark themes: `var(--tx-fg)`,
@@ -293,9 +295,71 @@ api.latex.parseBibtex(source);  // [{ key, type, fields, line }]
 api.latex.symbols();            // [{ command, glyph, category, package?, name? }]
 ```
 
+## Localization
+
+TexIt's UI is available in English and Spanish (Settings → language). English is always the
+fallback. Plugins (API ≥ 1.2.0) localize in two complementary ways:
+
+**1. Manifest strings — declarative.** Add a `locales` map keyed by BCP-47 tag (`es`, `pt-BR`…;
+an exact tag wins, then the base language). The host uses it for the plugin list, the details
+dialog, the install prompt, the settings form, the command palette and panel tabs — even while
+the plugin is disabled, and it switches live when the user changes the language.
+
+```ts
+export default definePlugin({
+  id: 'com.example.wordgoal',
+  name: 'Word goal',
+  description: 'Track a word-count goal.',
+  settings: [{ key: 'goal', title: 'Goal', type: 'number', default: 1000 }],
+  locales: {
+    es: {
+      name: 'Meta de palabras',
+      description: 'Sigue una meta de número de palabras.',
+      commands: { show: 'Mostrar meta de palabras' },   // by command id (without the plugin prefix)
+      panels: { panel: 'Meta de palabras' },           // by panel id
+      settings: { goal: { title: 'Meta', description: '…', placeholder: '…', options: { value: 'label' } } },
+    },
+  },
+  activate(api) { /* … */ },
+});
+```
+
+```ts
+interface PluginManifestLocalization {
+  name?: string; description?: string;
+  commands?: Record<string, string>;
+  panels?: Record<string, string>;
+  settings?: Record<string, { title?: string; description?: string; placeholder?: string; options?: Record<string, string> }>;
+}
+```
+
+**2. Strings your plugin renders — at runtime.** Read `api.ui.getLocale()` (e.g. `'en'`, `'es'`)
+when rendering and re-render on `api.ui.onLocaleChange(cb)`: call `refresh()` on status items,
+re-render panels, re-register snippets whose descriptions are translated. Keep the
+`activate()`-time `title` of commands/panels in English — the host shows the `locales` version.
+
+```js
+const MESSAGES = { en: { words: '{n} words' }, es: { words: '{n} palabras' } };
+const tr = (key, vars = {}) => {
+  const l = api.ui.getLocale();
+  const table = MESSAGES[l] ?? MESSAGES[l.split('-')[0]] ?? MESSAGES.en;
+  return (table[key] ?? MESSAGES.en[key] ?? key).replace(/\{(\w+)\}/g, (m, k) => vars[k] ?? m);
+};
+const item = api.ui.registerStatusItem({ id: 'status', render: () => ({ text: tr('words', { n: 42 }) }) });
+api.ui.onLocaleChange(() => item.refresh());
+```
+
+The built-in plugins (`apps/web/src/plugins/builtin/`) follow exactly this pattern: each has its own
+`{ en, es }` message map plus a `locales` manifest entry, and share a tiny helper
+(`plugins/builtin/i18n.ts`: `createTr(api, messages)` and the React hook `useTr(api, messages)`,
+with `{name}` interpolation and `key_one`/`key_other` plurals via `Intl.PluralRules`). Don't
+translate LaTeX, code or brand names. When targeting older hosts, guard with
+`typeof api.ui.getLocale === 'function'`.
+
 ## Versioning
 
 `PLUGIN_API_VERSION` follows semver. Additive changes bump the minor version (1.1.0 added
 `api.latex`, `ui.showPanel/getTheme/onThemeChange`, `editor.wrapSelection/focus`,
-`settings.onDidChange`, status-item `refresh()`, manifest `settings`/`tags`). A plugin declaring
+`settings.onDidChange`, status-item `refresh()`, manifest `settings`/`tags`; 1.2.0 added
+`ui.getLocale/onLocaleChange` and manifest `locales`). A plugin declaring
 `apiVersion: '1.0.0'` keeps working on 1.x hosts.

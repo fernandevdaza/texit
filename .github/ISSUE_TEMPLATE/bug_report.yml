@@ -1,0 +1,67 @@
+name: "🐞 Bug report · Reportar un error"
+description: "Something is broken or behaves unexpectedly · Algo no funciona o se comporta de forma inesperada"
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting! English or Spanish are fine. · ¡Gracias por reportar! Puedes escribir en inglés o español.
+        If it involves a document, attach a minimal project (**Export .zip**) without private content. · Si involucra un documento, adjunta un proyecto mínimo (**Exportar .zip**) sin contenido privado.
+        Security problems: please use private reporting (see SECURITY.md), not a public issue. · Problemas de seguridad: usa el reporte privado (ver SECURITY.md), no un issue público.
+  - type: dropdown
+    id: area
+    attributes:
+      label: "Area · Área"
+      options:
+        - "Editor"
+        - "Compiler · Compilador"
+        - "PDF / SyncTeX"
+        - "Collaboration · Colaboración"
+        - "AI / MCP · IA / MCP"
+        - "Plugins"
+        - "Desktop app · App de escritorio"
+        - "Other · Otro"
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: "What happened? · ¿Qué pasó?"
+      description: "Include the error message or the relevant part of the compile log. · Incluye el mensaje de error o la parte relevante del log."
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: "Steps to reproduce · Pasos para reproducirlo"
+      placeholder: |
+        1. New project → Article
+        2. Add \usepackage{...}
+        3. Compile (⌘↩)
+        4. ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: "What did you expect? · ¿Qué esperabas?"
+  - type: dropdown
+    id: platform
+    attributes:
+      label: "Where? · ¿Dónde?"
+      options:
+        - "Web app (fernandevdaza.github.io/texit)"
+        - "Desktop — macOS"
+        - "Desktop — Windows"
+        - "Desktop — Linux"
+        - "Self-hosted / local dev"
+  - type: input
+    id: env
+    attributes:
+      label: "Version, browser and OS · Versión, navegador y sistema"
+      placeholder: "TexIt 0.1.0 · Chrome 141 · macOS 26"
+  - type: input
+    id: engine
+    attributes:
+      label: "Engine and backend (if compiling) · Motor y backend (si es de compilación)"
+      placeholder: "pdfLaTeX · browser (WASM) | XeLaTeX · native latexmk | LuaLaTeX · remote server"

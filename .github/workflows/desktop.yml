@@ -1,0 +1,76 @@
+name: Desktop apps
+
+# Builds the Electron installers for macOS, Windows and Linux on every push and pull request
+# (downloadable from the run's "Artifacts" section for 14 days). Pushing a tag vX.Y.Z also
+# attaches them to a draft GitHub release (electron-builder.yml → publish), published by hand
+# from the Releases tab. The apps are not code-signed (CSC_IDENTITY_AUTO_DISCOVERY=false).
+#
+# The TeX Live WASM bundle is NOT shipped in the installers (apps/desktop/scripts/copy-web.mjs skips
+# busytex/ unless TEXIT_BUNDLE_BUSYTEX=1): the desktop app compiles with the user's native TeX
+# (latexmk / tectonic) or a remote compile server.
+on:
+  push:
+    branches: ["**"]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: desktop-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            name: macOS (dmg · zip · Apple Silicon + Intel)
+            args: --mac
+            artifact: texit-macos
+          - os: windows-latest
+            name: Windows (installer · portable · x64 + ARM64)
+            args: --win
+            artifact: texit-windows
+          - os: ubuntu-latest
+            name: Linux (AppImage · deb · rpm · x64)
+            args: --linux
+            artifact: texit-linux
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Install rpm tooling
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y rpm
+      - run: pnpm install --frozen-lockfile
+      # build = web app (base "/", served through texit://app/) + esbuild main/preload + copy into apps/desktop/web
+      - name: Build the web app and the Electron main process
+        run: pnpm --filter @texit/desktop build
+      - name: Package with electron-builder
+        working-directory: apps/desktop
+        run: pnpm exec electron-builder --config electron-builder.yml ${{ matrix.args }} --publish ${{ startsWith(github.ref, 'refs/tags/v') && 'always' || 'never' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          retention-days: 14
+          path: |
+            apps/desktop/release/*.dmg
+            apps/desktop/release/*.zip
+            apps/desktop/release/*.exe
+            apps/desktop/release/*.AppImage
+            apps/desktop/release/*.deb
+            apps/desktop/release/*.rpm
+          if-no-files-found: error

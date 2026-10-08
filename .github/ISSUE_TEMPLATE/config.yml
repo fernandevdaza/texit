@@ -1,0 +1,11 @@
+blank_issues_enabled: true
+contact_links:
+  - name: "💬 Questions & help · Preguntas y ayuda"
+    url: https://github.com/fernandevdaza/texit/discussions
+    about: "Questions about using TexIt, LaTeX setups, plugins or ideas to discuss · Dudas sobre cómo usar TexIt, configuraciones de LaTeX, plugins o ideas para conversar"
+  - name: "📖 Documentation · Documentación"
+    url: https://github.com/fernandevdaza/texit/tree/main/docs
+    about: "Architecture and plugin guide · Arquitectura y guía de plugins"
+  - name: "🔒 Security vulnerability · Vulnerabilidad de seguridad"
+    url: https://github.com/fernandevdaza/texit/security/advisories/new
+    about: "Report privately, please · Repórtala en privado, por favor"

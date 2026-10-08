@@ -1,0 +1,74 @@
+name: Deploy web app to GitHub Pages
+
+# Builds the web app for https://fernandevdaza.github.io/texit/ and ships it together with the
+# TeX Live WASM bundle (BusyTeX), so the app compiles in the browser with no server.
+#
+# Size: the deployed site is ~700 MB (≈520 MB compressed download of BusyTeX assets, ~690 MB extracted,
+# the largest single file being texlive-extra.data ≈ 330 MB). GitHub Pages allows sites up to 1 GB and has a
+# soft bandwidth limit of 100 GB/month; browsers only download the package sets a project needs and cache them.
+# If the site outgrows Pages, host busytex/ elsewhere (any static host with CORS) and point the app at it.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      # The asset release follows the installed texlyre-busytex version (see scripts/fetch-busytex-assets.mjs).
+      - name: Resolve the BusyTeX version
+        id: busytex
+        run: echo "version=$(node -p "require('./packages/compiler/node_modules/texlyre-busytex/package.json').version")" >> "$GITHUB_OUTPUT"
+      - name: Cache the BusyTeX assets (~520 MB download)
+        uses: actions/cache@v4
+        with:
+          path: .cache/busytex
+          key: busytex-${{ steps.busytex.outputs.version }}
+      - name: Fetch the BusyTeX assets (skipped when cached)
+        run: node scripts/fetch-busytex-assets.mjs --dest .cache/busytex
+
+      - name: Build the web app
+        run: pnpm build
+        env:
+          TEXIT_BASE: /texit/
+      - name: Add the TeX Live WASM bundle to the site
+        run: |
+          rm -rf apps/web/dist/busytex
+          cp -R .cache/busytex apps/web/dist/busytex
+          # Source maps are not needed on the site (the source is public) and only take space.
+          find apps/web/dist -name '*.map' -delete
+          du -sh apps/web/dist apps/web/dist/busytex
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: apps/web/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

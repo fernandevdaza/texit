@@ -1,0 +1,31 @@
+name: "✨ Feature request · Idea"
+description: "Suggest a new feature, template or plugin idea · Propón una función, plantilla o idea de plugin"
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: "What do you need to do? · ¿Qué necesitas hacer?"
+      description: "Describe the use case (a paper, a thesis, a class, a team workflow…). · Describe el caso de uso (un artículo, una tesis, una clase, el flujo de un equipo…)."
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: "Proposal · Propuesta"
+      description: "How it should work. If it exists in Overleaf, Texifier or another editor, describe how it works there. · Cómo debería funcionar; si existe en Overleaf, Texifier u otro editor, cuéntanos cómo funciona allí."
+  - type: dropdown
+    id: plugin
+    attributes:
+      label: "Could it be a plugin? · ¿Podría ser un plugin?"
+      description: "See docs/plugins.md · Ver docs/plugins.md"
+      options:
+        - "Not sure · No sé"
+        - "Yes, but the plugin API is missing something · Sí, pero a la API de plugins le falta algo"
+        - "No, it needs a core change · No, requiere un cambio en el núcleo"
+  - type: checkboxes
+    id: help
+    attributes:
+      label: "Want to help? · ¿Quieres ayudar?"
+      options:
+        - label: "I'd like to implement it in a pull request · Me gustaría implementarlo con un pull request"
