@@ -9,7 +9,18 @@ import { cn } from '@/lib/cn';
 import type { TrysteroProvider } from './provider';
 import type { SignalingState } from './transport';
 import { createRoomProvider } from './session';
-import { deleteRoomRecord, findRoomRecordByRoom, parseInvite, saveRoomRecord } from './rooms';
+import { deleteRoomRecord, findRoomRecordByRoom, parseInvite, saveRoomRecord, type ParsedInvite, type RoomRecord } from './rooms';
+import { deriveShareSecrets, toBase64Url } from './crypto';
+
+/** Room-record credential fields for an invite (editors of signed rooms also keep the derived read secret + public key). */
+async function recordCredentials(invite: Extract<ParsedInvite, { ok: true }>): Promise<Pick<RoomRecord, 'secret' | 'protocol' | 'read' | 'publicKey' | 'viewOnly'>> {
+  if (invite.protocol === 2 && invite.credentials.protocol === 2 && 'master' in invite.credentials) {
+    const { read, publicKey } = await deriveShareSecrets(invite.credentials.master, invite.room);
+    return { protocol: 2, secret: invite.secretB64, read: toBase64Url(read), publicKey: toBase64Url(publicKey), viewOnly: false };
+  }
+  if (invite.protocol === 2) return { protocol: 2, secret: '', read: invite.readB64, publicKey: invite.publicKeyB64, viewOnly: true };
+  return { protocol: 1, secret: invite.secretB64, viewOnly: invite.viewOnly };
+}
 import { useT } from '@/lib/i18n';
 import { collabErrorText, strategyInline } from './i18n';
 
@@ -51,8 +62,8 @@ export function JoinRoute({ room }: { room: string }) {
       if (existing) {
         const summary = await getSummary(existing.projectId);
         if (summary && !summary.trashed) {
-          // An edit link upgrades a previous view-only join.
-          if (existing.viewOnly && !invite.viewOnly) await saveRoomRecord({ ...existing, viewOnly: false });
+          // An edit link upgrades a previous view-only join (signed rooms: now with the master secret).
+          if (existing.viewOnly && !invite.viewOnly) await saveRoomRecord({ ...existing, ...(await recordCredentials(invite)) });
           if (!cancelled) navigate(`/p/${existing.projectId}`, { replace: true });
           return;
         }
@@ -62,7 +73,7 @@ export function JoinRoute({ room }: { room: string }) {
       patch({ phase: 'signaling', peers: 0, progress: null, error: undefined });
       provider = createRoomProvider(doc, {
         room: invite.room,
-        secret: invite.secret,
+        credentials: invite.credentials,
         strategy: invite.strategy,
         role: 'guest',
         viewOnly: invite.viewOnly,
@@ -99,9 +110,8 @@ export function JoinRoute({ room }: { room: string }) {
           await saveRoomRecord({
             projectId: id,
             room: invite.room,
-            secret: invite.secretB64,
+            ...(await recordCredentials(invite)),
             role: 'guest',
-            viewOnly: invite.viewOnly,
             strategy: invite.strategy,
             createdAt: Date.now(),
           });

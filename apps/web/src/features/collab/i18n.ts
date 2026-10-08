@@ -91,6 +91,14 @@ registerMessages({
     'collab.viewOnlyWarnBody':
       "Peer-to-peer can't enforce permissions: the link still carries the decryption key and TexIt simply opens it read-only. Share it only with people you trust.",
     'collab.editLinkHint': 'Anyone with this link can open, decrypt and edit the project. Send it privately.',
+    'collab.viewOnlySignedTitle': 'Read-only, enforced.',
+    'collab.viewOnlySignedBody':
+      "This link can decrypt the project but can't change it: edits are signed with a key only editors have, and every collaborator rejects unsigned changes — even from a modified app.",
+    'collab.legacyRoomTitle': 'Older room without signatures.',
+    'collab.legacyRoomBody': 'Rotate the key to switch to a signed room with enforced read-only links (collaborators will need the new link).',
+    'collab.legacyRotate': 'Rotate key now',
+    'collab.readerNoWrite': 'You joined with a read-only link: chat and comments are disabled because readers cannot sign changes.',
+    'collab.err.rejected': 'Ignored changes from a read-only participant (they were not signed by an editor).',
     'collab.roleViewer': 'Viewer',
     'collab.roleOwner': 'Owner',
     'collab.roleEditor': 'Editor',
@@ -169,6 +177,7 @@ registerMessages({
     'collab.err.join': 'Could not join the collaboration room: {detail}',
     'collab.err.message': 'Collaboration message error: {detail}',
     'collab.err.decrypt': 'A peer sent data that could not be decrypted (it may be using an outdated invite link).',
+    'collab.err.rejectedShort': 'Ignored changes from a read-only participant.',
     'collab.err.apply': 'Could not apply a remote update: {detail}',
     'collab.err.newer': 'A collaborator is using a newer version of TexIt — please update.',
 
@@ -331,6 +340,14 @@ registerMessages({
     'collab.viewOnlyWarnBody':
       'En una red P2P no se pueden imponer permisos: el enlace sigue incluyendo la clave de descifrado y TexIt simplemente lo abre en solo lectura. Compártelo solo con personas de confianza.',
     'collab.editLinkHint': 'Cualquiera con este enlace puede abrir, descifrar y editar el proyecto. Envíalo en privado.',
+    'collab.viewOnlySignedTitle': 'Solo lectura garantizada.',
+    'collab.viewOnlySignedBody':
+      'Este enlace permite descifrar el proyecto pero no modificarlo: los cambios se firman con una clave que solo tienen los editores y todos los participantes rechazan los cambios sin firma, incluso si vienen de una app modificada.',
+    'collab.legacyRoomTitle': 'Sala antigua sin firmas.',
+    'collab.legacyRoomBody': 'Rota la clave para pasar a una sala firmada con enlaces de solo lectura garantizados (tus colaboradores necesitarán el enlace nuevo).',
+    'collab.legacyRotate': 'Rotar la clave ahora',
+    'collab.readerNoWrite': 'Entraste con un enlace de solo lectura: el chat y los comentarios están desactivados porque los lectores no pueden firmar cambios.',
+    'collab.err.rejected': 'Se ignoraron cambios de un participante de solo lectura (no estaban firmados por un editor).',
     'collab.roleViewer': 'Lector',
     'collab.roleOwner': 'Propietario',
     'collab.roleEditor': 'Editor',
@@ -406,6 +423,7 @@ registerMessages({
     'collab.err.join': 'No se pudo entrar a la sala de colaboración: {detail}',
     'collab.err.message': 'Error en un mensaje de colaboración: {detail}',
     'collab.err.decrypt': 'Un par envió datos que no se pudieron descifrar (puede que use un enlace de invitación antiguo).',
+    'collab.err.rejectedShort': 'Se ignoraron cambios de un participante de solo lectura.',
     'collab.err.apply': 'No se pudo aplicar una actualización remota: {detail}',
     'collab.err.newer': 'Un colaborador usa una versión más reciente de TexIt: actualiza la aplicación.',
 
@@ -497,6 +515,7 @@ export function collabErrorText(t: TFunction, error: string): string {
     [/^Collaboration message error: ([\s\S]*)$/, 'collab.err.message'],
     [/^Could not apply a remote update: ([\s\S]*)$/, 'collab.err.apply'],
     [/^A peer sent data that could not be decrypted/, 'collab.err.decrypt'],
+    [/^Ignored changes from a read-only participant/, 'collab.err.rejected'],
     [/^A collaborator is using a newer version of TexIt/, 'collab.err.newer'],
   ];
   for (const [re, key] of rules) {

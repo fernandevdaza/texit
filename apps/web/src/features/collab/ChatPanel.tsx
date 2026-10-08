@@ -5,7 +5,7 @@ import { useWorkspace } from '@/state/workspace';
 import { Avatar, Button, EmptyState, IconButton, PanelHeader } from '@/ui';
 import { cn } from '@/lib/cn';
 import { getChat, isValidMessage, MAX_CHAT_LENGTH, sendChatMessage, setLastRead, type ChatMessage } from './chat';
-import { openShareDialog, useCollab } from './session';
+import { openShareDialog, useCollab, useReaderLocked } from './session';
 import { useCollabSettings } from './settings';
 import { intlLocale, useLocale, useT, type Locale } from '@/lib/i18n';
 import './i18n';
@@ -39,6 +39,7 @@ export function ChatPanel() {
   const project = useWorkspace((s) => s.project);
   const projectId = useWorkspace((s) => s.session?.id ?? null);
   const shared = useCollab((s) => !!s.record);
+  const readerLocked = useReaderLocked();
   const me = useCollabSettings((s) => s.localUserId);
   const messages = useChatMessages(project);
   const [draft, setDraft] = useState('');
@@ -126,6 +127,9 @@ export function ChatPanel() {
           })
         )}
       </div>
+      {readerLocked ? (
+        <p className="border-t border-border px-3 py-2.5 text-[11.5px] leading-relaxed text-fg-subtle">{t('collab.readerNoWrite')}</p>
+      ) : (
       <div className="border-t border-border p-2">
         <div className="flex items-end gap-1.5 rounded-lg border border-border bg-surface px-2 py-1.5 shadow-xs focus-within:border-accent focus-within:ring-3 focus-within:ring-accent/15">
           <textarea
@@ -152,6 +156,7 @@ export function ChatPanel() {
           </IconButton>
         </div>
       </div>
+      )}
     </div>
   );
 }

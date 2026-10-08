@@ -30,7 +30,8 @@ First public release.
 ### Collaboration
 - Serverless real-time collaboration: Yjs CRDT over WebRTC with Trystero signaling (Nostr, BitTorrent, MQTT relays).
 - End-to-end encryption (AES-256-GCM, key only in the invite link's URL fragment), live cursors and presence, chat,
-  review comments, follow mode and view-only invites.
+  review comments, follow mode and view-only invites enforced with Ed25519 signatures (readers never receive
+  the editing key; peers reject unsigned changes).
 
 ### AI and MCP
 - AI chat agent with project tools (list, read, edit, write, search, compile, diagnostics) and diff review; ask mode,

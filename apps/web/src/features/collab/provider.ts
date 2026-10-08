@@ -16,6 +16,14 @@
  *   HELLO (4)           JSON { v, clientId, role, viewOnly } — maps peer id ↔ Yjs client id
  *   PEERS (5)           JSON [peerId…] — the sender's direct neighbours (partial-mesh routing)
  *   BYE (6)             graceful leave
+ *   SIGNED (7)          [inner message][Ed25519 signature] — protocol 2 rooms
+ *
+ * Signed rooms (protocol 2, see crypto.ts): editors wrap every SYNC message in
+ * SIGNED. Peers apply document changes (sync step 2 / update) only from
+ * correctly signed messages; unsigned ones are dropped. Readers cannot sign:
+ * they only send sync step 1 (state-vector requests), awareness and control
+ * messages, never answer step 1 with their own state, and forward editors'
+ * signed updates verbatim (signature intact) for partial meshes.
  *
  * Protocol: on peer join both sides send HELLO + SYNC step 1 + awareness; a
  * step 1 is answered with step 2 (only what the asker lacks). Local updates
@@ -32,11 +40,11 @@ import * as decoding from 'lib0/decoding';
 import * as syncProtocol from 'y-protocols/sync';
 import * as awarenessProtocol from 'y-protocols/awareness';
 import { Awareness } from 'y-protocols/awareness';
-import { decrypt, deriveRoomKeys, encrypt, type RoomKeys } from './crypto';
+import { decrypt, deriveKeysFor, encrypt, signMessage, verifyMessage, type RoomCredentials, type RoomKeys } from './crypto';
 import { frameMessage, Reassembler, type ReassemblyProgress } from './framing';
 import type { SignalingState, Transport, TransportFactory } from './transport';
 
-export const PROTOCOL_VERSION = 1;
+export const PROTOCOL_VERSION = 2;
 
 export const MSG = {
   sync: 0,
@@ -45,7 +53,11 @@ export const MSG = {
   hello: 4,
   peers: 5,
   bye: 6,
+  signed: 7,
 } as const;
+
+/** y-protocols sync sub-types. */
+const SYNC_STEP1 = syncProtocol.messageYjsSyncStep1;
 
 export type ProviderStatus = 'disconnected' | 'connecting' | 'connected';
 
@@ -54,6 +66,8 @@ export interface PeerHello {
   clientId: number;
   role?: 'owner' | 'guest';
   viewOnly?: boolean;
+  /** Room protocol (2 = signed). */
+  protocol?: number;
 }
 
 export interface ProviderPeer {
@@ -63,6 +77,8 @@ export interface ProviderPeer {
   clientId: number | null;
   role?: 'owner' | 'guest';
   viewOnly?: boolean;
+  /** Room protocol announced in HELLO (2 = signed room). */
+  protocol?: number;
   /** We received this peer's sync step 2 (we have everything it had). */
   synced: boolean;
   joinedAt: number;
@@ -80,12 +96,16 @@ export interface ProviderEvents {
   /** Progress of a large incoming message (null when finished). */
   progress: ReassemblyProgress | null;
   error: string;
+  /** Document changes from this peer were dropped (missing / invalid signature). */
+  rejected: { peerId: string; reason: 'unsigned' | 'bad-signature' };
 }
 
 export interface TrysteroProviderOptions {
   roomId: string;
-  /** Room secret (never logged). */
-  secret: Uint8Array;
+  /** Legacy room secret (protocol 1). Prefer `credentials`. Never logged. */
+  secret?: Uint8Array;
+  /** Room credentials (protocol 1 or 2). Never logged. */
+  credentials?: RoomCredentials;
   transport: TransportFactory;
   /** Existing awareness (created and destroyed by the caller); otherwise one is created. */
   awareness?: Awareness;
@@ -161,6 +181,14 @@ export class TrysteroProvider {
   private backoffAttempt = 0;
   private stalledSince = 0;
   private decryptErrorReported = new Set<string>();
+  private rejectedReported = new Set<string>();
+  /**
+   * Readers of a signed room: the editors' signed messages that changed our
+   * document, replayed verbatim to peers that ask (sync step 1) — a reader can't
+   * produce a signed state of its own. Bounded; oldest entries are dropped.
+   */
+  private signedLog: Uint8Array[] = [];
+  private signedLogBytes = 0;
   private listeners: { [K in keyof ProviderEvents]?: Set<Listener<ProviderEvents[K]>> } = {};
 
   constructor(doc: Y.Doc, options: TrysteroProviderOptions) {
@@ -178,16 +206,15 @@ export class TrysteroProvider {
       minBackoff: options.reconnect?.minMs ?? 1000,
       maxBackoff: options.reconnect?.maxMs ?? 30_000,
     };
-    this.hello = { v: PROTOCOL_VERSION, clientId: doc.clientID, role: options.role, viewOnly: options.viewOnly };
+    const creds = copyCredentials(options);
+    this.hello = { v: PROTOCOL_VERSION, clientId: doc.clientID, role: options.role, viewOnly: options.viewOnly, protocol: creds.protocol };
     this.reassembler = new Reassembler({
       onProgress: (p) => {
         if (p.total < 8) return;
         this.emit('progress', p.received >= p.total ? null : p);
       },
     });
-    // Copy the secret: callers may wipe theirs.
-    const secret = new Uint8Array(options.secret);
-    this.keysPromise = deriveRoomKeys(secret, options.roomId).then((k) => (this.keys = k));
+    this.keysPromise = deriveKeysFor(creds, options.roomId).then((k) => (this.keys = k));
     this.keysPromise.catch(() => {});
 
     doc.on('update', this.onDocUpdate);
@@ -216,6 +243,14 @@ export class TrysteroProvider {
   }
   get connected(): boolean {
     return this.shouldConnect;
+  }
+  /** Signed room (protocol 2) — read-only access is enforced cryptographically. */
+  get signed(): boolean {
+    return this.keys?.protocol === 2;
+  }
+  /** False for readers of a signed room (their document changes are not sent nor accepted). */
+  get canWrite(): boolean {
+    return this.keys?.canWrite ?? true;
   }
   /** Key fingerprint (for out-of-band verification); null until derived. */
   get fingerprint(): string | null {
@@ -519,16 +554,63 @@ export class TrysteroProvider {
     if (!this._peers.has(peerId)) this.handlePeerJoin(peerId);
     const peer = this._peers.get(peerId);
     if (!peer) return;
+    await this.processMessage(plain, peer, keys, false);
+  }
+
+  private rememberSigned(message: Uint8Array) {
+    const MAX = 32 * 1024 * 1024;
+    this.signedLog.push(message);
+    this.signedLogBytes += message.length;
+    while (this.signedLogBytes > MAX && this.signedLog.length > 1) this.signedLogBytes -= this.signedLog.shift()!.length;
+  }
+
+  private reject(peerId: string, reason: 'unsigned' | 'bad-signature') {
+    this.emit('rejected', { peerId, reason });
+    if (this.rejectedReported.has(peerId)) return;
+    this.rejectedReported.add(peerId);
+    this.emit('error', 'Ignored changes from a read-only participant (they were not signed by an editor).');
+  }
+
+  private async processMessage(plain: Uint8Array, peer: ProviderPeer, keys: RoomKeys, trusted: boolean): Promise<void> {
+    const peerId = peer.id;
     const decoder = decoding.createDecoder(plain);
     const type = decoding.readVarUint(decoder);
     switch (type) {
+      case MSG.signed: {
+        if (keys.protocol !== 2 || trusted) break; // signatures only exist in signed rooms; no nesting
+        const inner = decoding.readVarUint8Array(decoder);
+        const signature = decoding.readVarUint8Array(decoder);
+        if (!(await verifyMessage(keys, inner, signature))) {
+          this.reject(peerId, 'bad-signature');
+          break;
+        }
+        await this.processMessage(inner, peer, keys, true);
+        const innerType = peekSyncType(inner);
+        if (!keys.canWrite && innerType !== SYNC_STEP1 && innerType !== -1) {
+          this.rememberSigned(plain);
+          // Readers can't re-sign: forward editors' signed updates verbatim so partial meshes still converge.
+          if (this.opts.forward && innerType === syncProtocol.messageYjsUpdate) {
+            const targets = this.forwardTargets(peerId);
+            if (targets.length) this.sendPlain(plain, targets);
+          }
+        }
+        break;
+      }
       case MSG.sync: {
+        const syncType = peekSyncType(plain);
+        // Signed rooms: only signed messages may change the document.
+        if (keys.protocol === 2 && !trusted && syncType !== SYNC_STEP1) {
+          this.reject(peerId, 'unsigned');
+          break;
+        }
         const encoder = encoding.createEncoder();
         encoding.writeVarUint(encoder, MSG.sync);
-        const syncType = syncProtocol.readSyncMessage(decoder, encoder, this.doc, this.origin(peerId), (err) =>
+        syncProtocol.readSyncMessage(decoder, encoder, this.doc, this.origin(peerId), (err) =>
           this.emit('error', `Could not apply a remote update: ${err.message}`),
         );
-        if (encoding.length(encoder) > 1) this.sendPlain(encoding.toUint8Array(encoder), peerId);
+        // Readers of a signed room can't sign their state: they replay the editors' signed messages instead.
+        if (encoding.length(encoder) > 1 && keys.canWrite) this.sendPlain(encoding.toUint8Array(encoder), peerId);
+        else if (!keys.canWrite && syncType === SYNC_STEP1) for (const m of this.signedLog) this.sendPlain(m, peerId);
         if (syncType === syncProtocol.messageYjsSyncStep2 && !peer.synced) {
           peer.synced = true;
           this.emitPeers();
@@ -554,6 +636,7 @@ export class TrysteroProvider {
         peer.clientId = h.clientId;
         peer.role = h.role;
         peer.viewOnly = !!h.viewOnly;
+        peer.protocol = typeof h.protocol === 'number' ? h.protocol : 1;
         this.emitPeers();
         break;
       }
@@ -576,6 +659,9 @@ export class TrysteroProvider {
   // ───────────────────────────── sending ─────────────────────────────
 
   private onDocUpdate = (update: Uint8Array, origin: unknown) => {
+    // Readers of a signed room: local changes are never accepted by peers, and
+    // remote updates are forwarded verbatim (signed) from processMessage.
+    if (this.keys && !this.keys.canWrite) return;
     if (origin instanceof RemoteOrigin) {
       if (origin.provider !== this || !this.opts.forward) return;
       const targets = this.forwardTargets(origin.peerId);
@@ -636,7 +722,9 @@ export class TrysteroProvider {
     const step = this.sendChain.then(async () => {
       if (this.transport !== t) return;
       const keys = this.keys ?? (await this.keysPromise);
-      const env = await encrypt(keys, plain);
+      // Signed rooms: editors sign every SYNC message (readers can't; peers drop their changes).
+      const payload = keys.signKey && plain[0] === MSG.sync ? encodeSigned(plain, await signMessage(keys, plain)) : plain;
+      const env = await encrypt(keys, payload);
       if (this.transport !== t) return;
       const frames = frameMessage(env, t.maxFrameBytes, this.msgId++ >>> 0);
       if (frames.length === 1) return { done: t.send(frames[0], target) };
@@ -720,6 +808,37 @@ function encodeAwareness(update: Uint8Array): Uint8Array {
   encoding.writeVarUint(e, MSG.awareness);
   encoding.writeVarUint8Array(e, update);
   return encoding.toUint8Array(e);
+}
+
+function encodeSigned(inner: Uint8Array, signature: Uint8Array): Uint8Array {
+  const e = encoding.createEncoder();
+  encoding.writeVarUint(e, MSG.signed);
+  encoding.writeVarUint8Array(e, inner);
+  encoding.writeVarUint8Array(e, signature);
+  return encoding.toUint8Array(e);
+}
+
+/** Sync sub-type of a SYNC message (step 1 / step 2 / update), or -1. */
+function peekSyncType(message: Uint8Array): number {
+  try {
+    const d = decoding.createDecoder(message);
+    if (decoding.readVarUint(d) !== MSG.sync) return -1;
+    return decoding.readVarUint(d);
+  } catch {
+    return -1;
+  }
+}
+
+function copyCredentials(o: TrysteroProviderOptions): RoomCredentials {
+  // Copies: callers may wipe theirs.
+  const c = o.credentials;
+  if (!c) {
+    if (!o.secret) throw new Error('Room credentials are required');
+    return { protocol: 1, secret: new Uint8Array(o.secret) };
+  }
+  if (c.protocol === 1) return { protocol: 1, secret: new Uint8Array(c.secret) };
+  if ('master' in c) return { protocol: 2, master: new Uint8Array(c.master) };
+  return { protocol: 2, read: new Uint8Array(c.read), publicKey: new Uint8Array(c.publicKey) };
 }
 
 function safeJson(s: string): unknown {

@@ -66,7 +66,7 @@
 - **Colaboración en tiempo real sin servidor.** Los proyectos son CRDT de [Yjs](https://yjs.dev) sincronizados por WebRTC
   (señalización con [Trystero](https://github.com/dmotz/trystero) a través de relés públicos Nostr, BitTorrent o MQTT),
   cifrados de extremo a extremo con AES-256-GCM. Cursores en vivo, chat, comentarios de revisión, modo seguir e
-  invitaciones de solo lectura.
+  invitaciones de solo lectura garantizadas con firmas Ed25519.
 - **Copiloto y agentes de IA — con tus modelos.** Un agente de chat que lee, edita y compila tu proyecto, mostrando
   cada cambio como un diff para revisar. Ediciones en línea con <kbd>⌘K</kbd>, autocompletado fantasma, «corregir errores de
   compilación» y «explicar selección». Usa tu propia clave, modelos locales o tu suscripción de ChatGPT / Claude / Gemini

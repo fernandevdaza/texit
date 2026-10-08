@@ -22,10 +22,10 @@ import { useWorkspace } from '@/state/workspace';
 import { useSettings } from '@/state/settings';
 import { t } from '@/lib/i18n';
 import { TrysteroProvider, type ProviderStatus } from './provider';
-import { fromBase64Url, generateRoomId, generateSecret, toBase64Url } from './crypto';
+import { deriveShareSecrets, generateRoomId, generateSecret, toBase64Url, type RoomCredentials } from './crypto';
 import { trysteroTransport, type SignalingState, type SignalingStrategy } from './transport';
 import { lightColor, transportOptionsFor, useCollabSettings } from './settings';
-import { buildInviteLink, deleteRoomRecord, getRoomRecord, saveRoomRecord, type RoomRecord } from './rooms';
+import { buildInviteLink, credentialsOf, deleteRoomRecord, getRoomRecord, isSignedRoom, saveRoomRecord, type RoomRecord } from './rooms';
 
 export type CollabUiStatus = 'off' | 'paused' | 'offline' | 'connecting' | 'waiting' | 'live';
 
@@ -134,11 +134,11 @@ export function getLiveAwareness(): Awareness | null {
 /** Create a provider for a room with the current transport settings. */
 export function createRoomProvider(
   doc: import('yjs').Doc,
-  opts: { room: string; secret: Uint8Array; strategy: SignalingStrategy; role: 'owner' | 'guest'; viewOnly: boolean; awareness?: Awareness },
+  opts: { room: string; credentials: RoomCredentials; strategy: SignalingStrategy; role: 'owner' | 'guest'; viewOnly: boolean; awareness?: Awareness },
 ): TrysteroProvider {
   return new TrysteroProvider(doc, {
     roomId: opts.room,
-    secret: opts.secret,
+    credentials: opts.credentials,
     awareness: opts.awareness,
     role: opts.role,
     viewOnly: opts.viewOnly,
@@ -230,7 +230,7 @@ async function connectLive(session: ProjectSession, record: RoomRecord) {
   publishLocalUser(awareness, record);
   const provider = createRoomProvider(session.project.doc, {
     room: record.room,
-    secret: fromBase64Url(record.secret),
+    credentials: credentialsOf(record),
     strategy: record.strategy,
     role: record.role,
     viewOnly: record.viewOnly,
@@ -339,20 +339,33 @@ export function initCollabSessions(): () => void {
 
 // ───────────────────────────── actions ─────────────────────────────
 
-/** Share the open project: new room id + 256-bit secret. */
+/** A new signed (protocol 2) room: master secret + derived read secret and public key. */
+export async function newSignedRoom(base: Omit<RoomRecord, 'room' | 'secret' | 'protocol' | 'read' | 'publicKey' | 'createdAt'>): Promise<RoomRecord> {
+  const room = generateRoomId();
+  const master = generateSecret();
+  const { read, publicKey } = await deriveShareSecrets(master, room);
+  return {
+    ...base,
+    room,
+    protocol: 2,
+    secret: toBase64Url(master),
+    read: toBase64Url(read),
+    publicKey: toBase64Url(publicKey),
+    createdAt: Date.now(),
+  };
+}
+
+/** Share the open project: new signed room (read-only access enforced with signatures). */
 export function startSharing(): Promise<void> {
   return serial(async () => {
     const session = useWorkspace.getState().session;
     if (!session || live) return;
-    const record: RoomRecord = {
+    const record = await newSignedRoom({
       projectId: session.id,
-      room: generateRoomId(),
-      secret: toBase64Url(generateSecret()),
       role: 'owner',
       viewOnly: false,
       strategy: useCollabSettings.getState().strategy,
-      createdAt: Date.now(),
-    };
+    });
     await saveRoomRecord(record);
     await updateSummary(session.id, { collab: { room: record.room, role: 'owner' } });
     await connectLive(session, record);
@@ -370,7 +383,8 @@ export function stopSharing(opts: { rotate?: boolean } = {}): Promise<void> {
     const prev = live?.record ?? (await getRoomRecord(session.id));
     await teardownLive();
     if (opts.rotate && prev) {
-      const record: RoomRecord = { ...prev, room: generateRoomId(), secret: toBase64Url(generateSecret()), createdAt: Date.now() };
+      // Rotating also upgrades legacy rooms to signed rooms (enforced read-only links).
+      const record = await newSignedRoom({ projectId: prev.projectId, role: prev.role, viewOnly: false, strategy: prev.strategy });
       await saveRoomRecord(record);
       await updateSummary(session.id, { collab: { room: record.room, role: prev.role } });
       await connectLive(session, record);
@@ -409,14 +423,27 @@ export function inviteLink(viewOnly = false): string | null {
   const s = useCollab.getState();
   const rec = s.record;
   if (!rec) return null;
-  // View-only guests can only pass on view-only links (best-effort).
+  // Readers can only pass on view-only links.
   const vo = viewOnly || rec.viewOnly;
   const name = useWorkspace.getState().meta?.name ?? t('collab.sharedProject');
-  return buildInviteLink({ room: rec.room, secret: rec.secret, name, viewOnly: vo, strategy: rec.strategy }, useCollabSettings.getState().inviteBaseUrl);
+  return buildInviteLink(
+    { room: rec.room, secret: rec.secret, name, viewOnly: vo, strategy: rec.strategy, protocol: rec.protocol, read: rec.read, publicKey: rec.publicKey },
+    useCollabSettings.getState().inviteBaseUrl,
+  );
 }
 
 export function isViewOnly(): boolean {
   return !!useCollab.getState().record?.viewOnly;
+}
+
+/** Reader of a signed room: document changes (chat, comments, edits) can't be signed, so peers would drop them. */
+export function useReaderLocked(): boolean {
+  return useCollab((s) => !!s.record?.viewOnly && isSignedRoom(s.record));
+}
+
+/** The open room enforces read-only access with signatures (protocol 2). */
+export function isSignedSession(): boolean {
+  return isSignedRoom(useCollab.getState().record);
 }
 
 export function openShareDialog(open = true) {

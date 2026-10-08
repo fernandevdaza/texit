@@ -16,7 +16,7 @@ import {
   setCommentResolved,
   type CommentThread,
 } from './comments';
-import { useCollab } from './session';
+import { useCollab, useReaderLocked } from './session';
 import { useCollabSettings } from './settings';
 import { t as tr, useLocale, useT } from '@/lib/i18n';
 import { richText } from './i18n';
@@ -98,7 +98,15 @@ export function revealThread(t: { fileId: string; id: string }) {
   requestAnimationFrame(select);
 }
 
-function Composer({
+/** Readers of a signed room can't sign comments (peers would drop them). */
+function Composer(props: Parameters<typeof ComposerInner>[0]) {
+  const readerLocked = useReaderLocked();
+  const t = useT();
+  if (readerLocked) return <p className="px-1 py-1.5 text-[11.5px] leading-relaxed text-fg-subtle">{t('collab.readerNoWrite')}</p>;
+  return <ComposerInner {...props} />;
+}
+
+function ComposerInner({
   placeholder,
   onSubmit,
   onCancel,

@@ -63,7 +63,7 @@
   source, or jump from the cursor to the PDF. Errors and warnings are parsed from the log and linked to the source.
 - **Real-time collaboration without a server.** Projects are [Yjs](https://yjs.dev) CRDTs synced over WebRTC
   ([Trystero](https://github.com/dmotz/trystero) signaling through public Nostr, BitTorrent or MQTT relays), end-to-end
-  encrypted with AES-256-GCM. Live cursors, chat, review comments, follow mode and view-only invites.
+  encrypted with AES-256-GCM. Live cursors, chat, review comments, follow mode and view-only invites enforced with Ed25519 signatures.
 - **AI copilot and agents — with your models.** A chat agent that reads, edits and compiles your project, with every
   change shown as a diff to review. <kbd>⌘K</kbd> inline edits, ghost-text completion, "fix compile errors" and
   "explain selection". Bring your own key, run local models, or use your ChatGPT / Claude / Gemini subscription on

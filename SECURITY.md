@@ -26,8 +26,10 @@ TexIt is local-first: there is no TexIt server and no account. It helps to know 
   key that encrypts every Yjs/awareness payload and the password that encrypts WebRTC signaling on the public relays
   (Nostr / BitTorrent trackers / MQTT). **Anyone who has the link can join and decrypt the project** — share it like a
   password. Relays and network observers see IP addresses and connection metadata, not content. **View-only invites
-  are best-effort**: a modified client holding the key can still write, because peer-to-peer rooms have no authority
-  to enforce permissions.
+  are enforced with signatures** (rooms created or rotated since 0.1.0's signed-room protocol): edit links carry a
+  master secret, view links only a read secret and the editors' Ed25519 public key; every document change is signed
+  by an editor and peers drop unsigned changes, so a modified reader client cannot write. Readers can still decrypt
+  everything they were invited to, and legacy rooms (no `p=2` in the link) remain best-effort until the key is rotated.
 - **Plugins run with page privileges.** Plugin permissions are a consent mechanism, not a sandbox: an installed plugin
   can do anything a script in the app can (read projects, make network requests). Only install plugins you trust.
   Bugs in the permission enforcement itself are in scope.
@@ -69,7 +71,9 @@ Resumen del modelo de amenazas:
 - **Datos locales:** los proyectos viven en IndexedDB (web) o en carpetas (escritorio) y no se cifran en reposo.
 - **Las invitaciones llevan la clave** en el fragmento de la URL (después de `#`, que el navegador nunca envía a un
   servidor): cualquiera con el enlace puede unirse y descifrar el proyecto. Los relés solo ven metadatos de conexión.
-  Las invitaciones de solo lectura son de mejor esfuerzo.
+  Las invitaciones de solo lectura se garantizan con firmas Ed25519: los lectores no reciben la clave de edición y
+  todos los participantes rechazan los cambios sin firma (las salas antiguas sin `p=2` lo siguen siendo de mejor
+  esfuerzo hasta rotar la clave).
 - **Los plugins se ejecutan con los privilegios de la página**; los permisos son consentimiento, no un sandbox.
 - **Claves de IA:** en escritorio, cifradas con el llavero del sistema; en la web, en memoria salvo que elijas
   recordarlas en el navegador. Nunca se sincronizan con colaboradores.

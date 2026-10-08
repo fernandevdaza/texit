@@ -17,6 +17,7 @@ import {
   RefreshCw,
   Share2,
   ShieldAlert,
+  ShieldCheck,
   Users,
 } from 'lucide-react';
 import { executeCommand } from '@/services/commands';
@@ -38,6 +39,7 @@ import {
   type CollabPeerView,
 } from './session';
 import { strategyInfo, useCollabSettings } from './settings';
+import { isSignedRoom } from './rooms';
 import { StatusDot, statusLabel } from './StatusItem';
 import { toggleFollow } from './follow';
 import { t as tr, useT } from '@/lib/i18n';
@@ -134,6 +136,7 @@ function InviteSection() {
   const [showQr, setShowQr] = useState(false);
   const [copied, setCopied] = useState(false);
   const viewOnly = mode === 'view' || record.viewOnly;
+  const signed = isSignedRoom(record);
   const link = inviteLink(viewOnly) ?? '';
   return (
     <section className="space-y-2">
@@ -181,13 +184,27 @@ function InviteSection() {
           <p className="text-[11.5px] leading-relaxed text-fg-subtle">{t('collab.qrHint')}</p>
         </div>
       )}
-      {viewOnly ? (
-        <p className="flex gap-1.5 rounded-lg bg-warning-soft px-2.5 py-2 text-[11.5px] leading-relaxed text-warning">
-          <ShieldAlert className="mt-px size-3.5 shrink-0" />
+      {viewOnly && signed ? (
+        <p className="flex gap-1.5 rounded-lg bg-success-soft px-2.5 py-2 text-[11.5px] leading-relaxed text-success">
+          <ShieldCheck className="mt-px size-3.5 shrink-0" />
           <span>
-            <b className="font-semibold">{t('collab.viewOnlyWarnTitle')}</b> {t('collab.viewOnlyWarnBody')}
+            <b className="font-semibold">{t('collab.viewOnlySignedTitle')}</b> {t('collab.viewOnlySignedBody')}
           </span>
         </p>
+      ) : viewOnly ? (
+        <div className="space-y-1.5 rounded-lg bg-warning-soft px-2.5 py-2 text-[11.5px] leading-relaxed text-warning">
+          <p className="flex gap-1.5">
+            <ShieldAlert className="mt-px size-3.5 shrink-0" />
+            <span>
+              <b className="font-semibold">{t('collab.legacyRoomTitle')}</b> {t('collab.legacyRoomBody')}
+            </span>
+          </p>
+          {record.role === 'owner' && (
+            <Button size="xs" variant="secondary" onClick={() => void stopSharing({ rotate: true })}>
+              {t('collab.legacyRotate')}
+            </Button>
+          )}
+        </div>
       ) : (
         <p className="text-[11.5px] leading-relaxed text-fg-subtle">{t('collab.editLinkHint')}</p>
       )}
