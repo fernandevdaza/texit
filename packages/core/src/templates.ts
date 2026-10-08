@@ -27,7 +27,6 @@ const blankMain = String.raw`% =================================================
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
 \usepackage{lmodern}
-\usepackage{microtype}
 \usepackage{amsmath,amssymb}
 \usepackage[margin=2.5cm]{geometry}
 \usepackage{hyperref}
