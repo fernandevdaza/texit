@@ -9,9 +9,13 @@ import { DEFAULT_REGISTRY_URL, usePluginPrefs } from './registry';
 import { pickPluginFile, promptInstallFromUrl } from './actions';
 import { ErrorNote, RegistryCard, StatusDot, openPluginDetails, pluginMenu } from './PluginCard';
 import { useFilteredPlugins, useRegistryEntries } from './PluginsPanel';
+import { useLocalizedManifest } from './localize';
+import { useT } from '@/lib/i18n';
+import './i18n';
 
 function Row({ entry }: { entry: PluginEntry }) {
-  const m = entry.manifest;
+  const t = useT();
+  const m = useLocalizedManifest(entry.manifest);
   return (
     <div className="py-2">
       <div className="flex items-center gap-3">
@@ -22,19 +26,19 @@ function Row({ entry }: { entry: PluginEntry }) {
           <div className="flex items-center gap-1.5">
             <span className="truncate text-[13px] font-medium text-fg">{m.name}</span>
             <span className="text-[11px] text-fg-subtle">v{m.version}</span>
-            {entry.builtin && <Badge>Built-in</Badge>}
+            {entry.builtin && <Badge>{t('plugins.builtin')}</Badge>}
             <StatusDot entry={entry} />
           </div>
           <div className="truncate text-[11.5px] text-fg-subtle">{m.description}</div>
         </div>
-        <IconButton label="Details & settings" size="xs" onClick={() => openPluginDetails(entry.id)}>
+        <IconButton label={t('plugins.detailsAndSettings')} size="xs" onClick={() => openPluginDetails(entry.id)}>
           <Settings2 />
         </IconButton>
         <DropdownMenu
           align="end"
           items={pluginMenu(entry)}
           trigger={
-            <button aria-label="More actions" className="flex size-6 items-center justify-center rounded-md text-fg-muted hover:bg-hover hover:text-fg">
+            <button aria-label={t('plugins.moreActions')} className="flex size-6 items-center justify-center rounded-md text-fg-muted hover:bg-hover hover:text-fg">
               <MoreHorizontal className="size-3.5" />
             </button>
           }
@@ -51,6 +55,7 @@ function Row({ entry }: { entry: PluginEntry }) {
 }
 
 export function PluginSettings() {
+  const t = useT();
   const [tab, setTab] = useState<'installed' | 'browse'>('installed');
   const [query, setQuery] = useState('');
   const list = useFilteredPlugins(query);
@@ -66,15 +71,15 @@ export function PluginSettings() {
           value={tab}
           onChange={setTab}
           options={[
-            { value: 'installed', label: `Installed (${list.length})` },
-            { value: 'browse', label: 'Browse registry' },
+            { value: 'installed', label: t('plugins.installedCount', { count: list.length }) },
+            { value: 'browse', label: t('plugins.browseRegistry') },
           ]}
         />
         <div className="min-w-40 flex-1">
-          <Input inputSize="sm" icon={<Search />} placeholder="Search plugins" value={query} onChange={(e) => setQuery(e.target.value)} />
+          <Input inputSize="sm" icon={<Search />} placeholder={t('plugins.searchPlugins')} value={query} onChange={(e) => setQuery(e.target.value)} />
         </div>
         <Button size="sm" icon={<FileUp />} onClick={() => void pickPluginFile()}>
-          From file…
+          {t('plugins.fromFile')}
         </Button>
       </div>
 
@@ -83,7 +88,7 @@ export function PluginSettings() {
           {list.map((e) => (
             <Row key={e.id} entry={e} />
           ))}
-          {!list.length && <p className="py-6 text-center text-[12.5px] text-fg-subtle">No plugins match “{query}”.</p>}
+          {!list.length && <p className="py-6 text-center text-[12.5px] text-fg-subtle">{t('plugins.noMatch', { query })}</p>}
         </div>
       ) : (
         <div className="grid gap-2 sm:grid-cols-2">
@@ -101,25 +106,22 @@ export function PluginSettings() {
           if (url.trim()) void promptInstallFromUrl(url.trim()).then(() => setUrl(''));
         }}
       >
-        <Input inputSize="sm" icon={<Link2 />} placeholder="https://… plugin module URL" value={url} onChange={(e) => setUrl(e.target.value)} />
+        <Input inputSize="sm" icon={<Link2 />} placeholder={t('plugins.moduleUrlPlaceholder')} value={url} onChange={(e) => setUrl(e.target.value)} />
         <Button size="sm" variant="primary" type="submit" icon={<Download />} disabled={!url.trim()}>
-          Install
+          {t('plugins.install')}
         </Button>
       </form>
 
       <div className="divide-y divide-border border-t border-border">
-        <SettingRow
-          title="Developer mode"
-          description="Reload plugins installed from a URL whenever the TexIt window regains focus and their source changed — handy with a local static server."
-        >
+        <SettingRow title={t('plugins.devMode')} description={t('plugins.devModeDescription')}>
           <Switch checked={devMode} onCheckedChange={(v) => set({ devMode: v })} />
         </SettingRow>
-        <SettingRow title="Registry URL" description="Where “Browse” loads the plugin list from.">
+        <SettingRow title={t('plugins.registryUrl')} description={t('plugins.registryUrlDescription')}>
           <div className="flex items-center gap-1.5">
             <Input inputSize="sm" className="w-64 font-mono text-[11.5px]" value={registryUrl} onChange={(e) => set({ registryUrl: e.target.value })} />
             {registryUrl !== DEFAULT_REGISTRY_URL && (
               <Button size="xs" variant="ghost" onClick={() => set({ registryUrl: DEFAULT_REGISTRY_URL })}>
-                Reset
+                {t('common.reset')}
               </Button>
             )}
           </div>

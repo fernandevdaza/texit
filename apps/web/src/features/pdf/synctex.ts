@@ -6,7 +6,9 @@
  * changed — parsed lazily here and memoized per `pdfVersion`.
  */
 import { parseSyncTex, resolveProjectPath, syncTexForward, syncTexInverse, isTexPath, type SyncTexData } from '@texit/core';
+import { t } from '@/lib/i18n';
 import { toast } from '@/ui';
+import './i18n';
 import { useWorkspace } from '@/state/workspace';
 import type { PdfPoint, PdfRect } from './engine';
 
@@ -45,7 +47,7 @@ export function getSyncTex(): SyncTexData | null {
 function unavailable(silent?: boolean) {
   if (silent || warnedUnavailable) return;
   warnedUnavailable = true;
-  toast('SyncTeX data is not available', { description: 'Recompile with SyncTeX enabled to jump between the source and the PDF.' });
+  toast(t('pdf.synctexUnavailable'), { description: t('pdf.synctexUnavailableDesc') });
 }
 
 /** PDF → source. Opens the editor at the matching line. Returns true on success. */
@@ -74,7 +76,7 @@ export function inverseSearch(pt: PdfPoint): boolean {
     path = paths.filter((p) => norm === p || norm.endsWith(`/${p}`)).sort((a, b) => b.length - a.length)[0];
   }
   if (!path) {
-    toast('Source file not found in this project', { description: hit.file });
+    toast(t('pdf.sourceNotFound'), { description: hit.file });
     return false;
   }
   ws.revealLocation(path, hit.line);

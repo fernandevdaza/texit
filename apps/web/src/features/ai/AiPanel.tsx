@@ -2,13 +2,16 @@
  * Right-dock AI chat panel. The implementation (Markdown, KaTeX, diff, @texit/ai) is
  * code-split and loaded the first time the panel opens.
  */
+import './i18n';
 import { lazy, Suspense, useEffect } from 'react';
+import { useT } from '@/lib/i18n';
 import { Spinner } from '@/ui';
 import { focusComposer } from './chat/store';
 
 const ChatPanel = lazy(() => import('./panel/ChatPanel'));
 
 export function AiPanel() {
+  const t = useT();
   useEffect(() => {
     // Opening the panel (Mod-l / toolbar) puts the cursor in the composer.
     focusComposer();
@@ -17,7 +20,7 @@ export function AiPanel() {
     <Suspense
       fallback={
         <div className="flex h-full items-center justify-center gap-2 text-[12px] text-fg-subtle">
-          <Spinner /> Loading assistant…
+          <Spinner /> {t('ai.loadingAssistant')}
         </div>
       }
     >

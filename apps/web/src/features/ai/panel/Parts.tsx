@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { Fragment, useState, type ReactNode } from 'react';
 import {
   AlertCircle,
   Brain,
@@ -23,6 +23,7 @@ import {
   X,
 } from 'lucide-react';
 import { cn } from '@/lib/cn';
+import { useT } from '@/lib/i18n';
 import { useWorkspace } from '@/state/workspace';
 import { Badge, Button, Spinner } from '@/ui';
 import { DiffView, diffStats } from '../components/DiffView';
@@ -45,19 +46,16 @@ const toolIcons: Record<string, typeof Wrench> = {
   rename_file: FileInput,
 };
 
-const toolVerbs: Record<string, [string, string]> = {
-  list_files: ['Listing files', 'Listed files'],
-  read_file: ['Reading', 'Read'],
-  search_project: ['Searching', 'Searched'],
-  get_active_file: ['Checking the editor', 'Checked the editor'],
-  get_diagnostics: ['Checking diagnostics', 'Checked diagnostics'],
-  compile: ['Compiling', 'Compiled'],
-  edit_file: ['Editing', 'Edit'],
-  write_file: ['Writing', 'Write'],
-  create_file: ['Creating', 'Create'],
-  delete_file: ['Deleting', 'Delete'],
-  rename_file: ['Renaming', 'Rename'],
-};
+/** Built-in tools with friendly labels (`ai.tool.<name>.running` / `.done`). */
+const KNOWN_TOOLS = new Set(Object.keys(toolIcons));
+
+/** Interpolate React nodes into a translated template (`{name}` placeholders). */
+function rich(template: string, nodes: Record<string, ReactNode>): ReactNode {
+  return template.split(/(\{\w+\})/g).map((chunk, i) => {
+    const m = /^\{(\w+)\}$/.exec(chunk);
+    return <Fragment key={i}>{m && m[1] in nodes ? nodes[m[1]] : chunk}</Fragment>;
+  });
+}
 
 export const EDIT_TOOLS = new Set(['edit_file', 'write_file', 'create_file', 'delete_file', 'rename_file']);
 
@@ -85,12 +83,13 @@ function argSummary(input: unknown): string {
 }
 
 export function ToolCard({ part }: { part: ToolPart }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const Icon = iconFor(part.name);
-  const verbs = toolVerbs[part.name];
-  const label = verbs ? (part.status === 'running' ? verbs[0] : verbs[1]) : prettyName(part.name);
+  const label = KNOWN_TOOLS.has(part.name) ? t(`ai.tool.${part.name}.${part.status === 'running' ? 'running' : 'done'}`) : prettyName(part.name);
   const summary = argSummary(part.input);
-  const hasOutput = !!part.output?.trim();
+  const output = part.output === 'Interrupted' ? t('ai.tool.interrupted') : part.output;
+  const hasOutput = !!output?.trim();
   return (
     <div className={cn('my-1 overflow-hidden rounded-lg border text-[12px]', part.status === 'error' ? 'border-danger/30 bg-danger-soft/40' : 'border-border bg-surface-2/60')}>
       <button
@@ -100,15 +99,17 @@ export function ToolCard({ part }: { part: ToolPart }) {
         <span className={cn('flex size-4 items-center justify-center [&_svg]:size-3.5', part.status === 'error' ? 'text-danger' : 'text-fg-subtle')}>
           {part.status === 'running' ? <Spinner className="size-3.5" /> : <Icon />}
         </span>
-        <span className="shrink-0 font-medium text-fg-muted">{label}</span>
+        <span className="shrink-0 font-medium text-fg-muted" title={part.name}>
+          {label}
+        </span>
         {summary && <span className="min-w-0 truncate font-mono text-[11px] text-fg-subtle">{summary}</span>}
         <span className="flex-1" />
-        {part.status === 'error' && <span className="text-[10.5px] font-medium text-danger">failed</span>}
+        {part.status === 'error' && <span className="text-[10.5px] font-medium text-danger">{t('ai.tool.failed')}</span>}
         {hasOutput && <ChevronRight className={cn('size-3.5 shrink-0 text-fg-subtle transition-transform', open && 'rotate-90')} />}
       </button>
       {open && hasOutput && (
         <pre className="max-h-64 overflow-auto border-t border-border bg-surface px-2.5 py-2 font-mono text-[10.5px] leading-relaxed text-fg-muted whitespace-pre-wrap break-words">
-          {part.output}
+          {output}
         </pre>
       )}
     </div>
@@ -135,6 +136,7 @@ function firstDiffLine(a: string, b: string): number {
 }
 
 export function EditCard({ part, threadId }: { part: EditPart; threadId: string }) {
+  const t = useT();
   useChat((s) => s.reviewVersion);
   const pending = part.status === 'proposed' && hasPendingReview(threadId, part.path, part.after);
   const [open, setOpen] = useState<boolean | null>(null);
@@ -145,15 +147,15 @@ export function EditCard({ part, threadId }: { part: EditPart; threadId: string 
   const stats = op === 'edit' || op === 'create' ? diffStats(before, after) : null;
   const OpIcon = op === 'delete' ? Trash2 : op === 'rename' ? FileInput : op === 'create' ? FilePlus2 : Pencil;
   const statusBadge: Record<EditPart['status'], ReactNode> = {
-    proposed: <Badge tone="warning">{pending ? 'Review' : 'Expired'}</Badge>,
+    proposed: <Badge tone="warning">{pending ? t('ai.edit.review') : t('ai.edit.expired')}</Badge>,
     applied: (
       <Badge tone="success">
-        <Check /> Applied
+        <Check /> {t('ai.edit.applied')}
       </Badge>
     ),
     rejected: (
       <Badge tone="neutral">
-        <X /> Rejected
+        <X /> {t('ai.edit.rejected')}
       </Badge>
     ),
   };
@@ -172,7 +174,7 @@ export function EditCard({ part, threadId }: { part: EditPart; threadId: string 
         <button
           onClick={() => op !== 'delete' && openFile(part.newPath ?? part.path, after)}
           className="min-w-0 truncate font-mono text-[11.5px] font-medium text-fg hover:text-accent hover:underline"
-          title="Open in editor"
+          title={t('ai.edit.openInEditor')}
         >
           {op === 'rename' ? `${part.path} → ${part.newPath}` : part.path}
         </button>
@@ -187,10 +189,13 @@ export function EditCard({ part, threadId }: { part: EditPart; threadId: string 
       {expanded && (
         <div className="border-t border-border">
           {op === 'delete' ? (
-            <div className="px-3 py-2 text-[12px] text-fg-muted">This file will be deleted.</div>
+            <div className="px-3 py-2 text-[12px] text-fg-muted">{t('ai.edit.willDelete')}</div>
           ) : op === 'rename' ? (
             <div className="px-3 py-2 text-[12px] text-fg-muted">
-              Rename <span className="font-mono">{part.path}</span> to <span className="font-mono">{part.newPath}</span>.
+              {rich(t('ai.edit.renameTo'), {
+                from: <span className="font-mono">{part.path}</span>,
+                to: <span className="font-mono">{part.newPath}</span>,
+              })}
             </div>
           ) : (
             <DiffView before={before} after={after} />
@@ -199,12 +204,12 @@ export function EditCard({ part, threadId }: { part: EditPart; threadId: string 
       )}
       {pending && (
         <div className="flex items-center justify-end gap-1.5 border-t border-border bg-surface-2/50 px-2 py-1.5">
-          <span className="mr-auto pl-1 text-[11px] text-fg-subtle">The assistant is waiting for your review</span>
+          <span className="mr-auto pl-1 text-[11px] text-fg-subtle">{t('ai.edit.waiting')}</span>
           <Button size="xs" variant="ghost" icon={<X />} onClick={() => resolveReview(threadId, part.path, part.after, false)}>
-            Reject
+            {t('ai.edit.reject')}
           </Button>
           <Button size="xs" variant="primary" icon={<Check />} onClick={() => resolveReview(threadId, part.path, part.after, true)}>
-            Accept
+            {t('ai.edit.accept')}
           </Button>
         </div>
       )}
@@ -213,12 +218,13 @@ export function EditCard({ part, threadId }: { part: EditPart; threadId: string 
 }
 
 export function Reasoning({ text, active }: { text: string; active: boolean }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   return (
     <div className="my-1">
       <button onClick={() => setOpen(!open)} className="flex items-center gap-1.5 rounded-md py-0.5 pr-1.5 text-[11.5px] text-fg-subtle hover:text-fg">
         <Brain className="size-3.5" />
-        <span className={cn(active && 'animate-pulse')}>{active ? 'Thinking…' : 'Thought process'}</span>
+        <span className={cn(active && 'animate-pulse')}>{active ? t('ai.thinking') : t('ai.thoughtProcess')}</span>
         <ChevronRight className={cn('size-3 transition-transform', open && 'rotate-90')} />
       </button>
       {open && <div className="mt-1 whitespace-pre-wrap border-l-2 border-border pl-3 text-[12px] leading-relaxed text-fg-subtle">{text.trim()}</div>}
@@ -227,13 +233,14 @@ export function Reasoning({ text, active }: { text: string; active: boolean }) {
 }
 
 export function ErrorCard({ message, onRetry }: { message: string; onRetry?: () => void }) {
+  const t = useT();
   return (
     <div className="my-1.5 flex items-start gap-2 rounded-lg border border-danger/25 bg-danger-soft px-2.5 py-2 text-[12px]">
       <AlertCircle className="mt-px size-3.5 shrink-0 text-danger" />
       <div className="min-w-0 flex-1 break-words text-fg">{message}</div>
       {onRetry && (
         <Button size="xs" variant="secondary" icon={<RotateCcw />} onClick={onRetry}>
-          Retry
+          {t('common.retry')}
         </Button>
       )}
     </div>

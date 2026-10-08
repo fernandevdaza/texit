@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { isTexPath } from '@texit/core';
 import { useWorkspace } from '@/state/workspace';
 import { useSettings } from '@/state/settings';
+import { useT } from '@/lib/i18n';
 import { StatusButton } from '@/features/workspace/StatusBar';
 import { fileTypeLabel } from '@/features/files/FileIcon';
 import { editorController } from './cm/controller';
@@ -17,6 +18,7 @@ export function WordCountStatus() {
   const file = useActiveFile();
   const project = useWorkspace((s) => s.project);
   const [words, setWords] = useState<number | null>(null);
+  const t = useT();
   const isTex = !!file && isTexPath(file.path);
   useEffect(() => {
     if (!project || !file || !isTex) {
@@ -38,14 +40,15 @@ export function WordCountStatus() {
   }, [project, file?.id, isTex]);
   if (words === null) return null;
   return (
-    <StatusButton title="Words in this file (approximate, like texcount)" className="tabular-nums">
-      {words.toLocaleString()} words
+    <StatusButton title={t('editor.wordCountTitle')} className="tabular-nums">
+      {t('editor.wordCount', { count: words })}
     </StatusButton>
   );
 }
 
 export function FileTypeStatus() {
   const file = useActiveFile();
+  useT(); // re-render on language change (fileTypeLabel is translated)
   if (!file) return null;
   return <span className="px-1.5">{fileTypeLabel(file.path)}</span>;
 }
@@ -53,6 +56,7 @@ export function FileTypeStatus() {
 export function KeymapStatus() {
   const keymap = useSettings((s) => s.editor.keymap);
   const [mode, setMode] = useState(editorController.vimModeValue);
+  const t = useT();
   useEffect(() => {
     const d = editorController.vimMode.on(setMode);
     return () => d.dispose();
@@ -61,7 +65,7 @@ export function KeymapStatus() {
   const label = keymap === 'vim' ? `VIM · ${mode.toUpperCase()}` : 'EMACS';
   return (
     <StatusButton
-      title="Keymap — click to switch back to the default keymap"
+      title={t('editor.keymapTitle')}
       onClick={() => useSettings.getState().setEditor({ keymap: 'default' })}
       className="font-mono text-[10.5px] font-semibold tracking-wide text-accent"
     >

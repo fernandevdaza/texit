@@ -5,8 +5,8 @@
   "private": true,
   "license": "AGPL-3.0-or-later",
   "description": "TexIt — open-source collaborative LaTeX editor",
-  "author": "TexIt contributors",
-  "homepage": "https://github.com/texit-app/texit",
+  "author": "Fernando Daza (https://github.com/fernandevdaza)",
+  "homepage": "https://github.com/fernandevdaza/texit",
   "main": "dist-electron/main.cjs",
   "scripts": {
     "dev": "node scripts/dev.mjs",

@@ -5,7 +5,14 @@
  */
 import { definePlugin, type PluginAPI } from '@texit/plugin-api';
 
+import { createTr, type Catalog } from './i18n';
+
 const CLASS = 'texit-zen';
+
+const MESSAGES: Catalog = {
+  en: { status: 'Zen', tooltip: 'Zen mode is on — click to exit' },
+  es: { status: 'Zen', tooltip: 'El modo zen está activado: haz clic para salir' },
+};
 
 function css(width: number) {
   return `
@@ -26,11 +33,23 @@ export default definePlugin({
   description: 'Distraction-free writing: hides panels and the PDF and centers the text column. Toggle with ⌘⌥Z / Ctrl+Alt+Z.',
   permissions: ['ui'],
   tags: ['writing', 'focus'],
+  locales: {
+    es: {
+      name: 'Modo de escritura zen',
+      description: 'Escritura sin distracciones: oculta los paneles y el PDF y centra la columna de texto. Actívalo con ⌘⌥Z / Ctrl+Alt+Z.',
+      commands: { toggle: 'Activar/desactivar el modo de escritura zen' },
+      settings: {
+        width: { title: 'Ancho de la columna de texto', description: 'En caracteres.' },
+        fullscreen: { title: 'Entrar en pantalla completa' },
+      },
+    },
+  },
   settings: [
     { key: 'width', title: 'Text column width', description: 'In characters.', type: 'number', default: 76, min: 40, max: 140, step: 2 },
     { key: 'fullscreen', title: 'Enter full screen', type: 'boolean', default: false },
   ],
   activate(api: PluginAPI) {
+    const tr = createTr(api, MESSAGES);
     let active = false;
     const style = document.createElement('style');
     style.dataset.plugin = 'org.texit.zen';
@@ -41,7 +60,7 @@ export default definePlugin({
       id: 'status',
       align: 'left',
       priority: 100,
-      render: () => (active ? { text: 'Zen', icon: 'focus', tooltip: 'Zen mode is on — click to exit' } : null),
+      render: () => (active ? { text: tr('status'), icon: 'focus', tooltip: tr('tooltip') } : null),
       onClick: () => void toggle(false),
     });
 
@@ -65,6 +84,8 @@ export default definePlugin({
       }
       status.refresh();
     }
+
+    api.ui.onLocaleChange(() => status.refresh());
 
     api.settings.onDidChange((key, value) => {
       if (key === 'width') style.textContent = css(Number(value) || 76);

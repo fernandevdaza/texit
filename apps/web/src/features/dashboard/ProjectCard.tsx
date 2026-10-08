@@ -20,6 +20,7 @@ import {
 import type { ProjectSummary } from '@texit/core';
 import { cn } from '@/lib/cn';
 import { timeAgo } from '@/lib/format';
+import { intlLocale, t as tr, useT } from '@/lib/i18n';
 import { Badge, DropdownMenu, type MenuEntry } from '@/ui';
 import { Highlight } from '@/ui/Highlight';
 import { usePreviews } from './preview';
@@ -32,33 +33,33 @@ export function projectMenu(p: ProjectSummary, selectedIds: string[]): MenuEntry
   const many = ids.length > 1;
   if (p.trashed) {
     return [
-      { label: many ? `Restore ${ids.length} projects` : 'Restore', icon: <ArchiveRestore />, onSelect: () => void actions.restore(ids) },
+      { label: many ? tr('dashboard.card.restoreMany', { count: ids.length }) : tr('dashboard.card.restore'), icon: <ArchiveRestore />, onSelect: () => void actions.restore(ids) },
       { type: 'separator' },
-      { label: many ? `Delete ${ids.length} forever…` : 'Delete forever…', icon: <Trash2 />, danger: true, onSelect: () => void actions.deleteForever(ids) },
+      { label: many ? tr('dashboard.card.deleteManyForever', { count: ids.length }) : tr('dashboard.card.deleteForever'), icon: <Trash2 />, danger: true, onSelect: () => void actions.deleteForever(ids) },
     ];
   }
   if (many) {
     return [
-      { type: 'label', label: `${ids.length} projects selected` },
-      { label: 'Star', icon: <Star />, onSelect: () => void actions.setStarred(ids, true) },
-      { label: 'Unstar', icon: <Star />, onSelect: () => void actions.setStarred(ids, false) },
-      { label: 'Download as .zip', icon: <Download />, onSelect: () => ids.forEach((id) => void actions.downloadProjectZip(id)) },
+      { type: 'label', label: tr('dashboard.card.selectedCount', { count: ids.length }) },
+      { label: tr('dashboard.card.star'), icon: <Star />, onSelect: () => void actions.setStarred(ids, true) },
+      { label: tr('dashboard.card.unstar'), icon: <Star />, onSelect: () => void actions.setStarred(ids, false) },
+      { label: tr('dashboard.card.downloadZip'), icon: <Download />, onSelect: () => ids.forEach((id) => void actions.downloadProjectZip(id)) },
       { type: 'separator' },
-      { label: 'Move to trash', icon: <Trash2 />, danger: true, shortcut: 'Backspace', onSelect: () => void actions.moveToTrash(ids) },
+      { label: tr('dashboard.card.moveToTrash'), icon: <Trash2 />, danger: true, shortcut: 'Backspace', onSelect: () => void actions.moveToTrash(ids) },
     ];
   }
   return [
-    { label: 'Open', icon: <FolderOpen />, shortcut: 'Enter', onSelect: () => actions.openProject(p.id) },
-    { label: 'Open in new window', icon: <ExternalLink />, onSelect: () => actions.openProjectInNewWindow(p.id) },
+    { label: tr('common.open'), icon: <FolderOpen />, shortcut: 'Enter', onSelect: () => actions.openProject(p.id) },
+    { label: tr('dashboard.card.openNewWindow'), icon: <ExternalLink />, onSelect: () => actions.openProjectInNewWindow(p.id) },
     { type: 'separator' },
-    { label: 'Rename', icon: <Pencil />, hint: 'F2', onSelect: () => useDashboardUi.getState().setRenaming(p.id) },
-    { label: 'Duplicate', icon: <Copy />, onSelect: () => void actions.duplicate(p.id) },
-    { label: 'Download as .zip', icon: <Download />, onSelect: () => void actions.downloadProjectZip(p.id) },
+    { label: tr('common.rename'), icon: <Pencil />, hint: 'F2', onSelect: () => useDashboardUi.getState().setRenaming(p.id) },
+    { label: tr('common.duplicate'), icon: <Copy />, onSelect: () => void actions.duplicate(p.id) },
+    { label: tr('dashboard.card.downloadZip'), icon: <Download />, onSelect: () => void actions.downloadProjectZip(p.id) },
     { type: 'separator' },
-    { label: p.starred ? 'Remove star' : 'Star', icon: <Star />, hint: 'S', onSelect: () => void actions.setStarred([p.id], !p.starred) },
-    { label: 'Tags…', icon: <Tag />, onSelect: () => useDashboardUi.getState().setTagsFor(p.id) },
+    { label: p.starred ? tr('dashboard.card.removeStar') : tr('dashboard.card.star'), icon: <Star />, hint: 'S', onSelect: () => void actions.setStarred([p.id], !p.starred) },
+    { label: tr('dashboard.card.tags'), icon: <Tag />, onSelect: () => useDashboardUi.getState().setTagsFor(p.id) },
     { type: 'separator' },
-    { label: 'Move to trash', icon: <Trash2 />, danger: true, hint: '⌫', onSelect: () => void actions.moveToTrash([p.id]) },
+    { label: tr('dashboard.card.moveToTrash'), icon: <Trash2 />, danger: true, hint: '⌫', onSelect: () => void actions.moveToTrash([p.id]) },
   ];
 }
 
@@ -70,8 +71,8 @@ export function timeLabel(p: ProjectSummary, sort: SortKey) {
 }
 
 function timeTitle(p: ProjectSummary) {
-  const f = (t: number) => (t ? new Date(t).toLocaleString() : '—');
-  return `Opened: ${f(p.openedAt)}\nModified: ${f(p.updatedAt)}\nCreated: ${f(p.createdAt)}`;
+  const f = (ts: number) => (ts ? new Date(ts).toLocaleString(intlLocale()) : '—');
+  return tr('dashboard.card.timeTitle', { opened: f(p.openedAt), modified: f(p.updatedAt), created: f(p.createdAt) });
 }
 
 function RenameInput({ p, className }: { p: ProjectSummary; className?: string }) {
@@ -126,12 +127,13 @@ export interface CardProps {
 }
 
 function StarButton({ p, className }: { p: ProjectSummary; className?: string }) {
+  const t = useT();
   if (p.trashed) return null;
   return (
     <button
       type="button"
       tabIndex={-1}
-      aria-label={p.starred ? 'Remove star' : 'Star'}
+      aria-label={p.starred ? t('dashboard.card.removeStar') : t('dashboard.card.star')}
       onClick={(e) => {
         e.stopPropagation();
         void actions.setStarred([p.id], !p.starred);
@@ -149,13 +151,14 @@ function StarButton({ p, className }: { p: ProjectSummary; className?: string })
 }
 
 function SelectBox({ checked, visible, onClick }: { checked: boolean; visible: boolean; onClick: (e: MouseEvent) => void }) {
+  const t = useT();
   return (
     <button
       type="button"
       tabIndex={-1}
       role="checkbox"
       aria-checked={checked}
-      aria-label="Select"
+      aria-label={t('dashboard.card.select')}
       onClick={(e) => {
         e.stopPropagation();
         onClick(e);
@@ -173,6 +176,7 @@ function SelectBox({ checked, visible, onClick }: { checked: boolean; visible: b
 }
 
 function Meta({ p, sort }: { p: ProjectSummary; sort: SortKey }) {
+  const t = useT();
   return (
     <div className="mt-1 flex min-w-0 items-center gap-1.5 text-[11.5px] text-fg-subtle">
       <span className="flex min-w-0 items-center gap-1 truncate" title={timeTitle(p)}>
@@ -183,7 +187,7 @@ function Meta({ p, sort }: { p: ProjectSummary; sort: SortKey }) {
       <span className="hidden shrink-0 sm:inline">{actions.engineLabel[p.engine] ?? p.engine}</span>
       {p.collab && (
         <Badge tone="info" className="ml-0.5 shrink-0">
-          <Users /> {p.collab.role === 'owner' ? 'Shared' : 'Guest'}
+          <Users /> {p.collab.role === 'owner' ? t('dashboard.card.shared') : t('dashboard.card.guest')}
         </Badge>
       )}
       {p.folderPath && (
@@ -200,6 +204,7 @@ export const ProjectCard = forwardRef<HTMLDivElement, CardProps>(function Projec
   const preview = usePreviews((s) => s.map[p.id]);
   const renaming = useDashboardUi((s) => s.renaming === p.id);
   const [menuOpen, setMenuOpen] = useState(false);
+  const t = useT();
 
   return (
     <div
@@ -238,9 +243,9 @@ export const ProjectCard = forwardRef<HTMLDivElement, CardProps>(function Projec
         </div>
         {p.tags?.length ? (
           <div className="absolute bottom-2 left-2.5 right-2.5 hidden flex-wrap gap-1 sm:flex">
-            {p.tags.slice(0, 3).map((t) => (
-              <span key={t} className="rounded-md bg-white/75 px-1.5 py-[1px] text-[10.5px] font-medium text-zinc-700 shadow-sm backdrop-blur dark:bg-black/50 dark:text-zinc-200">
-                #{t}
+            {p.tags.slice(0, 3).map((tag) => (
+              <span key={tag} className="rounded-md bg-white/75 px-1.5 py-[1px] text-[10.5px] font-medium text-zinc-700 shadow-sm backdrop-blur dark:bg-black/50 dark:text-zinc-200">
+                #{tag}
               </span>
             ))}
             {p.tags.length > 3 && <span className="rounded-md bg-white/75 px-1.5 py-[1px] text-[10.5px] text-zinc-600 backdrop-blur dark:bg-black/50 dark:text-zinc-300">+{p.tags.length - 3}</span>}
@@ -266,7 +271,7 @@ export const ProjectCard = forwardRef<HTMLDivElement, CardProps>(function Projec
             <button
               type="button"
               tabIndex={-1}
-              aria-label="More actions"
+              aria-label={t('dashboard.card.moreActions')}
               onClick={(e) => e.stopPropagation()}
               onDoubleClick={(e) => e.stopPropagation()}
               className={cn(
@@ -288,6 +293,7 @@ export const ProjectRow = forwardRef<HTMLDivElement, CardProps>(function Project
   const preview = usePreviews((s) => s.map[p.id]);
   const renaming = useDashboardUi((s) => s.renaming === p.id);
   const [menuOpen, setMenuOpen] = useState(false);
+  const t = useT();
   return (
     <div
       ref={ref}
@@ -320,12 +326,12 @@ export const ProjectRow = forwardRef<HTMLDivElement, CardProps>(function Project
           )}
           {p.collab && (
             <Badge tone="info" className="shrink-0">
-              <Users /> {p.collab.role === 'owner' ? 'Shared' : 'Guest'}
+              <Users /> {p.collab.role === 'owner' ? t('dashboard.card.shared') : t('dashboard.card.guest')}
             </Badge>
           )}
-          {p.tags?.slice(0, 3).map((t) => (
-            <span key={t} className="hidden shrink-0 text-[11px] text-fg-subtle xl:inline">
-              #{t}
+          {p.tags?.slice(0, 3).map((tag) => (
+            <span key={tag} className="hidden shrink-0 text-[11px] text-fg-subtle xl:inline">
+              #{tag}
             </span>
           ))}
         </div>
@@ -343,7 +349,7 @@ export const ProjectRow = forwardRef<HTMLDivElement, CardProps>(function Project
             <button
               type="button"
               tabIndex={-1}
-              aria-label="More actions"
+              aria-label={t('dashboard.card.moreActions')}
               onClick={(e) => e.stopPropagation()}
               className={cn(
                 'flex size-7 items-center justify-center rounded-lg text-fg-subtle transition-[opacity,background] hover:bg-active hover:text-fg',

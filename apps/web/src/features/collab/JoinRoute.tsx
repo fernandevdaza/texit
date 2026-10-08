@@ -10,7 +10,8 @@ import type { TrysteroProvider } from './provider';
 import type { SignalingState } from './transport';
 import { createRoomProvider } from './session';
 import { deleteRoomRecord, findRoomRecordByRoom, parseInvite, saveRoomRecord } from './rooms';
-import { strategyInfo } from './settings';
+import { useT } from '@/lib/i18n';
+import { collabErrorText, strategyInline } from './i18n';
 
 const WAIT_TIMEOUT_MS = 45_000;
 
@@ -24,14 +25,12 @@ interface JoinState {
   error?: string;
 }
 
-const errorText: Record<string, { title: string; description: string }> = {
-  'missing-key': { title: 'This invite link is incomplete', description: 'The decryption key is missing. Ask for the full link — everything after the “#” matters.' },
-  'invalid-key': { title: 'This invite link is damaged', description: 'The decryption key in the link is not valid. Ask your collaborator to copy the link again.' },
-  'invalid-room': { title: 'This invite link is not valid', description: 'The room id in the link is malformed.' },
-};
+/** Invite parse errors → message keys (`collab.join.<key>.title|description`). */
+const errorKey: Record<string, string> = { 'missing-key': 'missingKey', 'invalid-key': 'invalidKey', 'invalid-room': 'invalidRoom' };
 
 /** `#/join/:room?k=<secret>&n=<name>[&v=1][&s=<strategy>]` — joins a shared project. */
 export function JoinRoute({ room }: { room: string }) {
+  const t = useT();
   const invite = useMemo(() => parseInvite(room), [room]);
   const [attempt, setAttempt] = useState(0);
   const [st, setSt] = useState<JoinState>({ phase: 'checking', signaling: { connected: 0, total: 0, relays: [] }, peers: 0, progress: null });
@@ -129,37 +128,36 @@ export function JoinRoute({ room }: { room: string }) {
   }, [invite, attempt]);
 
   if (!invite.ok) {
-    const e = errorText[invite.error];
+    const k = errorKey[invite.error] ?? 'invalidRoom';
     return (
       <Shell>
         <EmptyState
           icon={<AlertTriangle />}
-          title={e.title}
-          description={e.description}
-          action={<Button onClick={() => navigate('/', { replace: true })}>Back to projects</Button>}
+          title={t(`collab.join.${k}.title`)}
+          description={t(`collab.join.${k}.description`)}
+          action={<Button onClick={() => navigate('/', { replace: true })}>{t('collab.join.backToProjects')}</Button>}
         />
       </Shell>
     );
   }
 
-  const strat = strategyInfo[invite.strategy];
   const steps: { label: string; detail?: string; state: 'done' | 'active' | 'todo' }[] = [
     {
-      label: `Reaching ${strat.label}`,
-      detail: st.signaling.total ? `${st.signaling.connected}/${st.signaling.total} reachable` : undefined,
+      label: t('collab.join.reaching', { network: strategyInline(t, invite.strategy) }),
+      detail: st.signaling.total ? t('collab.join.reachable', { connected: st.signaling.connected, total: st.signaling.total }) : undefined,
       state: st.signaling.connected > 0 || ['receiving', 'saving'].includes(st.phase) || st.peers > 0 ? 'done' : 'active',
     },
     {
-      label: 'Waiting for someone who has this project to be online',
-      detail: st.peers ? `${st.peers} peer${st.peers > 1 ? 's' : ''} connected` : undefined,
+      label: t('collab.join.waiting'),
+      detail: st.peers ? t('collab.join.peers', { count: st.peers }) : undefined,
       state: st.peers > 0 || ['receiving', 'saving'].includes(st.phase) ? 'done' : st.signaling.connected > 0 ? 'active' : 'todo',
     },
     {
-      label: 'Receiving the project (end-to-end encrypted)',
+      label: t('collab.join.receiving'),
       detail: st.progress != null ? `${Math.round(st.progress * 100)}%` : undefined,
       state: st.phase === 'saving' ? 'done' : st.peers > 0 || st.phase === 'receiving' ? 'active' : 'todo',
     },
-    { label: 'Saving a local copy on this device', state: st.phase === 'saving' ? 'active' : 'todo' },
+    { label: t('collab.join.saving'), state: st.phase === 'saving' ? 'active' : 'todo' },
   ];
 
   return (
@@ -167,13 +165,13 @@ export function JoinRoute({ room }: { room: string }) {
       <div className="w-full max-w-[440px] animate-scale-in rounded-2xl border border-border bg-elevated p-7 shadow-xl">
         <Radar active={st.phase !== 'timeout' && st.phase !== 'error'} />
         <div className="mt-5 text-center">
-          <div className="text-[11px] font-semibold uppercase tracking-wider text-fg-subtle">You're invited to</div>
+          <div className="text-[11px] font-semibold uppercase tracking-wider text-fg-subtle">{t('collab.join.invited')}</div>
           <h1 className="mt-1 truncate text-[19px] font-semibold tracking-tight text-fg">{invite.name}</h1>
           <div className="mt-2 flex items-center justify-center gap-1.5 text-[11.5px] text-fg-subtle">
-            <Lock className="size-3" /> Peer-to-peer · end-to-end encrypted
+            <Lock className="size-3" /> {t('collab.join.p2pE2e')}
             {invite.viewOnly && (
               <span className="ml-1 inline-flex items-center gap-1 rounded-full bg-surface-2 px-1.5 py-0.5 ring-1 ring-border">
-                <Eye className="size-3" /> View-only
+                <Eye className="size-3" /> {t('collab.viewOnlyBadge')}
               </span>
             )}
           </div>
@@ -181,14 +179,11 @@ export function JoinRoute({ room }: { room: string }) {
 
         {st.phase === 'timeout' ? (
           <div className="mt-6 rounded-xl bg-warning-soft p-3.5 text-[12.5px] leading-relaxed text-fg">
-            <div className="font-semibold text-warning">Nobody with this project seems to be online</div>
-            <p className="mt-1 text-fg-muted">
-              TexIt has no server: someone who already has the project must have it open. Ask a collaborator to open it, then try again — we'll keep listening
-              meanwhile.
-            </p>
+            <div className="font-semibold text-warning">{t('collab.join.timeoutTitle')}</div>
+            <p className="mt-1 text-fg-muted">{t('collab.join.timeoutBody')}</p>
           </div>
         ) : st.phase === 'error' ? (
-          <div className="mt-6 rounded-xl bg-danger-soft p-3.5 text-[12.5px] text-danger">{st.error ?? 'Something went wrong.'}</div>
+          <div className="mt-6 rounded-xl bg-danger-soft p-3.5 text-[12.5px] text-danger">{st.error ? collabErrorText(t, st.error) : t('collab.join.somethingWrong')}</div>
         ) : (
           <ol className="mt-6 space-y-2.5">
             {steps.map((s, i) => (
@@ -216,19 +211,19 @@ export function JoinRoute({ room }: { room: string }) {
             ))}
           </ol>
         )}
-        {st.error && st.phase !== 'error' && <p className="mt-3 text-[11.5px] text-danger">{st.error}</p>}
+        {st.error && st.phase !== 'error' && <p className="mt-3 text-[11.5px] text-danger">{collabErrorText(t, st.error)}</p>}
 
         <div className="mt-6 flex items-center justify-between gap-2">
           <span className="inline-flex items-center gap-1 text-[11px] text-fg-subtle">
-            <KeyRound className="size-3" /> The key never leaves your browser
+            <KeyRound className="size-3" /> {t('collab.join.keyNeverLeaves')}
           </span>
           <div className="flex gap-2">
             <Button variant="ghost" onClick={() => navigate('/', { replace: true })} disabled={st.phase === 'saving'}>
-              Cancel
+              {t('common.cancel')}
             </Button>
             {(st.phase === 'timeout' || st.phase === 'error') && (
               <Button variant="primary" icon={<RefreshCw />} onClick={() => setAttempt((a) => a + 1)}>
-                Retry
+                {t('common.retry')}
               </Button>
             )}
           </div>
@@ -239,10 +234,11 @@ export function JoinRoute({ room }: { room: string }) {
 }
 
 function Shell({ children }: { children: React.ReactNode }) {
+  const t = useT();
   return (
     <div className="relative flex h-full flex-col items-center justify-center overflow-hidden bg-bg px-4">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,var(--tx-accent-soft),transparent_60%)]" />
-      <button onClick={() => navigate('/')} className="absolute left-4 top-4 flex items-center gap-2 text-[13px] font-semibold text-fg" aria-label="All projects">
+      <button onClick={() => navigate('/')} className="absolute left-4 top-4 flex items-center gap-2 text-[13px] font-semibold text-fg" aria-label={t('collab.join.allProjects')}>
         <Logo size={22} /> TexIt
       </button>
       <div className="relative flex w-full justify-center">{children}</div>

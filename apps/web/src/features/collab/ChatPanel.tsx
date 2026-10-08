@@ -7,6 +7,8 @@ import { cn } from '@/lib/cn';
 import { getChat, isValidMessage, MAX_CHAT_LENGTH, sendChatMessage, setLastRead, type ChatMessage } from './chat';
 import { openShareDialog, useCollab } from './session';
 import { useCollabSettings } from './settings';
+import { intlLocale, useLocale, useT, type Locale } from '@/lib/i18n';
+import './i18n';
 
 function useChatMessages(project: ProjectDoc | null): ChatMessage[] {
   const cache = useRef<{ project: ProjectDoc | null; list: ChatMessage[] }>({ project: null, list: [] });
@@ -28,10 +30,12 @@ function useChatMessages(project: ProjectDoc | null): ChatMessage[] {
   );
 }
 
-const time = (ts: number) => new Date(ts).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
-const day = (ts: number) => new Date(ts).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+const time = (ts: number, locale: Locale) => new Date(ts).toLocaleTimeString(intlLocale(locale), { hour: '2-digit', minute: '2-digit' });
+const day = (ts: number, locale: Locale) => new Date(ts).toLocaleDateString(intlLocale(locale), { weekday: 'short', month: 'short', day: 'numeric' });
 
 export function ChatPanel() {
+  const t = useT();
+  const locale = useLocale();
   const project = useWorkspace((s) => s.project);
   const projectId = useWorkspace((s) => s.session?.id ?? null);
   const shared = useCollab((s) => !!s.record);
@@ -64,10 +68,10 @@ export function ChatPanel() {
   return (
     <div className="flex h-full min-h-0 flex-col">
       <PanelHeader
-        title="Chat"
+        title={t('collab.chat.title')}
         actions={
           !shared && (
-            <IconButton label="Share project" size="xs" onClick={() => openShareDialog()}>
+            <IconButton label={t('collab.shareProject')} size="xs" onClick={() => openShareDialog()}>
               <Users />
             </IconButton>
           )
@@ -77,16 +81,12 @@ export function ChatPanel() {
         {messages.length === 0 ? (
           <EmptyState
             icon={<MessageCircle />}
-            title="No messages yet"
-            description={
-              shared
-                ? 'Messages are saved in the project and synced end-to-end encrypted with everyone who has it.'
-                : 'Share the project to chat with collaborators. Messages are stored inside the project.'
-            }
+            title={t('collab.chat.empty')}
+            description={shared ? t('collab.chat.emptyShared') : t('collab.chat.emptyNotShared')}
             action={
               !shared && (
                 <Button size="sm" variant="primary" icon={<Users />} onClick={() => openShareDialog()}>
-                  Share project
+                  {t('collab.shareProject')}
                 </Button>
               )
             }
@@ -102,7 +102,7 @@ export function ChatPanel() {
                 {newDay && (
                   <div className="my-2 flex items-center gap-2 text-[10.5px] font-medium uppercase tracking-wider text-fg-subtle">
                     <span className="h-px flex-1 bg-border" />
-                    {day(m.ts)}
+                    {day(m.ts, locale)}
                     <span className="h-px flex-1 bg-border" />
                   </div>
                 )}
@@ -113,9 +113,9 @@ export function ChatPanel() {
                       <div className="flex items-baseline gap-1.5">
                         <span className="truncate text-[12px] font-semibold" style={{ color: m.color }}>
                           {m.name}
-                          {mine && <span className="font-normal text-fg-subtle"> (you)</span>}
+                          {mine && <span className="font-normal text-fg-subtle"> {t('collab.you')}</span>}
                         </span>
-                        <span className="text-[10.5px] text-fg-subtle">{time(m.ts)}</span>
+                        <span className="text-[10.5px] text-fg-subtle">{time(m.ts, locale)}</span>
                       </div>
                     )}
                     <div className="whitespace-pre-wrap break-words text-[12.5px] leading-relaxed text-fg">{m.text}</div>
@@ -133,7 +133,7 @@ export function ChatPanel() {
             value={draft}
             maxLength={MAX_CHAT_LENGTH}
             rows={1}
-            placeholder="Message collaborators…"
+            placeholder={t('collab.chat.placeholder')}
             onChange={(e) => {
               setDraft(e.target.value);
               e.target.style.height = 'auto';
@@ -147,7 +147,7 @@ export function ChatPanel() {
             }}
             className="max-h-[140px] min-h-[20px] flex-1 resize-none bg-transparent text-[12.5px] leading-snug text-fg outline-none placeholder:text-fg-subtle"
           />
-          <IconButton label="Send (Enter)" size="xs" variant="subtle" disabled={!draft.trim()} onClick={send}>
+          <IconButton label={t('collab.chat.send')} size="xs" variant="subtle" disabled={!draft.trim()} onClick={send}>
             <SendHorizontal />
           </IconButton>
         </div>

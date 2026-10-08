@@ -3,14 +3,14 @@
  */
 import os from 'node:os';
 import path from 'node:path';
-import { app, BrowserWindow, Menu } from 'electron';
+import { app, BrowserWindow } from 'electron';
 import { Events, type MenuCommandId } from './shared/ipc';
 import { registerIpc } from './main/ipc';
 import { deepLinkQueue, openPathQueue } from './main/ipc/app';
 import { stopAllWatches } from './main/ipc/fs';
 import { shutdownMcp } from './main/ipc/mcp';
 import { safeSend } from './main/ipc/util';
-import { buildMenu } from './main/menu';
+import { installAppMenu } from './main/menu';
 import { DEEP_LINK_SCHEME, extractDeepLinks, extractOpenPaths } from './main/open-paths';
 import { resolveStartUrl, runtime } from './main/paths';
 import { registerAppProtocol, registerAppSchemePrivileges, resolveWebRoot } from './main/protocol';
@@ -139,12 +139,10 @@ function bootstrap() {
     runtime.webRoot = resolveWebRoot();
     registerAppProtocol(runtime.webRoot);
     registerIpc();
-    Menu.setApplicationMenu(
-      buildMenu({
-        command: sendMenuCommand,
-        checkForUpdates: () => void checkForUpdatesInteractive(),
-      }),
-    );
+    installAppMenu({
+      command: sendMenuCommand,
+      checkForUpdates: () => void checkForUpdatesInteractive(),
+    });
 
     if (runtime.smoke) {
       const { runSmoke } = await import('./main/smoke');

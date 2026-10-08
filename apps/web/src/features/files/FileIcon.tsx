@@ -15,26 +15,28 @@ import {
 } from 'lucide-react';
 import { extname } from '@texit/core';
 import { cn } from '@/lib/cn';
+import { t } from '@/lib/i18n';
 
 interface IconSpec {
   icon: LucideIcon;
   color: string;
+  /** Display name, or an i18n key (`files.type.*`) for translatable ones. */
   label: string;
 }
 
 const specs: Record<string, IconSpec> = {
   tex: { icon: FileText, color: '#16a34a', label: 'LaTeX' },
   bib: { icon: BookMarked, color: '#d97706', label: 'BibTeX' },
-  style: { icon: FileCog, color: '#8b5cf6', label: 'LaTeX package' },
-  image: { icon: FileImage, color: '#0ea5e9', label: 'Image' },
+  style: { icon: FileCog, color: '#8b5cf6', label: 'files.type.latexPackage' },
+  image: { icon: FileImage, color: '#0ea5e9', label: 'files.type.image' },
   pdf: { icon: FileType2, color: '#e5484d', label: 'PDF' },
-  data: { icon: FileSpreadsheet, color: '#0d9488', label: 'Data' },
+  data: { icon: FileSpreadsheet, color: '#0d9488', label: 'files.type.data' },
   json: { icon: FileJson2, color: '#ca8a04', label: 'JSON' },
-  code: { icon: FileCode2, color: '#3b82f6', label: 'Code' },
+  code: { icon: FileCode2, color: '#3b82f6', label: 'files.type.code' },
   md: { icon: FileText, color: '#64748b', label: 'Markdown' },
-  text: { icon: FileText, color: '#8a8a94', label: 'Text' },
-  archive: { icon: FileArchive, color: '#a16207', label: 'Archive' },
-  other: { icon: File, color: '#8a8a94', label: 'File' },
+  text: { icon: FileText, color: '#8a8a94', label: 'files.type.text' },
+  archive: { icon: FileArchive, color: '#a16207', label: 'files.type.archive' },
+  other: { icon: File, color: '#8a8a94', label: 'files.type.file' },
 };
 
 const extMap: Record<string, string> = {
@@ -57,9 +59,10 @@ export function fileTypeOf(path: string): string {
 
 export function fileTypeLabel(path: string): string {
   const ext = extname(path);
-  if (ext === 'sty') return 'LaTeX package';
-  if (ext === 'cls') return 'LaTeX class';
-  return specs[fileTypeOf(path)]?.label ?? 'File';
+  if (ext === 'sty') return t('files.type.latexPackage');
+  if (ext === 'cls') return t('files.type.latexClass');
+  const label = specs[fileTypeOf(path)]?.label ?? 'files.type.file';
+  return label.startsWith('files.') ? t(label) : label;
 }
 
 export function FileIcon({ path, className, folder, open }: { path: string; className?: string; folder?: boolean; open?: boolean }) {

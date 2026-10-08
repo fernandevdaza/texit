@@ -5,18 +5,21 @@ import { cn } from '@/lib/cn';
 import { openShareDialog, useCollab } from './session';
 import { ShareDialog } from './ShareDialog';
 import { StatusDot } from './StatusItem';
+import { useT } from '@/lib/i18n';
+import './i18n';
 
 /** Top-bar "Share" button (shows the number of connected collaborators) + the share dialog. */
 export function ShareButton() {
+  const t = useT();
   const { status, others, shared } = useCollab(
     useShallow((s) => ({ status: s.status, others: Math.max(s.peers.length, s.connectedPeers), shared: !!s.record })),
   );
   const live = status === 'live' && others > 0;
   return (
     <>
-      <Tooltip content={shared ? (live ? `${others} collaborator${others === 1 ? '' : 's'} online` : 'Shared — invite link & people') : 'Share this project peer-to-peer'}>
-        <Button size="sm" variant={shared ? 'secondary' : 'primary'} icon={<Users />} onClick={() => openShareDialog()} aria-label="Share">
-          Share
+      <Tooltip content={shared ? (live ? t('collab.collaboratorsOnline', { count: others }) : t('collab.sharedTooltip')) : t('collab.shareTooltip')}>
+        <Button size="sm" variant={shared ? 'secondary' : 'primary'} icon={<Users />} onClick={() => openShareDialog()} aria-label={t('collab.share')}>
+          {t('collab.share')}
           {shared && (
             <span
               className={cn(

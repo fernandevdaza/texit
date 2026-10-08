@@ -17,9 +17,8 @@ export function useIsCompiling(): boolean {
   return useWorkspace((s) => s.compile.status === 'preparing' || s.compile.status === 'compiling');
 }
 
-export function formatElapsed(ms: number): string {
-  return ms < 60_000 ? `${(ms / 1000).toFixed(1)}s` : `${Math.floor(ms / 60_000)}m ${Math.floor((ms % 60_000) / 1000)}s`;
-}
+/** Live elapsed time, localized ("1.2s" / "1,2 s"). */
+export { formatElapsedL as formatElapsed } from './format';
 
 /** Counts by severity. */
 export function useDiagnosticCounts() {

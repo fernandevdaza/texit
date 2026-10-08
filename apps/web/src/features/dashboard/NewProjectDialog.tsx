@@ -6,18 +6,19 @@ import { useTemplates } from '@/services/templates';
 import { createProject, useProjects } from '@/services/projects';
 import { isDesktop } from '@/lib/platform';
 import { cn } from '@/lib/cn';
+import { t as tr, useLocale, useT } from '@/lib/i18n';
 import { Badge, Button, Dialog, DialogClose, Input, Kbd, Select, toast } from '@/ui';
 import { Highlight } from '@/ui/Highlight';
 import { fuzzyWords } from '@/features/palette/fuzzy';
 import { Cover } from './Paper';
-import { accentColor, templateBackground, templateCategoryList, templatePreview } from './templates';
+import { accentColor, categoryLabel, defaultProjectName, templateBackground, templateCategoryList, templateDescription, templateName, templatePreview } from './templates';
 import { useDashboardUi } from './store';
 import * as actions from './actions';
 
-const engineOptions: { value: TexEngine; label: string; description: string }[] = [
-  { value: 'pdflatex', label: 'pdfLaTeX', description: 'Fast, most compatible' },
-  { value: 'xelatex', label: 'XeLaTeX', description: 'Unicode & system fonts' },
-  { value: 'lualatex', label: 'LuaLaTeX', description: 'OpenType fonts & Lua' },
+const engineOptions = (): { value: TexEngine; label: string; description: string }[] => [
+  { value: 'pdflatex', label: 'pdfLaTeX', description: tr('dashboard.engine.pdflatex') },
+  { value: 'xelatex', label: 'XeLaTeX', description: tr('dashboard.engine.xelatex') },
+  { value: 'lualatex', label: 'LuaLaTeX', description: tr('dashboard.engine.lualatex') },
 ];
 
 function uniqueName(base: string) {
@@ -26,17 +27,18 @@ function uniqueName(base: string) {
   for (let i = 2; ; i++) if (!names.has(`${base} ${i}`)) return `${base} ${i}`;
 }
 
-const defaultName = (t?: ProjectTemplate) => (!t || t.id === 'blank' ? 'Untitled project' : t.name);
+const defaultName = defaultProjectName;
 
 export function NewProjectDialog() {
   const state = useDashboardUi((s) => s.newProject);
   const close = useDashboardUi((s) => s.closeNewProject);
+  const t = useT();
   return (
     <Dialog
       open={state.open}
       onOpenChange={(o) => !o && close()}
       bare
-      title="New project"
+      title={t('dashboard.newProject')}
       width="max-w-[1080px]"
       className="h-[min(780px,calc(100dvh-32px))] max-h-none rounded-2xl"
     >
@@ -47,6 +49,8 @@ export function NewProjectDialog() {
 
 function Gallery({ initialTemplateId }: { initialTemplateId?: string }) {
   const templates = useTemplates((s) => s.templates);
+  const t = useT();
+  const locale = useLocale();
   const categories = useMemo(() => templateCategoryList(templates), [templates]);
   const [category, setCategory] = useState<string>('all');
   const [q, setQ] = useState('');
@@ -72,26 +76,32 @@ function Gallery({ initialTemplateId }: { initialTemplateId?: string }) {
   }, [initialTemplateId]);
 
   const visible = useMemo(() => {
-    const inCat = templates.filter((t) => category === 'all' || t.category === category);
-    if (!q.trim()) return inCat.map((t) => ({ t, positions: undefined as number[] | undefined }));
+    const inCat = templates.filter((tpl) => category === 'all' || tpl.category === category);
+    if (!q.trim()) return inCat.map((tpl) => ({ t: tpl, positions: undefined as number[] | undefined }));
     return inCat
-      .map((t) => {
-        const r = fuzzyWords(q, t.name) ?? fuzzyWords(q, `${t.name} ${t.description} ${(t.tags ?? []).join(' ')} ${t.category}`);
-        return r ? { t, positions: r.positions.filter((p) => p < t.name.length), score: r.score } : null;
+      .map((tpl) => {
+        const name = templateName(tpl, locale);
+        const r =
+          fuzzyWords(q, name) ??
+          fuzzyWords(
+            q,
+            `${name} ${tpl.name} ${templateDescription(tpl, locale)} ${tpl.description} ${(tpl.tags ?? []).join(' ')} ${tpl.category} ${categoryLabel({ id: tpl.category, label: tpl.category }, locale)}`,
+          );
+        return r ? { t: tpl, positions: r.positions.filter((p) => p < name.length), score: r.score } : null;
       })
       .filter(Boolean)
       .sort((a, b) => b!.score - a!.score) as { t: ProjectTemplate; positions?: number[] }[];
-  }, [templates, category, q]);
+  }, [templates, category, q, locale]);
 
-  const create = async (t = selected) => {
-    if (!t || creating) return;
+  const create = async (tpl = selected) => {
+    if (!tpl || creating) return;
     setCreating(true);
     try {
-      const id = await createProject({ name: uniqueName(name.trim() || defaultName(t)), template: t, engine });
+      const id = await createProject({ name: uniqueName(name.trim() || defaultName(tpl)), template: tpl, engine });
       useDashboardUi.getState().closeNewProject();
       actions.openProject(id);
     } catch (err) {
-      toast.error('Could not create the project', { description: err instanceof Error ? err.message : String(err) });
+      toast.error(tr('dashboard.toast.createError'), { description: err instanceof Error ? err.message : String(err) });
       setCreating(false);
     }
   };
@@ -137,13 +147,13 @@ function Gallery({ initialTemplateId }: { initialTemplateId?: string }) {
           <LayoutGrid className="size-4" />
         </div>
         <div className="min-w-0">
-          <h2 className="text-[15px] font-semibold tracking-tight text-fg">New project</h2>
-          <p className="hidden text-[12px] text-fg-subtle sm:block">Start from a template — everything stays on this device.</p>
+          <h2 className="text-[15px] font-semibold tracking-tight text-fg">{t('dashboard.newProject')}</h2>
+          <p className="hidden text-[12px] text-fg-subtle sm:block">{t('dashboard.gallery.subtitle')}</p>
         </div>
         <div className="ml-auto w-[min(300px,40vw)]">
           <Input
             icon={<Search />}
-            placeholder="Search templates…"
+            placeholder={t('dashboard.gallery.search')}
             value={q}
             onChange={(e) => setQ(e.target.value)}
             onKeyDown={(e) => {
@@ -158,7 +168,7 @@ function Gallery({ initialTemplateId }: { initialTemplateId?: string }) {
             }}
           />
         </div>
-        <DialogClose className="rounded-lg p-1.5 text-fg-subtle transition-colors hover:bg-hover hover:text-fg" aria-label="Close">
+        <DialogClose className="rounded-lg p-1.5 text-fg-subtle transition-colors hover:bg-hover hover:text-fg" aria-label={t('common.close')}>
           <X className="size-4" />
         </DialogClose>
       </header>
@@ -166,37 +176,37 @@ function Gallery({ initialTemplateId }: { initialTemplateId?: string }) {
       <div className="flex min-h-0 flex-1 flex-col md:flex-row">
         <aside className="flex shrink-0 flex-col border-b border-border bg-surface-2/60 md:w-[210px] md:border-b-0 md:border-r">
           <div className="flex gap-1 overflow-x-auto p-2 md:flex-col md:overflow-visible">
-            {sideItem('all', 'All templates', templates.length)}
-            {categories.map((c) => sideItem(c.id, c.label, templates.filter((t) => t.category === c.id).length))}
+            {sideItem('all', t('dashboard.gallery.allTemplates'), templates.length)}
+            {categories.map((c) => sideItem(c.id, categoryLabel(c, locale), templates.filter((tpl) => tpl.category === c.id).length))}
           </div>
           <div className="mt-auto hidden space-y-0.5 border-t border-border p-2 md:block">
-            <div className="px-2.5 pb-1 pt-1.5 text-[10.5px] font-semibold uppercase tracking-wider text-fg-subtle">Or bring your own</div>
-            <SideAction icon={<FileArchive />} label="Import .zip…" onClick={() => (useDashboardUi.getState().closeNewProject(), void actions.pickAndImportZip())} />
-            {isDesktop && <SideAction icon={<FolderOpen />} label="Open folder…" onClick={() => (useDashboardUi.getState().closeNewProject(), void actions.openFolderDesktop())} />}
-            <SideAction icon={<Link2 />} label="Join with a link…" onClick={() => (useDashboardUi.getState().closeNewProject(), useDashboardUi.getState().setJoinOpen(true))} />
+            <div className="px-2.5 pb-1 pt-1.5 text-[10.5px] font-semibold uppercase tracking-wider text-fg-subtle">{t('dashboard.gallery.bringYourOwn')}</div>
+            <SideAction icon={<FileArchive />} label={t('dashboard.menu.importZip')} onClick={() => (useDashboardUi.getState().closeNewProject(), void actions.pickAndImportZip())} />
+            {isDesktop && <SideAction icon={<FolderOpen />} label={t('dashboard.menu.openFolder')} onClick={() => (useDashboardUi.getState().closeNewProject(), void actions.openFolderDesktop())} />}
+            <SideAction icon={<Link2 />} label={t('dashboard.gallery.joinWithLink')} onClick={() => (useDashboardUi.getState().closeNewProject(), useDashboardUi.getState().setJoinOpen(true))} />
           </div>
         </aside>
 
-        <div ref={gridRef} className="min-h-0 flex-1 overflow-y-auto p-5" role="radiogroup" aria-label="Templates">
+        <div ref={gridRef} className="min-h-0 flex-1 overflow-y-auto p-5" role="radiogroup" aria-label={t('dashboard.gallery.templates')}>
           {visible.length === 0 ? (
             <div className="flex h-full flex-col items-center justify-center gap-2 text-center text-[12.5px] text-fg-subtle">
               <Search className="size-5 opacity-50" />
-              No templates match “{q}”.
+              {t('dashboard.gallery.noMatch', { query: q })}
               <Button size="sm" variant="ghost" onClick={() => (setQ(''), setCategory('all'))}>
-                Clear filters
+                {t('dashboard.gallery.clearFilters')}
               </Button>
             </div>
           ) : (
             <div className="grid grid-cols-[repeat(auto-fill,minmax(196px,1fr))] gap-4">
-              {visible.map(({ t, positions }, i) => (
+              {visible.map(({ t: tpl, positions }, i) => (
                 <TemplateCard
-                  key={t.id}
-                  t={t}
+                  key={tpl.id}
+                  t={tpl}
                   positions={positions}
-                  selected={t.id === selectedId}
+                  selected={tpl.id === selectedId}
                   index={i}
-                  onSelect={() => setSelectedId(t.id)}
-                  onCreate={() => void create(t)}
+                  onSelect={() => setSelectedId(tpl.id)}
+                  onCreate={() => void create(tpl)}
                   onArrow={moveFocus}
                 />
               ))}
@@ -209,20 +219,20 @@ function Gallery({ initialTemplateId }: { initialTemplateId?: string }) {
         <div className="hidden min-w-0 items-center gap-2 lg:flex">
           <span className="size-3 shrink-0 rounded-full" style={{ background: selected?.accent ?? 'var(--tx-accent)' }} />
           <span className="truncate text-[12.5px] text-fg-muted">
-            <span className="font-medium text-fg">{selected?.name ?? 'Template'}</span>
+            <span className="font-medium text-fg">{selected ? templateName(selected, locale) : t('dashboard.gallery.template')}</span>
           </span>
         </div>
         <div className="flex min-w-0 flex-1 items-center gap-2 lg:ml-4">
           <Input
             ref={nameRef}
-            aria-label="Project name"
+            aria-label={t('dashboard.gallery.projectName')}
             value={name}
             onChange={(e) => {
               setName(e.target.value);
               setNameTouched(true);
             }}
             onKeyDown={(e) => e.key === 'Enter' && void create()}
-            placeholder="Project name"
+            placeholder={t('dashboard.gallery.projectName')}
             className="min-w-0 max-w-[340px]"
           />
           <Select<TexEngine>
@@ -232,15 +242,15 @@ function Gallery({ initialTemplateId }: { initialTemplateId?: string }) {
               setEngine(v);
               setEngineTouched(true);
             }}
-            options={engineOptions}
+            options={engineOptions()}
           />
         </div>
         <div className="ml-auto flex items-center gap-2">
           <DialogClose asChild>
-            <Button variant="ghost">Cancel</Button>
+            <Button variant="ghost">{t('common.cancel')}</Button>
           </DialogClose>
           <Button variant="primary" loading={creating} disabled={!selected} onClick={() => void create()} iconRight={<Kbd keys="Mod-Enter" className="ml-1 [&_kbd]:border-white/25 [&_kbd]:bg-white/15 [&_kbd]:text-white/90" />}>
-            Create project
+            {t('dashboard.gallery.create')}
           </Button>
         </div>
       </footer>
@@ -275,6 +285,8 @@ function TemplateCard({
   onArrow: (from: number, key: string) => void;
 }) {
   const preview = templatePreview(t);
+  const locale = useLocale();
+  const name = templateName(t, locale);
   return (
     <motion.button
       type="button"
@@ -305,9 +317,9 @@ function TemplateCard({
       <Cover background={templateBackground(t)} preview={preview} title={t.name} accent={accentColor(t.accent)} className="aspect-[4/3] border-b border-border" />
       <div className="flex flex-1 flex-col px-3 pb-3 pt-2.5">
         <div className="flex items-center gap-2">
-          <Highlight text={t.name} positions={positions} className="truncate text-[13px] font-semibold text-fg" />
+          <Highlight text={name} positions={positions} className="truncate text-[13px] font-semibold text-fg" />
         </div>
-        <p className="mt-0.5 line-clamp-2 text-[11.5px] leading-snug text-fg-subtle">{t.description}</p>
+        <p className="mt-0.5 line-clamp-2 text-[11.5px] leading-snug text-fg-subtle">{templateDescription(t, locale)}</p>
         <div className="mt-auto flex flex-wrap gap-1 pt-2">
           <Badge>{actions.engineLabel[t.engine] ?? t.engine}</Badge>
           {(t.tags ?? []).slice(0, 2).map((tag) => (

@@ -1,6 +1,7 @@
 import { Check, Languages, Monitor, Moon, Sun } from 'lucide-react';
 import { accentPresets, useResolvedTheme, useSettings, type AccentPreset, type ThemePref } from '@/state/settings';
 import { cn } from '@/lib/cn';
+import { locales, useT } from '@/lib/i18n';
 import { Segmented, Tooltip } from '@/ui';
 import { Card, Row, Tile } from '../parts';
 
@@ -29,10 +30,10 @@ function MiniUi({ c, accent }: { c: typeof light; accent: string }) {
   );
 }
 
-const themes: { value: ThemePref; label: string; icon: typeof Sun }[] = [
-  { value: 'light', label: 'Light', icon: Sun },
-  { value: 'dark', label: 'Dark', icon: Moon },
-  { value: 'system', label: 'System', icon: Monitor },
+const themes: { value: ThemePref; icon: typeof Sun }[] = [
+  { value: 'light', icon: Sun },
+  { value: 'dark', icon: Moon },
+  { value: 'system', icon: Monitor },
 ];
 
 export function AppearanceSection() {
@@ -42,26 +43,28 @@ export function AppearanceSection() {
   const set = useSettings((s) => s.set);
   const resolved = useResolvedTheme((s) => s.theme);
   const a = accentPresets[accent] ?? accentPresets.indigo;
+  const t = useT();
+  const accentLabel = (key: string, label: string) => t(`settings.accent.${key}`, undefined, label);
 
   return (
     <>
-      <Card title="Theme">
-        <div role="radiogroup" aria-label="Theme" className="grid grid-cols-3 gap-3 p-4">
-          {themes.map((t) => (
+      <Card title={t('settings.appearance.theme')}>
+        <div role="radiogroup" aria-label={t('settings.appearance.theme')} className="grid grid-cols-3 gap-3 p-4">
+          {themes.map((th) => (
             <Tile
-              key={t.value}
-              selected={theme === t.value}
-              onSelect={() => set({ theme: t.value })}
+              key={th.value}
+              selected={theme === th.value}
+              onSelect={() => set({ theme: th.value })}
               label={
                 <span className="flex items-center gap-1.5">
-                  <t.icon className="size-3.5 text-fg-subtle" />
-                  {t.label}
+                  <th.icon className="size-3.5 text-fg-subtle" />
+                  {t(`settings.appearance.${th.value}`)}
                 </span>
               }
-              description={t.value === 'system' ? `Follows your OS · ${resolved}` : undefined}
+              description={th.value === 'system' ? t('settings.appearance.followsOs', { theme: t(`settings.appearance.resolved.${resolved}`) }) : undefined}
             >
               <div className="relative aspect-[16/10] w-full overflow-hidden border-b border-border">
-                {t.value === 'system' ? (
+                {th.value === 'system' ? (
                   <>
                     <div className="absolute inset-0">
                       <MiniUi c={light} accent={a.light} />
@@ -71,7 +74,7 @@ export function AppearanceSection() {
                     </div>
                   </>
                 ) : (
-                  <MiniUi c={t.value === 'dark' ? dark : light} accent={t.value === 'dark' ? a.dark : a.light} />
+                  <MiniUi c={th.value === 'dark' ? dark : light} accent={th.value === 'dark' ? a.dark : a.light} />
                 )}
               </div>
             </Tile>
@@ -79,17 +82,17 @@ export function AppearanceSection() {
         </div>
       </Card>
 
-      <Card title="Accent color" description="Used for buttons, selections, links and focus rings across the app.">
+      <Card title={t('settings.appearance.accent')} description={t('settings.appearance.accentHint')}>
         <div className="flex flex-wrap items-center gap-3 p-4">
           {(Object.keys(accentPresets) as AccentPreset[]).map((key) => {
             const p = accentPresets[key];
             const color = resolved === 'dark' ? p.dark : p.light;
             const active = key === accent;
             return (
-              <Tooltip key={key} content={p.label}>
+              <Tooltip key={key} content={accentLabel(key, p.label)}>
                 <button
                   type="button"
-                  aria-label={p.label}
+                  aria-label={accentLabel(key, p.label)}
                   aria-pressed={active}
                   onClick={() => set({ accent: key })}
                   className={cn(
@@ -103,25 +106,22 @@ export function AppearanceSection() {
               </Tooltip>
             );
           })}
-          <span className="ml-1 text-[12px] font-medium text-fg-muted">{a.label}</span>
+          <span className="ml-1 text-[12px] font-medium text-fg-muted">{accentLabel(accentPresets[accent] ? accent : 'indigo', a.label)}</span>
         </div>
       </Card>
 
-      <Card title="Language" description="Translations are rolling out gradually — some screens may still appear in English.">
+      <Card title={t('settings.appearance.language')} description={t('settings.appearance.languageHint')}>
         <Row
           title={
             <span className="flex items-center gap-2">
-              <Languages className="size-4 text-fg-subtle" /> Interface language
+              <Languages className="size-4 text-fg-subtle" /> {t('settings.appearance.interfaceLanguage')}
             </span>
           }
         >
           <Segmented
             value={locale}
             onChange={(v) => set({ locale: v })}
-            options={[
-              { value: 'en', label: 'English' },
-              { value: 'es', label: 'Español' },
-            ]}
+            options={locales.map((l) => ({ value: l.id, label: l.native }))}
           />
         </Row>
       </Card>

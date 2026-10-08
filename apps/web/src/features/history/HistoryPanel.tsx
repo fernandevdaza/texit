@@ -2,6 +2,8 @@ import { useMemo } from 'react';
 import { Bookmark, BookmarkPlus, Clock, Download, Eye, History, MoreHorizontal, Pencil, RotateCcw, Settings2, ShieldCheck, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { formatBytes, timeAgo } from '@/lib/format';
+import { intlLocale, t as tr, useLocale, useT, type TFunction } from '@/lib/i18n';
+import './i18n';
 import { Avatar, Button, DropdownMenu, EmptyState, IconButton, PanelHeader, Spinner, confirmDialog, promptDialog, toast, type MenuEntry } from '@/ui';
 import { useWorkspace } from '@/state/workspace';
 import { useHistory, useHistoryPrefs, type VersionMeta } from './store';
@@ -9,24 +11,25 @@ import { createSnapshot, deleteVersion, downloadVersionZip, renameVersion } from
 import { ChangeCounts, versionTitle } from './VersionDialog';
 import { openVersion, saveNamedVersion } from './actions';
 
-function dayLabel(ts: number): string {
+function dayLabel(ts: number, t: TFunction): string {
   const d = new Date(ts);
   const today = new Date();
   const yesterday = new Date(Date.now() - 86400_000);
-  if (d.toDateString() === today.toDateString()) return 'Today';
-  if (d.toDateString() === yesterday.toDateString()) return 'Yesterday';
-  return d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: d.getFullYear() === today.getFullYear() ? undefined : 'numeric' });
+  if (d.toDateString() === today.toDateString()) return t('history.today');
+  if (d.toDateString() === yesterday.toDateString()) return t('history.yesterday');
+  return d.toLocaleDateString(intlLocale(), { weekday: 'short', month: 'short', day: 'numeric', year: d.getFullYear() === today.getFullYear() ? undefined : 'numeric' });
 }
 
 function VersionItem({ v, last, onOpen }: { v: VersionMeta; last: boolean; onOpen: () => void }) {
   const named = v.kind === 'named';
   const safety = v.kind === 'safety';
+  const t = useT();
   const menu: MenuEntry[] = [
-    { label: 'View changes', icon: <Eye />, onSelect: onOpen },
-    { label: named ? 'Rename…' : 'Name this version…', icon: <Pencil />, onSelect: () => void rename(v) },
-    { label: 'Download .zip', icon: <Download />, onSelect: () => void downloadVersionZip(v.id).catch((e) => toast.error(String(e?.message ?? e))) },
+    { label: t('history.viewChanges'), icon: <Eye />, onSelect: onOpen },
+    { label: named ? t('history.rename') : t('history.nameThis'), icon: <Pencil />, onSelect: () => void rename(v) },
+    { label: t('history.downloadZip'), icon: <Download />, onSelect: () => void downloadVersionZip(v.id).catch((e) => toast.error(String(e?.message ?? e))) },
     { type: 'separator' },
-    { label: 'Delete version', icon: <Trash2 />, danger: true, onSelect: () => void remove(v) },
+    { label: t('history.deleteVersion'), icon: <Trash2 />, danger: true, onSelect: () => void remove(v) },
   ];
   return (
     <li className="group relative flex gap-2.5 pl-3 pr-1.5">
@@ -42,11 +45,11 @@ function VersionItem({ v, last, onOpen }: { v: VersionMeta; last: boolean; onOpe
           {named && <Bookmark className="size-2.5" strokeWidth={3} />}
         </span>
       </div>
-      <button onClick={onOpen} title={`${new Date(v.createdAt).toLocaleString()} · ${formatBytes(v.size)}`} className="min-w-0 flex-1 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-hover">
+      <button onClick={onOpen} title={`${new Date(v.createdAt).toLocaleString(intlLocale())} · ${formatBytes(v.size)}`} className="min-w-0 flex-1 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-hover">
         <div className="flex items-baseline gap-2">
           <span className={cn('truncate text-[12.5px]', named ? 'font-semibold text-fg' : 'text-fg-muted')}>{versionTitle(v)}</span>
           <span className="ml-auto shrink-0 text-[11px] tabular-nums text-fg-subtle">
-            {new Date(v.createdAt).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
+            {new Date(v.createdAt).toLocaleTimeString(intlLocale(), { hour: '2-digit', minute: '2-digit' })}
           </span>
         </div>
         <div className="mt-0.5 flex min-w-0 items-center gap-1.5 whitespace-nowrap text-[11px] text-fg-subtle">
@@ -55,12 +58,10 @@ function VersionItem({ v, last, onOpen }: { v: VersionMeta; last: boolean; onOpe
           {v.changes.files ? (
             <>
               <ChangeCounts added={v.changes.added} removed={v.changes.removed} className="shrink-0" />
-              <span className="shrink-0">
-                {v.changes.files} file{v.changes.files === 1 ? '' : 's'}
-              </span>
+              <span className="shrink-0">{t('history.files', { count: v.changes.files })}</span>
             </>
           ) : (
-            <span className="shrink-0">no changes</span>
+            <span className="shrink-0">{t('history.noChanges')}</span>
           )}
         </div>
       </button>
@@ -69,7 +70,7 @@ function VersionItem({ v, last, onOpen }: { v: VersionMeta; last: boolean; onOpe
           align="end"
           items={menu}
           trigger={
-            <button aria-label="Version actions" className="flex size-6 items-center justify-center rounded-md bg-elevated text-fg-muted shadow-sm ring-1 ring-border hover:text-fg">
+            <button aria-label={t('history.versionActions')} className="flex size-6 items-center justify-center rounded-md bg-elevated text-fg-muted shadow-sm ring-1 ring-border hover:text-fg">
               <MoreHorizontal className="size-3.5" />
             </button>
           }
@@ -80,12 +81,22 @@ function VersionItem({ v, last, onOpen }: { v: VersionMeta; last: boolean; onOpe
 }
 
 async function rename(v: VersionMeta) {
-  const label = await promptDialog({ title: v.kind === 'named' ? 'Rename version' : 'Name this version', value: v.label ?? '', placeholder: 'e.g. Submitted to journal', confirmLabel: 'Save' });
+  const label = await promptDialog({
+    title: v.kind === 'named' ? tr('history.renameTitle') : tr('history.nameTitle'),
+    value: v.label ?? '',
+    placeholder: tr('history.renamePlaceholder'),
+    confirmLabel: tr('common.save'),
+  });
   if (label != null) await renameVersion(v.id, label);
 }
 
 async function remove(v: VersionMeta) {
-  const ok = await confirmDialog({ title: `Delete “${versionTitle(v)}”?`, message: 'This version will be permanently removed from the history.', confirmLabel: 'Delete', danger: true });
+  const ok = await confirmDialog({
+    title: tr('history.deleteTitle', { title: versionTitle(v) }),
+    message: tr('history.deleteMessage'),
+    confirmLabel: tr('common.delete'),
+    danger: true,
+  });
   if (ok) await deleteVersion(v.id);
 }
 
@@ -93,41 +104,44 @@ export function HistoryPanel() {
   const hasProject = useWorkspace((s) => !!s.project);
   const { versions, loading, dirtySince, saving } = useHistory();
   const { intervalMin, showAuto, set } = useHistoryPrefs();
+  const t = useT();
+  const locale = useLocale();
 
   const visible = useMemo(() => (showAuto ? versions : versions.filter((v) => v.kind === 'named')), [versions, showAuto]);
   const groups = useMemo(() => {
     const out: { day: string; items: VersionMeta[] }[] = [];
     for (const v of visible) {
-      const day = dayLabel(v.createdAt);
+      const day = dayLabel(v.createdAt, t);
       if (out[out.length - 1]?.day !== day) out.push({ day, items: [] });
       out[out.length - 1].items.push(v);
     }
     return out;
-  }, [visible]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible, locale]);
   const totalSize = versions.reduce((n, v) => n + v.size, 0);
 
-  if (!hasProject) return <EmptyState icon={<History />} title="History" description="Open a project to see its versions." />;
+  if (!hasProject) return <EmptyState icon={<History />} title={t('history.title')} description={t('history.openProject')} />;
 
   return (
     <div className="flex h-full min-h-0 flex-col">
       <PanelHeader
-        title="History"
+        title={t('history.title')}
         actions={
           <>
-            <IconButton label="Save version…" size="xs" onClick={() => void saveNamedVersion()}>
+            <IconButton label={t('history.saveVersion')} size="xs" onClick={() => void saveNamedVersion()}>
               <BookmarkPlus />
             </IconButton>
             <DropdownMenu
               align="end"
               items={[
-                { type: 'label', label: 'Automatic versions' },
-                ...[2, 5, 10, 30].map((m) => ({ label: `Every ${m} minutes`, checked: intervalMin === m, onSelect: () => set({ intervalMin: m }) })),
-                { label: 'Off', checked: intervalMin === 0, onSelect: () => set({ intervalMin: 0 }) },
+                { type: 'label', label: t('history.automaticVersions') },
+                ...[2, 5, 10, 30].map((m) => ({ label: t('history.everyMinutes', { count: m }), checked: intervalMin === m, onSelect: () => set({ intervalMin: m }) })),
+                { label: t('history.off'), checked: intervalMin === 0, onSelect: () => set({ intervalMin: 0 }) },
                 { type: 'separator' },
-                { label: 'Show automatic versions', checked: showAuto, onSelect: () => set({ showAuto: !showAuto }) },
+                { label: t('history.showAutomatic'), checked: showAuto, onSelect: () => set({ showAuto: !showAuto }) },
               ]}
               trigger={
-                <button aria-label="History settings" className="flex size-6 items-center justify-center rounded-md text-fg-muted hover:bg-hover hover:text-fg [&_svg]:size-3.5">
+                <button aria-label={t('history.settings')} className="flex size-6 items-center justify-center rounded-md text-fg-muted hover:bg-hover hover:text-fg [&_svg]:size-3.5">
                   <Settings2 />
                 </button>
               }
@@ -143,15 +157,19 @@ export function HistoryPanel() {
             {dirtySince != null && <span className="absolute inline-flex size-full animate-ping rounded-full bg-warning opacity-60" />}
             <span className={cn('relative inline-flex size-2 rounded-full', dirtySince != null ? 'bg-warning' : 'bg-success')} />
           </span>
-          <span className="text-[12.5px] font-medium text-fg">Current version</span>
+          <span className="text-[12.5px] font-medium text-fg">{t('history.currentVersion')}</span>
           {saving && <Spinner className="size-3 text-fg-subtle" />}
         </div>
         <p className="mt-0.5 text-[11.5px] text-fg-subtle">
-          {dirtySince != null ? `Edited ${timeAgo(dirtySince)} — not in a version yet` : versions.length ? 'All changes are saved in a version' : 'No versions yet'}
+          {dirtySince != null
+            ? t('history.editedNotSaved', { ago: timeAgo(dirtySince) })
+            : versions.length
+              ? t('history.allSaved')
+              : t('history.noVersions')}
         </p>
         <div className="mt-2 flex flex-wrap gap-1.5">
           <Button size="xs" variant="primary" icon={<BookmarkPlus />} onClick={() => void saveNamedVersion()}>
-            Save version…
+            {t('history.saveVersion')}
           </Button>
           <Button
             size="xs"
@@ -160,10 +178,10 @@ export function HistoryPanel() {
             disabled={dirtySince == null}
             onClick={async () => {
               const v = await createSnapshot({ kind: 'auto' });
-              if (!v) toast.info('Nothing changed since the last version');
+              if (!v) toast.info(t('history.nothingChanged'));
             }}
           >
-            Snapshot now
+            {t('history.snapshotNow')}
           </Button>
         </div>
       </div>
@@ -176,11 +194,11 @@ export function HistoryPanel() {
         ) : !visible.length ? (
           <EmptyState
             icon={<History />}
-            title={versions.length ? 'No named versions' : 'No versions yet'}
+            title={versions.length ? t('history.noNamed') : t('history.noVersions')}
             description={
               versions.length
-                ? 'Name important moments with “Save version…”, or show automatic versions.'
-                : `TexIt saves a version automatically every ${intervalMin || 5} minutes while you edit.`
+                ? t('history.noNamedDesc')
+                : t('history.autoDesc', { count: intervalMin || 5 })
             }
           />
         ) : (
@@ -200,9 +218,9 @@ export function HistoryPanel() {
       <div className="flex items-center gap-1.5 border-t border-border px-3 py-1.5 text-[11px] text-fg-subtle">
         <ShieldCheck className="size-3" />
         <span>
-          {versions.length} version{versions.length === 1 ? '' : 's'} · {formatBytes(totalSize)} on this device
+          {t('history.footer', { count: versions.length, size: formatBytes(totalSize) })}
         </span>
-        <span className="ml-auto" title="Restoring always saves a safety copy first">
+        <span className="ml-auto" title={t('history.safetyHint')}>
           <RotateCcw className="size-3" />
         </span>
       </div>

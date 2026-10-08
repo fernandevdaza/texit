@@ -1,3 +1,4 @@
+import './i18n';
 export * from './Button';
 export * from './Tooltip';
 export * from './Kbd';

@@ -6,6 +6,7 @@
  * `executeCommand('history.snapshot', 'Before AI edit')` or by importing
  * `createSnapshot` from '@/features/history/service'.
  */
+import './i18n';
 import { BookmarkPlus, History } from 'lucide-react';
 import { registerCommands } from '@/services/commands';
 import { useLayout, useWorkspace } from '@/state/workspace';

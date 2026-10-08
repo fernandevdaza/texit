@@ -1,5 +1,7 @@
 import { createRoot } from 'react-dom/client';
+import { t } from '@/lib/i18n';
 import { promptDialog, toast } from '@/ui';
+import './i18n';
 import { TooltipProvider } from '@/ui/Tooltip';
 import { useWorkspace } from '@/state/workspace';
 import { createSnapshot } from './service';
@@ -9,15 +11,15 @@ import { VersionDialog } from './VersionDialog';
 export async function saveNamedVersion(defaultLabel?: string) {
   if (!useWorkspace.getState().project) return;
   const label = await promptDialog({
-    title: 'Save version',
-    message: 'Named versions are never pruned automatically.',
-    placeholder: 'e.g. Draft sent to supervisor',
+    title: t('history.saveVersionTitle'),
+    message: t('history.saveVersionMessage'),
+    placeholder: t('history.saveVersionPlaceholder'),
     value: defaultLabel,
-    confirmLabel: 'Save version',
+    confirmLabel: t('history.saveVersionTitle'),
   });
   if (!label) return;
   const v = await createSnapshot({ label, kind: 'named' });
-  if (v) toast.success(`Saved version “${label}”`);
+  if (v) toast.success(t('history.savedToast', { label }));
 }
 
 let current: { close(): void } | null = null;

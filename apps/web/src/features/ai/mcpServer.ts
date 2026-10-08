@@ -7,6 +7,8 @@ import type { AgentEvent, ProjectToolDef, ProjectToolsServer } from '@texit/ai';
 import { host } from '@/lib/platform';
 import { useLayout, useWorkspace } from '@/state/workspace';
 import { toast } from '@/ui';
+import { t } from '@/lib/i18n';
+import { EXTERNAL_AGENT_LABEL, EXTERNAL_AGENT_TITLE } from './i18n';
 import { loadAi } from './sdk';
 import { useAiSettings } from './store';
 import { createWorkspaceToolContext } from './projectContext';
@@ -22,7 +24,7 @@ function externalThreadId(): string | null {
   const s = useChat.getState();
   const existing = s.index.find((t) => t.external);
   if (existing) return existing.id;
-  return newThread({ external: true, title: 'External agent', activate: false })?.id ?? null;
+  return newThread({ external: true, title: EXTERNAL_AGENT_TITLE, activate: false })?.id ?? null;
 }
 
 /** Log an event into the external-agent thread (one assistant message per burst of activity). */
@@ -32,7 +34,7 @@ async function log(e: AgentEvent) {
   if (!useChat.getState().threads[threadId]) await openThreadQuiet(threadId);
   const now = Date.now();
   if (!currentMessage || currentMessage.threadId !== threadId || now - currentMessage.at > 120_000) {
-    const msg: UiMessage = { id: uid('x'), role: 'assistant', parts: [], createdAt: now, status: 'done', modelLabel: 'External agent via MCP' };
+    const msg: UiMessage = { id: uid('x'), role: 'assistant', parts: [], createdAt: now, status: 'done', modelLabel: EXTERNAL_AGENT_LABEL };
     updateThread(threadId, (t) => ({ ...t, updatedAt: now, messages: [...t.messages, msg] }));
     currentMessage = { threadId, id: msg.id, at: now, applier: createApplier(threadId, msg.id, msg) };
   }
@@ -92,10 +94,10 @@ async function reconcile() {
       : (path, _before, after) => {
           const threadId = externalThreadId();
           if (!threadId) return Promise.resolve(false);
-          toast('An external agent proposed an edit', {
+          toast(t('ai.toast.externalEdit'), {
             description: path,
             action: {
-              label: 'Review',
+              label: t('ai.toast.review'),
               onClick: () => {
                 useLayout.getState().set({ aiOpen: true });
                 void openThread(threadId);
@@ -112,7 +114,7 @@ async function reconcile() {
     else server = await ai.serveProjectTools(host, defs, { start: true });
     serving = want;
   } catch (err) {
-    toast.error('Could not start the TexIt MCP server', { description: (err as Error).message });
+    toast.error(t('ai.toast.mcpStartFailed'), { description: (err as Error).message });
     useAiSettings.getState().set({ exposeMcpServer: false });
   }
 }

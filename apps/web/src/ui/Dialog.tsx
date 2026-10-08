@@ -2,6 +2,7 @@ import { Dialog as D } from 'radix-ui';
 import { X } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { cn } from '@/lib/cn';
+import { useT } from '@/lib/i18n';
 
 export const DialogRoot = D.Root;
 export const DialogTrigger = D.Trigger;
@@ -40,6 +41,7 @@ export function Dialog({
   hideClose,
   bare,
 }: DialogProps) {
+  const t = useT();
   return (
     <D.Root open={open} onOpenChange={onOpenChange}>
       {trigger && <D.Trigger asChild>{trigger}</D.Trigger>}
@@ -62,8 +64,8 @@ export function Dialog({
         >
           {bare ? (
             <>
-              <D.Title className="sr-only">{title ?? 'Dialog'}</D.Title>
-              <D.Description className="sr-only">{typeof title === 'string' ? title : 'Dialog'}</D.Description>
+              <D.Title className="sr-only">{title ?? t('ui.dialog')}</D.Title>
+              <D.Description className="sr-only">{typeof title === 'string' ? title : t('ui.dialog')}</D.Description>
               {children}
             </>
           ) : (
@@ -80,13 +82,13 @@ export function Dialog({
                     {description ? (
                       <D.Description className="mt-0.5 text-[12.5px] leading-relaxed text-fg-muted">{description}</D.Description>
                     ) : (
-                      <D.Description className="sr-only">{typeof title === 'string' ? title : 'Dialog'}</D.Description>
+                      <D.Description className="sr-only">{typeof title === 'string' ? title : t('ui.dialog')}</D.Description>
                     )}
                   </div>
                   {!hideClose && (
                     <D.Close
                       className="-mr-1.5 -mt-0.5 rounded-md p-1.5 text-fg-subtle transition-colors hover:bg-hover hover:text-fg"
-                      aria-label="Close"
+                      aria-label={t('common.close')}
                     >
                       <X className="size-4" />
                     </D.Close>

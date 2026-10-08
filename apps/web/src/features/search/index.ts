@@ -2,6 +2,7 @@
  * Search feature: project-wide find & replace commands (the panel is registered
  * by the workspace feature; `edit.findInProject` opens it).
  */
+import './i18n';
 import { Replace } from 'lucide-react';
 import { registerCommands } from '@/services/commands';
 import { useLayout, useWorkspace } from '@/state/workspace';

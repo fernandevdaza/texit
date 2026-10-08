@@ -3,6 +3,7 @@
  * Feature owners implement the panel components; registration lives here so
  * the activity bar order stays stable.
  */
+import './i18n';
 import {
   Columns2,
   Files,
@@ -32,6 +33,7 @@ import { LogPanel } from '@/features/compile/LogPanel';
 import { promptDialog, toast } from '@/ui';
 import { duplicateProject, exportProjectZip } from '@/services/projects';
 import { downloadBlob } from '@/lib/format';
+import { t } from '@/lib/i18n';
 
 const inProject = () => !!useWorkspace.getState().project;
 
@@ -84,7 +86,7 @@ export function activate() {
         when: inProject,
         run: async () => {
           const ws = useWorkspace.getState();
-          const name = await promptDialog({ title: 'Rename project', value: ws.meta?.name ?? '' });
+          const name = await promptDialog({ title: t('workspace.renameProject'), value: ws.meta?.name ?? '' });
           if (name) ws.project?.setMeta({ name });
         },
       },
@@ -109,7 +111,7 @@ export function activate() {
           const id = useWorkspace.getState().session?.id;
           if (!id) return;
           const copy = await duplicateProject(id);
-          toast.success('Project duplicated', { action: { label: 'Open', onClick: () => navigate(`/p/${copy}`) } });
+          toast.success(t('workspace.projectDuplicated'), { action: { label: t('common.open'), onClick: () => navigate(`/p/${copy}`) } });
         },
       },
     ]),

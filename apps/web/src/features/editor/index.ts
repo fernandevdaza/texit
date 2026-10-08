@@ -2,6 +2,7 @@
  * Editor feature: registers the EditorBridge, editor/file commands, status bar
  * items and wires the CodeMirror controller to workspace state.
  */
+import './i18n';
 import {
   Bold,
   Braces,
@@ -32,6 +33,7 @@ import { registerStatusItem } from '@/services/panels';
 import { useResolvedTheme, useSettings } from '@/state/settings';
 import { useWorkspace } from '@/state/workspace';
 import { toast } from '@/ui';
+import { t } from '@/lib/i18n';
 import { editorController, gotoLineCommand } from './cm/controller';
 import { insertSnippet, toggleComment, wrapSelection } from './cm/editing';
 import { FileTypeStatus, KeymapStatus } from './StatusItems';
@@ -100,6 +102,7 @@ export function activate(): void | (() => void) {
     }),
   );
   unsubs.push(useSettings.subscribe((s, p) => s.editor !== p.editor && c.applySettings(s.editor, p.editor)));
+  unsubs.push(useSettings.subscribe((s, p) => s.locale !== p.locale && c.applyLocale()));
   unsubs.push(useResolvedTheme.subscribe((s, p) => s.theme !== p.theme && c.applyTheme()));
   const d1 = awarenessChanged.on(() => c.applyAwareness());
   const d2 = extensionsChanged.on(() => c.applyContributed());
@@ -173,7 +176,7 @@ export function activate(): void | (() => void) {
           try {
             if (!localStorage.getItem('texit:saveHint')) {
               localStorage.setItem('texit:saveHint', '1');
-              toast('Saved', { description: 'TexIt saves every keystroke automatically — ⌘S just recompiles.' });
+              toast(t('editor.saved'), { description: t('editor.savedHint') });
             }
           } catch {
             /* ignore */

@@ -7,6 +7,7 @@ import type { AiModel, McpManager, McpServerConfig, McpServerStatus, ModelRef, P
 import type { AIToolDef } from '@texit/plugin-api';
 import type { Disposable } from '@texit/core';
 import { host } from '@/lib/platform';
+import { t } from '@/lib/i18n';
 import { loadAi } from './sdk';
 import { getSecret, getSecretJson, loadSecrets, secretKeys } from './secrets';
 import { DEV_MOCK_KIND, findProvider, useAiSettings, type McpEntry, type ProviderEntry } from './store';
@@ -57,19 +58,19 @@ export interface ResolvedModel {
 
 export async function resolveModel(ref: ModelRef | undefined): Promise<ResolvedModel> {
   const provider = findProvider(ref?.providerId);
-  if (!ref || !provider) throw new Error('No AI model is configured. Add a provider in Settings → AI.');
-  if (!provider.enabled) throw new Error(`The provider “${provider.name}” is disabled.`);
+  if (!ref || !provider) throw new Error(t('ai.err.noModel'));
+  if (!provider.enabled) throw new Error(t('ai.err.providerDisabled', { name: provider.name }));
   if (provider.kind === DEV_MOCK_KIND) {
-    if (!DEV) throw new Error('The mock provider is only available in development builds.');
+    if (!DEV) throw new Error(t('ai.err.mockDevOnly'));
     const { createMockModel } = await import('./dev/mockModel');
     return { provider, modelId: ref.modelId, model: createMockModel(ref.modelId) };
   }
   if (provider.kind === 'cli') {
-    if (!host) throw new Error('CLI agents are only available in the desktop app.');
+    if (!host) throw new Error(t('ai.err.cliDesktopOnly'));
     return { provider, modelId: ref.modelId, model: null };
   }
   await ensureSecrets();
-  if (needsKey(provider) && !hasKey(provider)) throw new Error(`Add an API key for “${provider.name}” in Settings → AI.`);
+  if (needsKey(provider) && !hasKey(provider)) throw new Error(t('ai.err.missingKey', { name: provider.name }));
   const ai = await loadAi();
   return { provider, modelId: ref.modelId, model: ai.createLanguageModel(toProviderConfig(provider), ref.modelId) };
 }
@@ -104,7 +105,7 @@ export function ensureSecrets(): Promise<void> {
 }
 
 export function modelLabel(ref: ModelRef | undefined): string {
-  if (!ref) return 'No model';
+  if (!ref) return t('ai.noModel');
   return ref.modelId;
 }
 

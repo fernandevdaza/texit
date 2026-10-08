@@ -7,6 +7,7 @@
  * available. Shapes are normalised defensively so either source works.
  */
 import * as core from '@texit/core';
+import { t } from '@/lib/i18n';
 import {
   latexCommands as cmCommands,
   latexEnvironments as cmEnvironments,
@@ -187,6 +188,12 @@ const extraPackageInfo: Record<string, string> = {
   fontspec: 'System fonts (XeLaTeX/LuaLaTeX)',
   lipsum: 'Dummy text',
 };
+
+/** Display description of a package, translated when it comes from the built-in table above. */
+export function packageDetail(p: CatalogPackage): string | undefined {
+  if (p.detail && p.detail === extraPackageInfo[p.name]) return t(`editor.pkg.${p.name}`, undefined, p.detail);
+  return p.detail;
+}
 
 let cached: LatexCatalog | null = null;
 let cachedSource: unknown = null;

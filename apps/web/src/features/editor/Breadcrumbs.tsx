@@ -6,6 +6,7 @@ import { useSettings } from '@/state/settings';
 import { executeCommand } from '@/services/commands';
 import { getEditorBridge } from '@/services/editor';
 import { cn } from '@/lib/cn';
+import { useT } from '@/lib/i18n';
 import { IconButton } from '@/ui';
 import { FileIcon } from '@/features/files/FileIcon';
 import { revealInTree } from '@/features/files/api';
@@ -28,6 +29,7 @@ export function Breadcrumbs({ file, isText }: { file: FileNode; isText: boolean 
   const files = useWorkspace((s) => s.files);
   const version = useIndexVersion();
   const richText = useSettings((s) => s.editor.richText);
+  const t = useT();
   const segments = file.path.split('/');
   const isTex = isText && /\.(tex|ltx|latex)$/i.test(file.path);
 
@@ -87,13 +89,13 @@ export function Breadcrumbs({ file, isText }: { file: FileNode; isText: boolean 
         <div className="flex shrink-0 items-center gap-0.5">
           <IconButton
             size="xs"
-            label={richText ? 'Rich text: on' : 'Rich text: off'}
+            label={richText ? t('editor.richTextOn') : t('editor.richTextOff')}
             active={richText}
             onClick={() => executeCommand('editor.toggleRichText')}
           >
             <Heading />
           </IconButton>
-          <IconButton size="xs" label="Show in PDF" shortcut="Mod-Alt-j" onClick={() => executeCommand('editor.syncToPdf')}>
+          <IconButton size="xs" label={t('editor.showInPdf')} shortcut="Mod-Alt-j" onClick={() => executeCommand('editor.syncToPdf')}>
             <Crosshair />
           </IconButton>
         </div>

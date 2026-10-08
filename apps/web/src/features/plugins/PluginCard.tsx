@@ -9,10 +9,12 @@ import { getEntry, setPluginEnabled, usePlugins, type PluginEntry } from './mana
 import { getSettingsHandle } from './settingsStore';
 import { confirmUninstall, installRegistryEntry, reloadWithToast } from './actions';
 import { compareVersions, type RegistryEntry } from './registry';
-
-const SOURCE_LABEL: Record<PluginEntry['source'], string> = { builtin: 'Built-in', url: 'URL', file: 'Local file', registry: 'Registry' };
+import { useLocalizedManifest } from './localize';
+import { t as tr, useT } from '@/lib/i18n';
+import './i18n';
 
 export function StatusDot({ entry }: { entry: PluginEntry }) {
+  const t = useT();
   const tone =
     entry.status === 'error' || entry.lastError
       ? 'bg-danger'
@@ -21,20 +23,22 @@ export function StatusDot({ entry }: { entry: PluginEntry }) {
         : entry.status === 'activating'
           ? 'bg-warning animate-pulse'
           : 'bg-border-strong';
-  const label = entry.status === 'error' ? 'Failed to start' : entry.lastError ? 'Active, with errors' : entry.status;
+  const label = entry.status === 'error' ? t('plugins.failedToStart') : entry.lastError ? t('plugins.activeWithErrors') : t(`plugins.status.${entry.status}`);
   return <span title={label} className={cn('inline-block size-1.5 shrink-0 rounded-full', tone)} />;
 }
 
+/** Context menu items (built during render: translated with the current locale). */
 export function pluginMenu(entry: PluginEntry) {
   return [
-    { label: 'Details & settings', icon: <Settings2 />, onSelect: () => openPluginDetails(entry.id) },
-    { label: 'Reload', icon: <RotateCw />, disabled: !entry.enabled, onSelect: () => void reloadWithToast(entry.id) },
-    ...(entry.manifest.homepage ? [{ label: 'Homepage', icon: <ExternalLink />, onSelect: () => window.open(entry.manifest.homepage, '_blank', 'noopener') }] : []),
-    ...(entry.builtin ? [] : [{ type: 'separator' as const }, { label: 'Uninstall', icon: <Trash2 />, danger: true, onSelect: () => void confirmUninstall(entry.id) }]),
+    { label: tr('plugins.detailsAndSettings'), icon: <Settings2 />, onSelect: () => openPluginDetails(entry.id) },
+    { label: tr('plugins.reload'), icon: <RotateCw />, disabled: !entry.enabled, onSelect: () => void reloadWithToast(entry.id) },
+    ...(entry.manifest.homepage ? [{ label: tr('plugins.homepage'), icon: <ExternalLink />, onSelect: () => window.open(entry.manifest.homepage, '_blank', 'noopener') }] : []),
+    ...(entry.builtin ? [] : [{ type: 'separator' as const }, { label: tr('plugins.uninstall'), icon: <Trash2 />, danger: true, onSelect: () => void confirmUninstall(entry.id) }]),
   ];
 }
 
 export function ErrorNote({ entry, compact }: { entry: PluginEntry; compact?: boolean }) {
+  const t = useT();
   const msg = entry.status === 'error' ? entry.error : entry.lastError ? `${entry.lastError.context}: ${entry.lastError.message}` : null;
   if (!msg) return null;
   return (
@@ -43,7 +47,7 @@ export function ErrorNote({ entry, compact }: { entry: PluginEntry; compact?: bo
       <span className="line-clamp-3 min-w-0 flex-1 break-words">{msg}</span>
       {entry.enabled && (
         <button className="shrink-0 font-medium underline-offset-2 hover:underline" onClick={() => void reloadWithToast(entry.id)}>
-          Reload
+          {t('plugins.reload')}
         </button>
       )}
     </div>
@@ -51,7 +55,8 @@ export function ErrorNote({ entry, compact }: { entry: PluginEntry; compact?: bo
 }
 
 export function PluginCard({ entry }: { entry: PluginEntry }) {
-  const m = entry.manifest;
+  const t = useT();
+  const m = useLocalizedManifest(entry.manifest);
   return (
     <div
       className={cn(
@@ -73,7 +78,7 @@ export function PluginCard({ entry }: { entry: PluginEntry }) {
           <div className="truncate text-[11px] text-fg-subtle">
             v{m.version}
             {m.author ? ` · ${m.author}` : ''}
-            {entry.builtin ? ' · Built-in' : ''}
+            {entry.builtin ? ` · ${t('plugins.builtin')}` : ''}
           </div>
         </div>
         <Switch size="sm" checked={entry.enabled} onCheckedChange={(v) => void setPluginEnabled(entry.id, v)} />
@@ -93,14 +98,14 @@ export function PluginCard({ entry }: { entry: PluginEntry }) {
             </span>
           ))}
         </div>
-        <IconButton label="Settings" size="xs" onClick={() => openPluginDetails(entry.id)} className="opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100">
+        <IconButton label={t('plugins.settings')} size="xs" onClick={() => openPluginDetails(entry.id)} className="opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100">
           <Settings2 />
         </IconButton>
         <DropdownMenu
           align="end"
           items={pluginMenu(entry)}
           trigger={
-            <button aria-label="More actions" className="flex size-6 items-center justify-center rounded-md text-fg-muted hover:bg-hover hover:text-fg">
+            <button aria-label={t('plugins.moreActions')} className="flex size-6 items-center justify-center rounded-md text-fg-muted hover:bg-hover hover:text-fg">
               <MoreHorizontal className="size-3.5" />
             </button>
           }
@@ -111,6 +116,7 @@ export function PluginCard({ entry }: { entry: PluginEntry }) {
 }
 
 export function RegistryCard({ item }: { item: RegistryEntry }) {
+  const t = useT();
   const installed = usePlugins((s) => s.entries[item.id]);
   const [busy, setBusy] = useState(false);
   const update = installed && !installed.builtin && compareVersions(item.version, installed.manifest.version) > 0;
@@ -126,7 +132,7 @@ export function RegistryCard({ item }: { item: RegistryEntry }) {
           </div>
         </div>
         {installed && !update ? (
-          <Badge tone="success">Installed</Badge>
+          <Badge tone="success">{t('plugins.installed')}</Badge>
         ) : (
           <Button
             size="xs"
@@ -142,7 +148,7 @@ export function RegistryCard({ item }: { item: RegistryEntry }) {
               }
             }}
           >
-            {update ? 'Update' : 'Install'}
+            {update ? t('plugins.update') : t('plugins.install')}
           </Button>
         )}
       </div>
@@ -155,7 +161,7 @@ export function RegistryCard({ item }: { item: RegistryEntry }) {
         ))}
         {item.homepage && (
           <a href={item.homepage} target="_blank" rel="noreferrer noopener" className="ml-auto text-[11px] text-accent hover:underline">
-            Homepage
+            {t('plugins.homepage')}
           </a>
         )}
       </div>
@@ -205,9 +211,15 @@ function SettingControl({ def, pluginId }: { def: PluginSettingDef; pluginId: st
 
 function PluginDetails({ id, close }: { id: string; close: () => void }) {
   const entry = usePlugins((s) => s.entries[id]);
+  if (!entry) return <p className="py-6 text-center text-[12.5px] text-fg-subtle">{tr('plugins.wasUninstalled')}</p>;
+  return <PluginDetailsBody entry={entry} close={close} />;
+}
+
+function PluginDetailsBody({ entry, close }: { entry: PluginEntry; close: () => void }) {
+  const t = useT();
+  const id = entry.id;
   const [, force] = useState(0);
-  if (!entry) return <p className="py-6 text-center text-[12.5px] text-fg-subtle">This plugin was uninstalled.</p>;
-  const m = entry.manifest;
+  const m = useLocalizedManifest(entry.manifest);
   const settings = m.settings ?? [];
   return (
     <div className="space-y-4 pb-1">
@@ -217,9 +229,9 @@ function PluginDetails({ id, close }: { id: string; close: () => void }) {
           <div className="flex flex-wrap items-center gap-1.5">
             <span className="text-[15px] font-semibold text-fg">{m.name}</span>
             <Badge>v{m.version}</Badge>
-            <Badge tone={entry.builtin ? 'accent' : 'neutral'}>{SOURCE_LABEL[entry.source]}</Badge>
+            <Badge tone={entry.builtin ? 'accent' : 'neutral'}>{t(`plugins.source.${entry.source}`)}</Badge>
             <span className="flex items-center gap-1 text-[11px] text-fg-subtle">
-              <StatusDot entry={entry} /> {entry.status}
+              <StatusDot entry={entry} /> {t(`plugins.status.${entry.status}`)}
             </span>
           </div>
           <div className="mt-0.5 truncate text-[12px] text-fg-subtle">
@@ -240,15 +252,15 @@ function PluginDetails({ id, close }: { id: string; close: () => void }) {
       {settings.length > 0 && (
         <section>
           <div className="mb-1 flex items-center justify-between">
-            <h3 className="text-[11px] font-semibold uppercase tracking-wider text-fg-subtle">Settings</h3>
+            <h3 className="text-[11px] font-semibold uppercase tracking-wider text-fg-subtle">{t('plugins.settings')}</h3>
             <button
               className="text-[11.5px] text-fg-subtle hover:text-fg"
               onClick={() => {
-                getSettingsHandle(id, m).reset();
+                getSettingsHandle(id, entry.manifest).reset();
                 force((x) => x + 1);
               }}
             >
-              Reset to defaults
+              {t('plugins.resetToDefaults')}
             </button>
           </div>
           <div className="divide-y divide-border rounded-lg border border-border px-3">
@@ -263,7 +275,7 @@ function PluginDetails({ id, close }: { id: string; close: () => void }) {
 
       <section>
         <h3 className="mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-fg-subtle">
-          Permissions {entry.builtin && <span className="font-normal normal-case tracking-normal">(built-in plugins are trusted)</span>}
+          {t('plugins.permissions')} {entry.builtin && <span className="font-normal normal-case tracking-normal">{t('plugins.builtinTrusted')}</span>}
         </h3>
         <PermissionList permissions={m.permissions} />
       </section>
@@ -281,21 +293,21 @@ function PluginDetails({ id, close }: { id: string; close: () => void }) {
                 if (!getEntry(id)) close();
               }}
             >
-              Uninstall
+              {t('plugins.uninstall')}
             </Button>
           )}
           {m.homepage && (
             <Button size="sm" variant="ghost" icon={<ExternalLink />} onClick={() => window.open(m.homepage, '_blank', 'noopener')}>
-              Homepage
+              {t('plugins.homepage')}
             </Button>
           )}
         </div>
         <div className="flex gap-1.5">
           <Button size="sm" icon={<RotateCw />} disabled={!entry.enabled} onClick={() => void reloadWithToast(id)}>
-            Reload
+            {t('plugins.reload')}
           </Button>
           <Button size="sm" variant="primary" onClick={close}>
-            Done
+            {t('common.done')}
           </Button>
         </div>
       </div>
@@ -306,5 +318,5 @@ function PluginDetails({ id, close }: { id: string; close: () => void }) {
 export function openPluginDetails(id: string) {
   const e = getEntry(id);
   if (!e) return;
-  void openModal({ title: "Plugin details", width: 'max-w-xl', render: (close) => <PluginDetails id={id} close={close} /> });
+  void openModal({ title: tr('plugins.detailsTitle'), width: 'max-w-xl', render: (close) => <PluginDetails id={id} close={close} /> });
 }

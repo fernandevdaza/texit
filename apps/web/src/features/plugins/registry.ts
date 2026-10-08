@@ -8,6 +8,8 @@
  */
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { t } from '@/lib/i18n';
+import './i18n';
 import type { PluginPermission } from '@texit/plugin-api';
 
 export interface RegistryEntry {
@@ -94,7 +96,7 @@ export const useRegistry = create<RegistryState>((set, get) => ({
       if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
       set({ entries: parseRegistry(await res.json(), abs), loading: false, loadedFrom: url });
     } catch (err) {
-      set({ loading: false, error: `Could not load the plugin registry: ${err instanceof Error ? err.message : String(err)}`, loadedFrom: url });
+      set({ loading: false, error: t('plugins.registryLoadFailed', { error: err instanceof Error ? err.message : String(err) }), loadedFrom: url });
     }
   },
 }));

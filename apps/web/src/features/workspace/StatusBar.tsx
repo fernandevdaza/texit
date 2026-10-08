@@ -1,5 +1,6 @@
 import { usePanelRegistry } from '@/services/panels';
 import { useWorkspace } from '@/state/workspace';
+import { useT } from '@/lib/i18n';
 
 /**
  * Bottom status bar. Built-in items: cursor position. Features and plugins add
@@ -32,11 +33,12 @@ export function StatusBar() {
 function CursorItem() {
   const { line, column, selected } = useWorkspace((s) => s.cursor);
   const active = useWorkspace((s) => !!s.activeFileId);
+  const t = useT();
   if (!active) return null;
   return (
     <span className="px-1.5 tabular-nums">
-      Ln {line}, Col {column}
-      {selected > 0 && <span className="text-fg-subtle/80"> ({selected} selected)</span>}
+      {t('workspace.cursorPosition', { line: String(line), column: String(column) })}
+      {selected > 0 && <span className="text-fg-subtle/80"> {t('workspace.selectedCount', { count: String(selected) })}</span>}
     </span>
   );
 }

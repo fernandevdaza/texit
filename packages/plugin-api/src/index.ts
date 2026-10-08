@@ -24,8 +24,12 @@ export type { BibEntry, Diagnostic, Disposable, LatexAnalysis, ProjectFile, Proj
  * 1.1.0 — additive: `api.latex`, `api.ui.showPanel/getTheme/onThemeChange`,
  * `api.editor.wrapSelection/focus`, `api.settings.onDidChange`, status item
  * handles with `refresh()`, declarative `settings` in the manifest.
+ *
+ * 1.2.0 — additive: `api.ui.getLocale/onLocaleChange` and the optional
+ * `locales` manifest field (translated name, description, settings, command
+ * and panel titles).
  */
-export const PLUGIN_API_VERSION = '1.1.0';
+export const PLUGIN_API_VERSION = '1.2.0';
 
 export type PluginPermission =
   | 'project:read'
@@ -56,6 +60,27 @@ export interface PluginManifest {
    * card → Settings) and `api.settings.get(key)` falls back to `default`.
    */
   settings?: PluginSettingDef[];
+  /**
+   * Translations of the manifest's user-visible strings, keyed by BCP-47
+   * language tag (e.g. `es`, `pt-BR`). English (the plain fields) is the
+   * fallback. The host uses them for the plugin list, details dialog,
+   * settings form, command palette and panel titles — even while the plugin
+   * is disabled. Strings rendered by the plugin itself are translated with
+   * `api.ui.getLocale()` / `api.ui.onLocaleChange()`.
+   */
+  locales?: Record<string, PluginManifestLocalization>;
+}
+
+/** Localized manifest strings for one language (see `PluginManifest.locales`). */
+export interface PluginManifestLocalization {
+  name?: string;
+  description?: string;
+  /** Command titles by command id (as registered, without the plugin prefix). */
+  commands?: Record<string, string>;
+  /** Panel titles by panel id (as registered, without the plugin prefix). */
+  panels?: Record<string, string>;
+  /** Setting labels by setting key. `options` maps option values to labels. */
+  settings?: Record<string, { title?: string; description?: string; placeholder?: string; options?: Record<string, string> }>;
 }
 
 /** A user-configurable plugin setting rendered by the host. */
@@ -213,6 +238,10 @@ export interface PluginAPI {
     showPanel(id: string): void;
     getTheme(): 'light' | 'dark';
     onThemeChange(cb: (theme: 'light' | 'dark') => void): Disposable;
+    /** The UI language as a BCP-47 tag (e.g. 'en', 'es'). Since 1.2.0. */
+    getLocale(): string;
+    /** Fires when the user switches the UI language. Since 1.2.0. */
+    onLocaleChange(cb: (locale: string) => void): Disposable;
     toast(message: string, opts?: { type?: 'info' | 'success' | 'error' | 'warning'; description?: string }): void;
     quickPick<T>(items: QuickPickItem<T>[], opts?: { placeholder?: string }): Promise<T | undefined>;
     prompt(opts: { title: string; placeholder?: string; value?: string }): Promise<string | undefined>;

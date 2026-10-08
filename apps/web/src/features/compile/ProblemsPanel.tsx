@@ -16,20 +16,22 @@ import {
 import type { Diagnostic, DiagnosticSeverity } from '@texit/core';
 import { FileIcon } from '@/features/files/FileIcon';
 import { cn } from '@/lib/cn';
-import { formatDuration } from '@/lib/format';
+import { useT } from '@/lib/i18n';
 import { executeCommand } from '@/services/commands';
 import { getAiBridge } from '@/services/ai';
 import { useLayout, useWorkspace } from '@/state/workspace';
 import { Button, EmptyState, Spinner, Tooltip } from '@/ui';
-import { BACKEND_SHORT, ENGINE_LABELS, useCompileUi } from './controller';
+import { ENGINE_LABELS, useCompileUi } from './controller';
+import { backendShort, formatDurationL } from './format';
 import { aiPrompt, hintFor } from './hints';
 import { useDiagnosticCounts } from './hooks';
 
+/** `label` / `plural` are i18n keys. */
 const SEVERITY: Record<DiagnosticSeverity, { icon: typeof AlertCircle; cls: string; label: string; plural: string }> = {
-  error: { icon: AlertCircle, cls: 'text-danger', label: 'Error', plural: 'Errors' },
-  warning: { icon: AlertTriangle, cls: 'text-warning', label: 'Warning', plural: 'Warnings' },
-  badbox: { icon: SquareDashed, cls: 'text-fg-subtle', label: 'Bad box', plural: 'Bad boxes' },
-  info: { icon: Info, cls: 'text-info', label: 'Info', plural: 'Info' },
+  error: { icon: AlertCircle, cls: 'text-danger', label: 'compile.sev.error', plural: 'compile.sev.errors' },
+  warning: { icon: AlertTriangle, cls: 'text-warning', label: 'compile.sev.warning', plural: 'compile.sev.warnings' },
+  badbox: { icon: SquareDashed, cls: 'text-fg-subtle', label: 'compile.sev.badbox', plural: 'compile.sev.badboxes' },
+  info: { icon: Info, cls: 'text-info', label: 'compile.sev.info', plural: 'compile.sev.infos' },
 };
 const ORDER: DiagnosticSeverity[] = ['error', 'warning', 'badbox', 'info'];
 const RANK: Record<DiagnosticSeverity, number> = { error: 0, warning: 1, badbox: 2, info: 3 };
@@ -44,6 +46,7 @@ export function ProblemsPanel() {
   const counts = useDiagnosticCounts();
   const lastMs = useCompileUi((s) => s.lastDurationMs);
   const engine = useCompileUi((s) => s.lastEngine);
+  const t = useT();
   const [hidden, setHidden] = useState<Set<DiagnosticSeverity>>(() => new Set(['badbox', 'info']));
   const toggle = (sev: DiagnosticSeverity) =>
     setHidden((h) => {
@@ -74,7 +77,11 @@ export function ProblemsPanel() {
   const countOf = { error: counts.errors, warning: counts.warnings, badbox: counts.badboxes, info: counts.infos };
   const summary =
     lastMs !== undefined && hasResult
-      ? [status === 'error' ? 'Failed' : 'Compiled', `in ${formatDuration(lastMs)}`, engine && `· ${ENGINE_LABELS[engine]}`, backendId && `· ${BACKEND_SHORT[backendId] ?? backendId}`]
+      ? [
+          t(status === 'error' ? 'compile.status.failedIn' : 'compile.status.compiledIn', { duration: formatDurationL(lastMs, t) }),
+          engine && `· ${ENGINE_LABELS[engine]}`,
+          backendId && `· ${backendShort(backendId, t)}`,
+        ]
           .filter(Boolean)
           .join(' ')
       : null;
@@ -97,7 +104,7 @@ export function ProblemsPanel() {
               )}
             >
               <S.icon className={cn(active ? S.cls : 'opacity-60')} />
-              {S.plural}
+              {t(S.plural)}
               <span className="tabular-nums text-fg-subtle">{countOf[sev]}</span>
             </button>
           );
@@ -106,7 +113,7 @@ export function ProblemsPanel() {
         {busy && <Spinner className="mr-1 size-3.5 text-fg-subtle" />}
         {summary && <span className="mr-1 hidden truncate text-[11.5px] text-fg-subtle sm:inline">{summary}</span>}
         <Button size="xs" variant="ghost" icon={<ScrollText />} onClick={() => useLayout.getState().showBottomPanel('log')}>
-          Raw log
+          {t('compile.rawLog')}
         </Button>
       </div>
 
@@ -122,16 +129,18 @@ export function ProblemsPanel() {
 }
 
 function Empty({ status, hasResult, total, summary }: { status: string; hasResult: boolean; total: number; summary: string | null }) {
-  if (status === 'preparing' || status === 'compiling') return <EmptyState icon={<Spinner />} title="Compiling…" description="Problems appear here when the build finishes." />;
+  const t = useT();
+  if (status === 'preparing' || status === 'compiling')
+    return <EmptyState icon={<Spinner />} title={t('compile.detail.compiling')} description={t('compile.empty.compilingDesc')} />;
   if (!hasResult)
     return (
       <EmptyState
         icon={<Play />}
-        title="No compile yet"
-        description="Compile the project to see errors and warnings."
+        title={t('compile.empty.noCompile')}
+        description={t('compile.empty.noCompileDesc')}
         action={
           <Button size="sm" variant="primary" onClick={() => executeCommand('compile.run')}>
-            Compile
+            {t('compile.compile')}
           </Button>
         }
       />
@@ -140,21 +149,22 @@ function Empty({ status, hasResult, total, summary }: { status: string; hasResul
     return (
       <EmptyState
         icon={<AlertCircle />}
-        title="Compilation failed"
-        description="No specific problem could be extracted. The raw log has the details."
+        title={t('compile.status.failed')}
+        description={t('compile.empty.failedDesc')}
         action={
           <Button size="sm" icon={<ScrollText />} onClick={() => useLayout.getState().showBottomPanel('log')}>
-            Open raw log
+            {t('compile.empty.openRawLog')}
           </Button>
         }
       />
     );
-  if (total > 0) return <EmptyState title="All problems are filtered out" description="Use the filters above to show them." />;
-  return <EmptyState icon={<PartyPopper />} title="No problems 🎉" description={summary ?? undefined} />;
+  if (total > 0) return <EmptyState title={t('compile.empty.filtered')} description={t('compile.empty.filteredDesc')} />;
+  return <EmptyState icon={<PartyPopper />} title={t('compile.empty.noProblems')} description={summary ?? undefined} />;
 }
 
 const FileGroup = memo(function FileGroup({ file, items, clickable }: { file: string; items: Diagnostic[]; clickable: boolean }) {
   const [open, setOpen] = useState(true);
+  const t = useT();
   return (
     <div className="mb-0.5">
       <button
@@ -164,7 +174,7 @@ const FileGroup = memo(function FileGroup({ file, items, clickable }: { file: st
       >
         {open ? <ChevronDown className="size-3.5 text-fg-subtle" /> : <ChevronRight className="size-3.5 text-fg-subtle" />}
         {file ? <FileIcon path={file} className="size-3.5" /> : <Info className="size-3.5 text-fg-subtle" />}
-        <span className={cn('truncate', !clickable && file && 'text-fg-muted')}>{file || 'General'}</span>
+        <span className={cn('truncate', !clickable && file && 'text-fg-muted')}>{file || t('compile.general')}</span>
         <span className="ml-1 rounded-full bg-surface-2 px-1.5 text-[10.5px] tabular-nums text-fg-muted ring-1 ring-border">{items.length}</span>
       </button>
       {open && items.map((d, i) => <ProblemRow key={i} d={d} clickable={clickable} />)}
@@ -174,10 +184,11 @@ const FileGroup = memo(function FileGroup({ file, items, clickable }: { file: st
 
 function ProblemRow({ d, clickable }: { d: Diagnostic; clickable: boolean }) {
   const [expanded, setExpanded] = useState(false);
+  const t = useT();
   const backendId = useWorkspace((s) => s.compile.backendId);
   const engine = useCompileUi((s) => s.lastEngine);
   const S = SEVERITY[d.severity];
-  const hint = hintFor(d, { backendId, engine });
+  const hint = hintFor(d, { backendId, engine }, t);
   const ai = getAiBridge();
   const excerpt = (d.raw ?? d.context ?? '').trim();
   const [first, ...rest] = d.message.split('\n');
@@ -203,7 +214,7 @@ function ProblemRow({ d, clickable }: { d: Diagnostic; clickable: boolean }) {
       >
         <button
           type="button"
-          aria-label={expanded ? 'Collapse details' : 'Expand details'}
+          aria-label={expanded ? t('compile.collapseDetails') : t('compile.expandDetails')}
           onClick={(e) => {
             e.stopPropagation();
             setExpanded(!expanded);
@@ -212,14 +223,13 @@ function ProblemRow({ d, clickable }: { d: Diagnostic; clickable: boolean }) {
         >
           {expanded ? <ChevronDown /> : <ChevronRight />}
         </button>
-        <S.icon className={cn('mt-[2px] size-3.5 shrink-0', S.cls)} aria-label={S.label} />
+        <S.icon className={cn('mt-[2px] size-3.5 shrink-0', S.cls)} aria-label={t(S.label)} />
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-baseline gap-x-2">
             <span className={cn('min-w-[8rem] flex-1 break-words text-fg', !expanded && 'line-clamp-2')}>{first}</span>
             {d.line !== undefined && (
               <span className="shrink-0 font-mono text-[11px] tabular-nums text-fg-subtle">
-                {d.file ? `${d.file.split('/').pop()}:` : 'line '}
-                {d.line}
+                {d.file ? `${d.file.split('/').pop()}:${d.line}` : t('compile.line', { line: String(d.line) })}
               </span>
             )}
           </div>
@@ -232,28 +242,28 @@ function ProblemRow({ d, clickable }: { d: Diagnostic; clickable: boolean }) {
         </div>
         {ai && d.severity !== 'info' && (
           <div className="hidden shrink-0 @[28rem]:flex items-center gap-0.5 opacity-0 transition-opacity group-hover/row:opacity-100 group-focus-within/row:opacity-100">
-            <Tooltip content="Ask the AI to explain this">
+            <Tooltip content={t('compile.explainTooltip')}>
               <button
                 type="button"
                 onClick={(e) => {
                   e.stopPropagation();
-                  ai.ask(aiPrompt(d, 'explain'), { includeDiagnostics: false });
+                  ai.ask(aiPrompt(d, 'explain', t), { includeDiagnostics: false });
                 }}
                 className="flex h-5 items-center gap-1 rounded px-1.5 text-[11px] text-fg-muted hover:bg-active hover:text-fg [&_svg]:size-3"
               >
-                <MessageCircleQuestion /> Explain
+                <MessageCircleQuestion /> {t('compile.explain')}
               </button>
             </Tooltip>
-            <Tooltip content="Let the AI fix it in the source">
+            <Tooltip content={t('compile.fixTooltip')}>
               <button
                 type="button"
                 onClick={(e) => {
                   e.stopPropagation();
-                  ai.ask(aiPrompt(d, 'fix'), { includeDiagnostics: true });
+                  ai.ask(aiPrompt(d, 'fix', t), { includeDiagnostics: true });
                 }}
                 className="flex h-5 items-center gap-1 rounded px-1.5 text-[11px] font-medium text-accent hover:bg-accent-soft [&_svg]:size-3"
               >
-                <Sparkles /> Fix with AI
+                <Sparkles /> {t('compile.fixWithAi')}
               </button>
             </Tooltip>
           </div>
@@ -275,11 +285,11 @@ function ProblemRow({ d, clickable }: { d: Diagnostic; clickable: boolean }) {
             {d.code && <span className="mr-1 text-[10.5px] uppercase tracking-wider text-fg-subtle">{d.code}</span>}
             {ai && d.severity !== 'info' && (
               <>
-                <Button size="xs" variant="ghost" icon={<MessageCircleQuestion />} onClick={() => ai.ask(aiPrompt(d, 'explain'), { includeDiagnostics: false })}>
-                  Explain
+                <Button size="xs" variant="ghost" icon={<MessageCircleQuestion />} onClick={() => ai.ask(aiPrompt(d, 'explain', t), { includeDiagnostics: false })}>
+                  {t('compile.explain')}
                 </Button>
-                <Button size="xs" variant="subtle" icon={<Sparkles />} onClick={() => ai.ask(aiPrompt(d, 'fix'), { includeDiagnostics: true })}>
-                  Fix with AI
+                <Button size="xs" variant="subtle" icon={<Sparkles />} onClick={() => ai.ask(aiPrompt(d, 'fix', t), { includeDiagnostics: true })}>
+                  {t('compile.fixWithAi')}
                 </Button>
               </>
             )}

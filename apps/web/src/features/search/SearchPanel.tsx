@@ -4,10 +4,11 @@ import { dirname } from '@texit/core';
 import { useWorkspace } from '@/state/workspace';
 import { getEditorBridge } from '@/services/editor';
 import { cn } from '@/lib/cn';
+import { t as translate, useT } from '@/lib/i18n';
 import { confirmDialog, EmptyState, IconButton, PanelHeader, Spinner, toast, Tooltip } from '@/ui';
 import { FileIcon } from '@/features/files/FileIcon';
 import { editorController } from '@/features/editor/cm/controller';
-import { replaceInFile, replacementFor, buildRegex, searchProject, MAX_MATCHES, type SearchMatch, type SearchResult } from './engine';
+import { replaceInFile, replacementFor, buildRegex, searchProject, EMPTY_MATCH_ERROR, MAX_MATCHES, type SearchMatch, type SearchResult } from './engine';
 import { useSearchUi } from './store';
 
 type FlatRow = { kind: 'file'; fileId: string } | { kind: 'match'; fileId: string; index: number };
@@ -43,6 +44,7 @@ export function SearchPanel() {
   const [cursor, setCursor] = useState<number>(-1);
   const queryRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
+  const t = useT();
 
   // Prefill with the editor selection when opening.
   useEffect(() => {
@@ -125,19 +127,18 @@ export function SearchPanel() {
   const replaceAllEverywhere = async () => {
     if (!result?.total || !project) return;
     const ok = await confirmDialog({
-      title: `Replace ${result.total} occurrence${result.total === 1 ? '' : 's'}?`,
+      title: translate('search.confirmTitle', { count: result.total }),
       message: (
         <>
-          Replace in {result.files.length} file{result.files.length === 1 ? '' : 's'} with “<span className="font-mono">{ui.replace}</span>”. Each file can be undone
-          from its editor (⌘Z).
+          {translate('search.confirmFiles', { count: result.files.length })} “<span className="font-mono">{ui.replace}</span>”. {translate('search.confirmUndo')}
         </>
       ),
-      confirmLabel: 'Replace all',
+      confirmLabel: translate('search.replaceAll'),
     });
     if (!ok) return;
     let n = 0;
     for (const fr of result.files) n += doReplace(fr.file.id);
-    toast.success(`Replaced ${n} occurrence${n === 1 ? '' : 's'}`);
+    toast.success(translate('search.replaced', { count: n }));
   };
 
   const toggleFile = (id: string) =>
@@ -228,13 +229,13 @@ export function SearchPanel() {
   return (
     <div className="flex h-full min-h-0 flex-col" data-keep-focus>
       <PanelHeader
-        title="Search"
+        title={t('panel.search')}
         actions={
           <>
-            <IconButton size="xs" label="Collapse all" disabled={!result?.files.length} onClick={() => setCollapsed(new Set(result?.files.map((f) => f.file.id)))}>
+            <IconButton size="xs" label={t('search.collapseAll')} disabled={!result?.files.length} onClick={() => setCollapsed(new Set(result?.files.map((f) => f.file.id)))}>
               <ChevronsDownUp />
             </IconButton>
-            <IconButton size="xs" label="Clear" disabled={!ui.query} onClick={() => ui.set({ query: '', replace: '' })}>
+            <IconButton size="xs" label={t('search.clear')} disabled={!ui.query} onClick={() => ui.set({ query: '', replace: '' })}>
               <X />
             </IconButton>
           </>
@@ -243,8 +244,8 @@ export function SearchPanel() {
       <div className="flex gap-1 px-2 pb-2">
         <button
           onClick={() => ui.set({ showReplace: !ui.showReplace })}
-          aria-label="Toggle replace"
-          title="Toggle replace (⌘⇧H)"
+          aria-label={t('search.toggleReplace')}
+          title={`${t('search.toggleReplace')} (⌘⇧H)`}
           className="mt-0.5 flex h-6 w-4 shrink-0 items-center justify-center rounded text-fg-subtle hover:bg-hover hover:text-fg"
         >
           <ChevronRight className={cn('size-3.5 transition-transform', ui.showReplace && 'rotate-90')} />
@@ -256,18 +257,18 @@ export function SearchPanel() {
               value={ui.query}
               onChange={(e) => ui.set({ query: e.target.value })}
               onKeyDown={onQueryKey}
-              placeholder="Search"
+              placeholder={t('search.placeholder')}
               spellCheck={false}
-              aria-label="Search in project"
+              aria-label={t('search.searchInProject')}
               className={cn(inputCls, 'font-mono text-[12px] placeholder:font-sans')}
             />
-            <Toggle on={ui.caseSensitive} title="Match case (⌥C)" onClick={() => ui.set({ caseSensitive: !ui.caseSensitive })}>
+            <Toggle on={ui.caseSensitive} title={`${t('search.matchCase')} (⌥C)`} onClick={() => ui.set({ caseSensitive: !ui.caseSensitive })}>
               Aa
             </Toggle>
-            <Toggle on={ui.wholeWord} title="Match whole word (⌥W)" onClick={() => ui.set({ wholeWord: !ui.wholeWord })}>
+            <Toggle on={ui.wholeWord} title={`${t('search.matchWholeWord')} (⌥W)`} onClick={() => ui.set({ wholeWord: !ui.wholeWord })}>
               <span className="underline decoration-1 underline-offset-2">ab</span>
             </Toggle>
-            <Toggle on={ui.regex} title="Use regular expression (⌥R)" onClick={() => ui.set({ regex: !ui.regex })}>
+            <Toggle on={ui.regex} title={`${t('search.useRegex')} (⌥R)`} onClick={() => ui.set({ regex: !ui.regex })}>
               .*
             </Toggle>
           </div>
@@ -283,13 +284,13 @@ export function SearchPanel() {
                       void replaceAllEverywhere();
                     }
                   }}
-                  placeholder="Replace"
+                  placeholder={t('search.replacePlaceholder')}
                   spellCheck={false}
-                  aria-label="Replace with"
+                  aria-label={t('search.replaceWith')}
                   className={cn(inputCls, 'font-mono text-[12px] placeholder:font-sans')}
                 />
               </div>
-              <IconButton size="sm" label="Replace all (⌥↩)" disabled={!result?.total} onClick={() => void replaceAllEverywhere()}>
+              <IconButton size="sm" label={`${t('search.replaceAll')} (⌥↩)`} disabled={!result?.total} onClick={() => void replaceAllEverywhere()}>
                 <ReplaceAll />
               </IconButton>
             </div>
@@ -297,23 +298,26 @@ export function SearchPanel() {
           <div className="flex items-center justify-between gap-2">
             <div className="min-w-0 truncate text-[11px] text-fg-subtle">
               {typeof regex === 'string' && regex !== 'empty' ? (
-                <span className="text-danger">{regex}</span>
+                <span className="text-danger">{regex === EMPTY_MATCH_ERROR ? t('search.matchesEmpty') : regex}</span>
               ) : busy ? (
                 <span className="inline-flex items-center gap-1.5">
-                  <Spinner className="size-3" /> Searching…
+                  <Spinner className="size-3" /> {t('search.searching')}
                 </span>
               ) : result ? (
                 result.total ? (
-                  `${result.truncated ? `${MAX_MATCHES}+` : result.total} result${result.total === 1 ? '' : 's'} in ${result.files.length} file${result.files.length === 1 ? '' : 's'}`
+                  t('search.inFiles', {
+                    summary: result.truncated ? t('search.resultCount_other', { count: `${MAX_MATCHES}+` }) : t('search.resultCount', { count: result.total }),
+                    count: result.files.length,
+                  })
                 ) : (
-                  'No results'
+                  t('search.noResults')
                 )
               ) : null}
             </div>
             <button
               onClick={() => ui.set({ showFilters: !ui.showFilters })}
-              aria-label="Toggle file filters"
-              title="Files to include / exclude"
+              aria-label={t('search.toggleFilters')}
+              title={t('search.filtersTitle')}
               className={cn('flex h-5 shrink-0 items-center rounded px-1 text-fg-subtle hover:bg-hover hover:text-fg', (ui.showFilters || ui.include || ui.exclude) && 'text-accent')}
             >
               <Ellipsis className="size-3.5" />
@@ -321,13 +325,13 @@ export function SearchPanel() {
           </div>
           {ui.showFilters && (
             <div className="flex flex-col gap-1">
-              <label className="text-[10.5px] font-medium uppercase tracking-wide text-fg-subtle">Files to include</label>
+              <label className="text-[10.5px] font-medium uppercase tracking-wide text-fg-subtle">{t('search.include')}</label>
               <div className={fieldCls}>
-                <input value={ui.include} onChange={(e) => ui.set({ include: e.target.value })} placeholder="e.g. *.tex, chapters/" spellCheck={false} className={inputCls} />
+                <input value={ui.include} onChange={(e) => ui.set({ include: e.target.value })} placeholder={t('search.includeExample')} spellCheck={false} className={inputCls} />
               </div>
-              <label className="mt-1 text-[10.5px] font-medium uppercase tracking-wide text-fg-subtle">Files to exclude</label>
+              <label className="mt-1 text-[10.5px] font-medium uppercase tracking-wide text-fg-subtle">{t('search.exclude')}</label>
               <div className={fieldCls}>
-                <input value={ui.exclude} onChange={(e) => ui.set({ exclude: e.target.value })} placeholder="e.g. *.bib, build/" spellCheck={false} className={inputCls} />
+                <input value={ui.exclude} onChange={(e) => ui.set({ exclude: e.target.value })} placeholder={t('search.excludeExample')} spellCheck={false} className={inputCls} />
               </div>
             </div>
           )}
@@ -337,12 +341,12 @@ export function SearchPanel() {
         ref={listRef}
         tabIndex={0}
         role="tree"
-        aria-label="Search results"
+        aria-label={t('search.results')}
         onKeyDown={onListKey}
         className="min-h-0 flex-1 overflow-y-auto border-t border-border pb-4 outline-none"
       >
         {!ui.query && (
-          <EmptyState icon={<Search />} title="Search the whole project" description="Find text across every file. Toggle replace with the arrow to rewrite matches everywhere." />
+          <EmptyState icon={<Search />} title={t('search.emptyTitle')} description={t('search.emptyHint')} />
         )}
         {rows.map((r, i) => {
           const fr = byFile.get(r.fileId);
@@ -369,15 +373,15 @@ export function SearchPanel() {
                 <span className="truncate font-medium">{fr.file.name}</span>
                 <span className="min-w-0 flex-1 truncate text-[11px] text-fg-subtle">{dirname(fr.file.path)}</span>
                 {ui.showReplace && (
-                  <Tooltip content="Replace all in file">
+                  <Tooltip content={t('search.replaceAllInFile')}>
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
                         const n = doReplace(r.fileId);
-                        if (n) toast.success(`Replaced ${n} in ${fr.file.name}`);
+                        if (n) toast.success(t('search.replacedInFile', { count: n, name: fr.file.name }));
                       }}
                       className="hidden size-5 items-center justify-center rounded text-fg-muted hover:bg-active hover:text-fg group-hover:flex"
-                      aria-label="Replace all in file"
+                      aria-label={t('search.replaceAllInFile')}
                     >
                       <ReplaceAll className="size-3.5" />
                     </button>
@@ -417,14 +421,14 @@ export function SearchPanel() {
                 {m.preview.slice(m.pEnd)}
               </span>
               {ui.showReplace && (
-                <Tooltip content="Replace">
+                <Tooltip content={t('search.replace')}>
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
                       doReplace(r.fileId, m);
                     }}
                     className="hidden size-5 shrink-0 items-center justify-center rounded text-fg-muted hover:bg-active hover:text-fg group-hover:flex"
-                    aria-label="Replace this match"
+                    aria-label={t('search.replaceThisMatch')}
                   >
                     <Replace className="size-3.5" />
                   </button>
@@ -433,7 +437,7 @@ export function SearchPanel() {
             </div>
           );
         })}
-        {result?.truncated && <div className="px-3 py-2 text-[11px] text-fg-subtle">Showing the first {MAX_MATCHES} results — refine your search.</div>}
+        {result?.truncated && <div className="px-3 py-2 text-[11px] text-fg-subtle">{t('search.truncated', { max: MAX_MATCHES })}</div>}
       </div>
     </div>
   );

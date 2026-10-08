@@ -28,6 +28,7 @@ import { useWorkspace } from '@/state/workspace';
 import { cn } from '@/lib/cn';
 import { timeAgo } from '@/lib/format';
 import { navigate } from '@/lib/router';
+import { commandCategory, commandTitle, useLocale, useT, type Locale } from '@/lib/i18n';
 import { Kbd } from '@/ui';
 import { Highlight } from '@/ui/Highlight';
 import { DashboardDialogs } from '@/features/dashboard/Dialogs';
@@ -103,15 +104,15 @@ function CommandIcon({ cmd }: { cmd: Cmd }) {
   return <I className={cn(!cmd.icon && 'opacity-40')} />;
 }
 
-function commandItem(c: Cmd, positions: number[] | undefined, close: (fn: () => void) => void, showCategory: boolean): Item {
+function commandItem(c: Cmd, positions: number[] | undefined, close: (fn: () => void) => void, showCategory: boolean, locale: Locale): Item {
   return {
     value: `cmd:${c.id}`,
-    title: c.title,
+    title: commandTitle(c, locale),
     titlePositions: positions,
     icon: <CommandIcon cmd={c} />,
     right: (
       <>
-        {showCategory && c.category && <span className="text-[11.5px] text-fg-subtle">{c.category}</span>}
+        {showCategory && c.category && <span className="text-[11.5px] text-fg-subtle">{commandCategory(c.category, locale)}</span>}
         {c.keybinding && <Kbd keys={c.keybinding.split(/\s*\|\s*/)[0]!} />}
       </>
     ),
@@ -125,18 +126,28 @@ function commandItem(c: Cmd, positions: number[] | undefined, close: (fn: () => 
   };
 }
 
-function scoreCommands(cmds: Cmd[], q: string, recent: string[]) {
+/** Fuzzy-scores commands against the localized title first, then the English title, then category/keywords/id. */
+function scoreCommands(cmds: Cmd[], q: string, recent: string[], locale: Locale) {
   const out: { c: Cmd; score: number; positions: number[] }[] = [];
   for (const c of cmds) {
-    let r = fuzzyWords(q, c.title);
+    const title = commandTitle(c, locale);
+    let r = fuzzyWords(q, title);
     let positions = r?.positions ?? [];
+    if (!r && title !== c.title) {
+      // English title still works in other languages (no highlight: positions refer to another string).
+      r = fuzzyWords(q, c.title);
+      if (r) {
+        r = { ...r, score: r.score - 0.5 };
+        positions = [];
+      }
+    }
     if (!r) {
-      const hay = [c.category, ...(c.keywords ?? []), c.id].filter(Boolean).join(' ');
-      r = fuzzyWords(q, `${c.title} ${hay}`);
+      const hay = [c.category, c.category && commandCategory(c.category, locale), ...(c.keywords ?? []), c.id].filter(Boolean).join(' ');
+      r = fuzzyWords(q, `${title} ${c.title} ${hay}`);
       if (r && r.score < 0.6) r = null;
       if (r) {
         r.score -= 2;
-        positions = r.positions.filter((p) => p < c.title.length);
+        positions = r.positions.filter((p) => p < title.length);
       }
     }
     if (!r) continue;
@@ -154,6 +165,8 @@ function useGroups(query: string, close: (fn: () => void) => void): { groups: Gr
   const files = useWorkspace((s) => s.files);
   const activeFileId = useWorkspace((s) => s.activeFileId);
   const history = usePaletteHistory();
+  const t = useT();
+  const locale = useLocale();
   const mode = modeOf(query);
   const q = (mode === 'files' ? query : query.slice(1)).trim();
 
@@ -189,31 +202,38 @@ function useGroups(query: string, close: (fn: () => void) => void): { groups: Gr
           return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib) || a.localeCompare(b);
         });
         const groups: Group[] = [];
-        if (recent.length) groups.push({ heading: 'Recently used', items: recent.map((c) => ({ ...commandItem(c, undefined, close, true), value: `recent:${c.id}` })) });
+        if (recent.length)
+          groups.push({ heading: t('palette.group.recentlyUsed'), items: recent.map((c) => ({ ...commandItem(c, undefined, close, true, locale), value: `recent:${c.id}` })) });
         for (const cat of cats) {
-          groups.push({ heading: cat, items: byCat.get(cat)!.sort((a, b) => a.title.localeCompare(b.title)).map((c) => commandItem(c, undefined, close, false)) });
+          groups.push({
+            heading: commandCategory(cat, locale),
+            items: byCat
+              .get(cat)!
+              .map((c) => commandItem(c, undefined, close, false, locale))
+              .sort((a, b) => a.title.localeCompare(b.title, locale)),
+          });
         }
-        return { groups, mode, empty: 'No commands available.' };
+        return { groups, mode, empty: t('palette.empty.noCommands') };
       }
-      const scored = scoreCommands(available, q, history.commands).slice(0, 60);
-      return { groups: [{ items: scored.map((s) => commandItem(s.c, s.positions, close, true)) }], mode, empty: `No commands match “${q}”.` };
+      const scored = scoreCommands(available, q, history.commands, locale).slice(0, 60);
+      return { groups: [{ items: scored.map((s) => commandItem(s.c, s.positions, close, true, locale)) }], mode, empty: t('palette.empty.commandsNoMatch', { query: q }) };
     }
 
     // ── symbols ──
     if (mode === 'symbols') {
-      if (!project) return { groups: [], mode, empty: 'Open a project to jump to symbols.' };
-      if (!activeFile || source == null) return { groups: [], mode, empty: 'Open a .tex file to see its sections and labels.' };
+      if (!project) return { groups: [], mode, empty: t('palette.empty.symbolsNoProject') };
+      if (!activeFile || source == null) return { groups: [], mode, empty: t('palette.empty.symbolsNoFile') };
       const toItem = (s: (typeof symbols)[number], positions?: number[]): Item => {
         const Icon = s.kind === 'label' ? Tag : s.kind === 'frame' ? Presentation : Hash;
         return {
           value: `sym:${s.kind}:${s.line}:${s.title}`,
-          title: s.title || '(untitled)',
+          title: s.title || t('palette.untitled'),
           titlePositions: positions,
           indent: q ? 0 : s.depth,
           icon: <Icon className={cn(s.kind === 'label' ? 'text-warning' : 'text-accent')} />,
           right: (
             <span className="flex items-center gap-2">
-              <span className="text-[11px] capitalize text-fg-subtle">{s.kind}</span>
+              <span className="text-[11px] capitalize text-fg-subtle">{t(`palette.kind.${s.kind}`, undefined, s.kind)}</span>
               <span className="font-mono text-[11px] tabular-nums text-fg-subtle">:{s.line}</span>
             </span>
           ),
@@ -224,21 +244,21 @@ function useGroups(query: string, close: (fn: () => void) => void): { groups: Gr
         const heads = symbols.filter((s) => s.kind !== 'label');
         const labels = symbols.filter((s) => s.kind === 'label');
         const groups: Group[] = [];
-        if (heads.length) groups.push({ heading: `Outline · ${activeFile.name}`, items: heads.map((s) => toItem(s)) });
-        if (labels.length) groups.push({ heading: 'Labels', items: labels.map((s) => toItem(s)) });
-        return { groups, mode, empty: `No sections or labels in ${activeFile.name}.` };
+        if (heads.length) groups.push({ heading: t('palette.group.outline', { file: activeFile.name }), items: heads.map((s) => toItem(s)) });
+        if (labels.length) groups.push({ heading: t('palette.group.labels'), items: labels.map((s) => toItem(s)) });
+        return { groups, mode, empty: t('palette.empty.noSymbols', { file: activeFile.name }) };
       }
       const scored = symbols
         .map((s) => ({ s, r: fuzzyWords(q, s.title) }))
         .filter((x) => x.r)
         .sort((a, b) => b.r!.score - a.r!.score)
         .slice(0, 80);
-      return { groups: [{ items: scored.map((x) => toItem(x.s, x.r!.positions)) }], mode, empty: `No symbols match “${q}”.` };
+      return { groups: [{ items: scored.map((x) => toItem(x.s, x.r!.positions)) }], mode, empty: t('palette.empty.symbolsNoMatch', { query: q }) };
     }
 
     // ── go to line ──
     if (mode === 'line') {
-      if (!project || !activeFile || source == null) return { groups: [], mode, empty: 'Open a file to go to a line.' };
+      if (!project || !activeFile || source == null) return { groups: [], mode, empty: t('palette.empty.lineNoFile') };
       const total = source.split('\n').length;
       const m = /^(\d+)?(?:[:,](\d+))?$/.exec(q);
       const line = m?.[1] ? Math.min(Math.max(1, parseInt(m[1], 10)), total) : 0;
@@ -246,7 +266,7 @@ function useGroups(query: string, close: (fn: () => void) => void): { groups: Gr
       const item: Item = line
         ? {
             value: `line:${line}:${col ?? ''}`,
-            title: `Go to line ${line}${col ? `, column ${col}` : ''}`,
+            title: col ? t('palette.line.goToColumn', { line: String(line), column: String(col) }) : t('palette.line.goTo', { line: String(line) }),
             subtitle: activeFile.path,
             icon: <ListOrdered />,
             right: <CornerDownLeft className="size-3.5 text-fg-subtle" />,
@@ -254,8 +274,8 @@ function useGroups(query: string, close: (fn: () => void) => void): { groups: Gr
           }
         : {
             value: 'line:hint',
-            title: `Type a line number between 1 and ${total}`,
-            subtitle: `${activeFile.name} · current line ${useWorkspace.getState().cursor.line}`,
+            title: t('palette.line.hint', { total: String(total) }),
+            subtitle: t('palette.line.current', { file: activeFile.name, line: String(useWorkspace.getState().cursor.line) }),
             icon: <ListOrdered />,
             disabled: true,
           };
@@ -266,16 +286,16 @@ function useGroups(query: string, close: (fn: () => void) => void): { groups: Gr
     if (mode === 'help') {
       const set = (prefix: string) => () => usePalette.getState().setQuery(prefix);
       const entries: [string, string, LucideIcon, string][] = [
-        ['', project ? 'Go to file' : 'Open a project', project ? FileText : FolderClosed, 'Type a name'],
-        ['>', 'Run a command', SquareTerminal, '>'],
-        ['@', 'Go to a section, frame or label in this file', Hash, '@'],
-        [':', 'Go to a line in this file', ListOrdered, ':'],
-        ['?', 'Show this help', CircleQuestionMark, '?'],
+        ['', project ? t('palette.help.goToFile') : t('palette.help.openProject'), project ? FileText : FolderClosed, t('palette.help.typeName')],
+        ['>', t('palette.help.runCommand'), SquareTerminal, '>'],
+        ['@', t('palette.help.goToSymbol'), Hash, '@'],
+        [':', t('palette.help.goToLine'), ListOrdered, ':'],
+        ['?', t('palette.help.showHelp'), CircleQuestionMark, '?'],
       ];
       return {
         groups: [
           {
-            heading: 'Prefixes',
+            heading: t('palette.group.prefixes'),
             items: [
               ...entries.map(([prefix, title, Icon, hint]) => ({
                 value: `help:${prefix || 'files'}`,
@@ -286,7 +306,7 @@ function useGroups(query: string, close: (fn: () => void) => void): { groups: Gr
               })),
               {
                 value: 'help:shortcuts',
-                title: 'All keyboard shortcuts',
+                title: t('palette.help.allShortcuts'),
                 icon: <Keyboard />,
                 right: <Kbd keys="Mod-/" />,
                 run: () => close(() => usePalette.getState().setShortcutsOpen(true)),
@@ -314,7 +334,7 @@ function useGroups(query: string, close: (fn: () => void) => void): { groups: Gr
           subtitle: slash > 0 ? f.path.slice(0, slash) : undefined,
           subtitlePositions: positions?.filter((p) => p < slash),
           icon: <Icon className={fileTint[extname(f.path)] ?? ''} />,
-          right: f.id === activeFileId ? <span className="text-[11px] text-fg-subtle">current</span> : undefined,
+          right: f.id === activeFileId ? <span className="text-[11px] text-fg-subtle">{t('palette.current')}</span> : undefined,
           run: goFile(f.id),
         };
       };
@@ -322,9 +342,9 @@ function useGroups(query: string, close: (fn: () => void) => void): { groups: Gr
         const recentFiles = recent.map((id) => all.find((f) => f.id === id)).filter(Boolean).slice(0, 8) as typeof all;
         const rest = all.filter((f) => !recentFiles.includes(f)).slice(0, 150);
         const groups: Group[] = [];
-        if (recentFiles.length) groups.push({ heading: 'Recently opened', items: recentFiles.map((f) => fileItem(f)) });
-        groups.push({ heading: recentFiles.length ? 'All files' : 'Files', items: rest.map((f) => fileItem(f)) });
-        return { groups, mode, empty: 'This project has no files yet.' };
+        if (recentFiles.length) groups.push({ heading: t('palette.group.recentlyOpened'), items: recentFiles.map((f) => fileItem(f)) });
+        groups.push({ heading: recentFiles.length ? t('palette.group.allFiles') : t('palette.group.files'), items: rest.map((f) => fileItem(f)) });
+        return { groups, mode, empty: t('palette.empty.noFiles') };
       }
       const scored = all
         .map((f) => {
@@ -336,11 +356,11 @@ function useGroups(query: string, close: (fn: () => void) => void): { groups: Gr
         .filter(Boolean)
         .sort((a, b) => b!.score - a!.score)
         .slice(0, 60) as { f: (typeof all)[number]; r: { positions: number[] } }[];
-      const cmdHits = scoreCommands(available, q, history.commands).slice(0, scored.length ? 3 : 6);
+      const cmdHits = scoreCommands(available, q, history.commands, locale).slice(0, scored.length ? 3 : 6);
       const groups: Group[] = [];
-      if (scored.length) groups.push({ heading: 'Files', items: scored.map((x) => fileItem(x.f, x.r.positions)) });
-      if (cmdHits.length) groups.push({ heading: 'Commands', items: cmdHits.map((s) => commandItem(s.c, s.positions, close, true)) });
-      return { groups, mode, empty: `No files match “${q}”. Type > to search commands.` };
+      if (scored.length) groups.push({ heading: t('palette.group.files'), items: scored.map((x) => fileItem(x.f, x.r.positions)) });
+      if (cmdHits.length) groups.push({ heading: t('palette.group.commands'), items: cmdHits.map((s) => commandItem(s.c, s.positions, close, true, locale)) });
+      return { groups, mode, empty: t('palette.empty.filesNoMatch', { query: q }) };
     }
 
     // ── dashboard: projects + quick actions ──
@@ -356,9 +376,9 @@ function useGroups(query: string, close: (fn: () => void) => void): { groups: Gr
     });
     if (!q) {
       const groups: Group[] = [];
-      if (live.length) groups.push({ heading: 'Recent projects', items: live.slice(0, 8).map((p) => projectItem(p)) });
+      if (live.length) groups.push({ heading: t('palette.group.recentProjects'), items: live.slice(0, 8).map((p) => projectItem(p)) });
       const quick = dashboardQuickCommands.map((id) => available.find((c) => c.id === id)).filter(Boolean) as Cmd[];
-      groups.push({ heading: 'Quick actions', items: quick.map((c) => commandItem(c, undefined, close, false)) });
+      groups.push({ heading: t('palette.group.quickActions'), items: quick.map((c) => commandItem(c, undefined, close, false, locale)) });
       return { groups, mode, empty: null };
     }
     const scored = live
@@ -366,21 +386,21 @@ function useGroups(query: string, close: (fn: () => void) => void): { groups: Gr
       .filter((x) => x.r)
       .sort((a, b) => b.r!.score - a.r!.score)
       .slice(0, 30);
-    const cmdHits = scoreCommands(available, q, history.commands).slice(0, scored.length ? 4 : 8);
+    const cmdHits = scoreCommands(available, q, history.commands, locale).slice(0, scored.length ? 4 : 8);
     const groups: Group[] = [];
-    if (scored.length) groups.push({ heading: 'Projects', items: scored.map((x) => projectItem(x.p, x.r!.positions)) });
-    if (cmdHits.length) groups.push({ heading: 'Commands', items: cmdHits.map((s) => commandItem(s.c, s.positions, close, true)) });
-    return { groups, mode, empty: `Nothing matches “${q}”.` };
+    if (scored.length) groups.push({ heading: t('palette.group.projects'), items: scored.map((x) => projectItem(x.p, x.r!.positions)) });
+    if (cmdHits.length) groups.push({ heading: t('palette.group.commands'), items: cmdHits.map((s) => commandItem(s.c, s.positions, close, true, locale)) });
+    return { groups, mode, empty: t('palette.empty.nothing', { query: q }) };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [commands, projects, project, session, files, activeFileId, history, mode, q, symbols, source]);
+  }, [commands, projects, project, session, files, activeFileId, history, mode, q, symbols, source, locale]);
 }
 
-const modeMeta: Record<PaletteMode, { label: string; icon: LucideIcon }> = {
-  files: { label: 'Files', icon: Search },
-  commands: { label: 'Commands', icon: SquareTerminal },
-  symbols: { label: 'Symbols', icon: Hash },
-  line: { label: 'Go to line', icon: ListOrdered },
-  help: { label: 'Help', icon: CircleQuestionMark },
+const modeMeta: Record<PaletteMode, { icon: LucideIcon }> = {
+  files: { icon: Search },
+  commands: { icon: SquareTerminal },
+  symbols: { icon: Hash },
+  line: { icon: ListOrdered },
+  help: { icon: CircleQuestionMark },
 };
 
 // ───────────────────────────── view ─────────────────────────────
@@ -392,6 +412,7 @@ function Palette() {
   const hide = usePalette((s) => s.hide);
   const inProject = useWorkspace((s) => !!s.project);
   const executed = useRef(false);
+  const t = useT();
 
   const close = (fn: () => void) => {
     executed.current = true;
@@ -404,18 +425,7 @@ function Palette() {
   const { groups, mode, empty } = useGroups(query, close);
   const meta = modeMeta[mode];
   const ModeIcon = meta.icon;
-  const placeholder =
-    mode === 'commands'
-      ? 'Type a command…'
-      : mode === 'symbols'
-        ? 'Go to section, frame or label…'
-        : mode === 'line'
-          ? 'Go to line…'
-          : mode === 'help'
-            ? 'Pick a mode…'
-            : inProject
-              ? 'Search files…  (> commands · @ symbols · : line · ? help)'
-              : 'Search projects and actions…';
+  const placeholder = t(`palette.placeholder.${mode === 'files' ? (inProject ? 'files' : 'projects') : mode}`);
   const count = groups.reduce((n, g) => n + g.items.length, 0);
 
   return (
@@ -448,9 +458,9 @@ function Palette() {
                 exit={{ opacity: 0, y: -6, scale: 0.985 }}
                 transition={{ type: 'spring', stiffness: 520, damping: 36, mass: 0.7 }}
               >
-                <D.Title className="sr-only">Command palette</D.Title>
+                <D.Title className="sr-only">{t('palette.label')}</D.Title>
                 <Command
-                  label="Command palette"
+                  label={t('palette.label')}
                   shouldFilter={false}
                   loop
                   className="overflow-hidden rounded-2xl border border-border bg-elevated/95 shadow-[0_24px_80px_-12px_rgb(0_0_0/0.35),0_0_0_1px_rgb(0_0_0/0.04)] backdrop-blur-2xl dark:shadow-[0_24px_80px_-12px_rgb(0_0_0/0.7)]"
@@ -470,7 +480,7 @@ function Palette() {
                         mode === 'files' ? 'text-fg-subtle' : 'bg-accent-soft text-accent',
                       )}
                     >
-                      {mode === 'files' && !inProject ? 'Projects' : meta.label}
+                      {t(`palette.mode.${mode === 'files' && !inProject ? 'projects' : mode}`)}
                     </span>
                   </div>
                   <Command.List className="h-[min(440px,var(--cmdk-list-height))] max-h-[min(440px,60vh)] overflow-y-auto overscroll-contain transition-[height] duration-150 ease-out">
@@ -536,26 +546,27 @@ function PaletteItem({ item }: { item: Item }) {
 
 function Footer({ mode, count }: { mode: PaletteMode; count: number }) {
   const setQuery = usePalette((s) => s.setQuery);
+  const t = useT();
   const chips: [string, string][] = [
-    ['>', 'commands'],
-    ['@', 'symbols'],
-    [':', 'line'],
-    ['?', 'help'],
+    ['>', t('palette.footer.commands')],
+    ['@', t('palette.footer.symbols')],
+    [':', t('palette.footer.line')],
+    ['?', t('palette.footer.help')],
   ];
   return (
     <div className="flex h-9 items-center gap-3 border-t border-border bg-surface-2/50 px-3 text-[11px] text-fg-subtle">
       <span className="flex items-center gap-1">
         <kbd className="rounded border border-border bg-surface px-1 font-sans">↑</kbd>
         <kbd className="rounded border border-border bg-surface px-1 font-sans">↓</kbd>
-        navigate
+        {t('palette.footer.navigate')}
       </span>
       <span className="flex items-center gap-1">
         <kbd className="rounded border border-border bg-surface px-1 font-sans">↵</kbd>
-        {mode === 'help' ? 'pick' : 'open'}
+        {mode === 'help' ? t('palette.footer.pick') : t('palette.footer.open')}
       </span>
       <span className="hidden items-center gap-1 sm:flex">
         <kbd className="rounded border border-border bg-surface px-1 font-sans">esc</kbd>
-        close
+        {t('palette.footer.close')}
       </span>
       <span className="flex-1" />
       <span className="hidden items-center gap-1 md:flex">
@@ -574,7 +585,7 @@ function Footer({ mode, count }: { mode: PaletteMode; count: number }) {
           </button>
         ))}
       </span>
-      <span className="tabular-nums md:hidden">{count} results</span>
+      <span className="tabular-nums md:hidden">{t('palette.footer.results', { count })}</span>
     </div>
   );
 }

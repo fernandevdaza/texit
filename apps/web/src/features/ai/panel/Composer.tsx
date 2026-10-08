@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, type ClipboardEvent, type DragEve
 import { ArrowUp, AtSign, Bug, Languages, MessageSquareText, Plus, Sparkles, Square, Table2, Workflow } from 'lucide-react';
 import { getQuickAction, type ChatAttachment } from '@texit/ai';
 import { cn } from '@/lib/cn';
+import { t as tr, useT } from '@/lib/i18n';
 import { getEditorBridge, selectionChanged, type EditorSelectionInfo } from '@/services/editor';
 import { useWorkspace } from '@/state/workspace';
 import { IconButton, promptDialog, toast } from '@/ui';
@@ -25,12 +26,12 @@ function useLiveSelection(): EditorSelectionInfo | null {
 function readImage(file: File): Promise<ChatAttachment | null> {
   if (!file.type.startsWith('image/')) return Promise.resolve(null);
   if (file.size > MAX_IMAGE) {
-    toast.error('Images must be smaller than 5 MB.');
+    toast.error(tr('ai.composer.imageTooLarge'));
     return Promise.resolve(null);
   }
   return new Promise((resolve) => {
     const r = new FileReader();
-    r.onload = () => resolve({ kind: 'image', dataUrl: String(r.result), name: file.name || 'Pasted image' });
+    r.onload = () => resolve({ kind: 'image', dataUrl: String(r.result), name: file.name || tr('ai.composer.pastedImage') });
     r.onerror = () => resolve(null);
     r.readAsDataURL(file);
   });
@@ -42,6 +43,7 @@ function lineOf(sel: EditorSelectionInfo): number {
 }
 
 export function Composer({ threadId, disabled }: { threadId: string | null; disabled?: boolean }) {
+  const t = useT();
   const [text, setText] = useState('');
   const [attachments, setAttachments] = useState<ChatAttachment[]>([]);
   const [dismissedSel, setDismissedSel] = useState<string | null>(null);
@@ -180,23 +182,23 @@ export function Composer({ threadId, disabled }: { threadId: string | null; disa
   const quick = [
     {
       id: 'fix',
-      label: 'Fix compile errors',
+      label: t('ai.quick.fix'),
       icon: Bug,
       run: () => askAi(getQuickAction('fix-error')!.buildPrompt({}).replace(/\n\nDiagnostics:[\s\S]*$/, ''), { includeDiagnostics: true }),
     },
     {
       id: 'explain',
-      label: 'Explain selection',
+      label: t('ai.quick.explain'),
       icon: MessageSquareText,
       run: () => {
         const a = activeFileInfo();
-        if (!a?.selection?.text) return void toast.info('Select some LaTeX in the editor first.');
+        if (!a?.selection?.text) return void toast.info(tr('ai.selectLatexFirst'));
         void askAi(getQuickAction('explain-selection')!.buildPrompt({ selection: a.selection.text, path: a.path }));
       },
     },
     {
       id: 'improve',
-      label: 'Improve writing',
+      label: t('ai.quick.improve'),
       icon: Sparkles,
       run: () => {
         const a = activeFileInfo();
@@ -208,10 +210,10 @@ export function Composer({ threadId, disabled }: { threadId: string | null; disa
     },
     {
       id: 'translate',
-      label: 'Translate…',
+      label: t('ai.quick.translate'),
       icon: Languages,
       run: async () => {
-        const lang = await promptDialog({ title: 'Translate to…', placeholder: 'e.g. Spanish, German, English', confirmLabel: 'Translate' });
+        const lang = await promptDialog({ title: tr('ai.quick.translateTitle'), placeholder: tr('ai.quick.translatePlaceholder'), confirmLabel: tr('ai.quick.translateConfirm') });
         if (!lang) return;
         const a = activeFileInfo();
         const target = a?.selection?.text ? 'the selected text' : `the current file (${a?.path ?? 'main document'})`;
@@ -222,10 +224,10 @@ export function Composer({ threadId, disabled }: { threadId: string | null; disa
     },
     {
       id: 'tikz',
-      label: 'Generate TikZ…',
+      label: t('ai.quick.tikz'),
       icon: Workflow,
       run: async () => {
-        const desc = await promptDialog({ title: 'Generate a TikZ figure', placeholder: 'e.g. a flowchart: input → process → output', confirmLabel: 'Generate' });
+        const desc = await promptDialog({ title: tr('ai.quick.tikzTitle'), placeholder: tr('ai.quick.tikzPlaceholder'), confirmLabel: tr('ai.quick.tikzConfirm') });
         if (!desc) return;
         const a = activeFileInfo();
         void askAi(
@@ -235,10 +237,10 @@ export function Composer({ threadId, disabled }: { threadId: string | null; disa
     },
     {
       id: 'table',
-      label: 'Table from description…',
+      label: t('ai.quick.table'),
       icon: Table2,
       run: async () => {
-        const desc = await promptDialog({ title: 'Create a table', placeholder: 'e.g. 3 methods × accuracy, runtime, memory', confirmLabel: 'Create' });
+        const desc = await promptDialog({ title: tr('ai.quick.tableTitle'), placeholder: tr('ai.quick.tablePlaceholder'), confirmLabel: tr('ai.quick.tableConfirm') });
         if (!desc) return;
         const a = activeFileInfo();
         void askAi(
@@ -279,7 +281,7 @@ export function Composer({ threadId, disabled }: { threadId: string | null; disa
       >
         {mention && mentionItems.length > 0 && (
           <div className="absolute bottom-full left-2 right-2 z-20 mb-1 overflow-hidden rounded-lg border border-border bg-elevated p-1 shadow-pop">
-            <div className="px-2 pb-1 pt-0.5 text-[10.5px] font-semibold uppercase tracking-wider text-fg-subtle">Attach file</div>
+            <div className="px-2 pb-1 pt-0.5 text-[10.5px] font-semibold uppercase tracking-wider text-fg-subtle">{t('ai.composer.attachFileHeader')}</div>
             {mentionItems.map((f, i) => (
               <button
                 key={f.id}
@@ -319,13 +321,13 @@ export function Composer({ threadId, disabled }: { threadId: string | null; disa
           onKeyDown={onKeyDown}
           onPaste={(e) => void onPaste(e)}
           onBlur={() => setTimeout(() => setMention(null), 120)}
-          placeholder={disabled ? 'Configure a model provider to start chatting' : 'Ask anything, @ to attach files…'}
+          placeholder={disabled ? t('ai.composer.placeholderDisabled') : t('ai.composer.placeholder')}
           className="block max-h-60 min-h-[44px] w-full resize-none bg-transparent px-3 py-2 text-[13px] leading-relaxed text-fg outline-none placeholder:text-fg-subtle"
         />
         <div className="flex items-center gap-1 px-2 pb-2">
           <IconButton
             size="xs"
-            label="Attach file (@)"
+            label={t('ai.composer.attachFile')}
             onClick={() => {
               const caret = ta.current?.selectionStart ?? text.length;
               const before = text.slice(0, caret);
@@ -343,7 +345,7 @@ export function Composer({ threadId, disabled }: { threadId: string | null; disa
           </IconButton>
           <IconButton
             size="xs"
-            label="Attach image"
+            label={t('ai.composer.attachImage')}
             onClick={() => {
               const input = document.createElement('input');
               input.type = 'file';
@@ -361,13 +363,13 @@ export function Composer({ threadId, disabled }: { threadId: string | null; disa
             <Plus />
           </IconButton>
           <span className="flex-1" />
-          <span className="mr-1 hidden text-[10.5px] text-fg-subtle sm:inline">{running ? '' : '⏎ send · ⇧⏎ newline'}</span>
+          <span className="mr-1 hidden text-[10.5px] text-fg-subtle sm:inline">{running ? '' : t('ai.composer.keysHint')}</span>
           {running ? (
             <button
               onClick={() => stopRun(threadId ?? undefined)}
               className="flex size-7 items-center justify-center rounded-lg bg-fg text-bg transition-opacity hover:opacity-85"
-              aria-label="Stop"
-              title="Stop"
+              aria-label={t('ai.composer.stop')}
+              title={t('ai.composer.stop')}
             >
               <Square className="size-3 fill-current" />
             </button>
@@ -376,8 +378,8 @@ export function Composer({ threadId, disabled }: { threadId: string | null; disa
               onClick={submit}
               disabled={!text.trim() || disabled}
               className="flex size-7 items-center justify-center rounded-lg bg-accent text-accent-fg shadow-sm shadow-accent/25 transition-[opacity,filter] hover:brightness-110 disabled:opacity-35"
-              aria-label="Send"
-              title="Send (Enter)"
+              aria-label={t('ai.composer.send')}
+              title={t('ai.composer.sendTitle')}
             >
               <ArrowUp className="size-4" />
             </button>

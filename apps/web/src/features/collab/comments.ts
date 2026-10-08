@@ -12,6 +12,7 @@
 import * as Y from 'yjs';
 import type { ProjectDoc } from '@texit/core';
 import { useSettings } from '@/state/settings';
+import { t } from '@/lib/i18n';
 import { useCollabSettings } from './settings';
 
 export interface CommentReply {
@@ -49,7 +50,7 @@ const newId = () => `${Date.now().toString(36)}${Math.random().toString(36).slic
 
 function author() {
   const { userName, userColor } = useSettings.getState();
-  return { uid: useCollabSettings.getState().localUserId, name: userName || 'Anonymous', color: userColor };
+  return { uid: useCollabSettings.getState().localUserId, name: userName || t('collab.anonymous'), color: userColor };
 }
 
 export function addComment(project: ProjectDoc, input: { fileId: string; from: number; to: number; text: string; quote?: string }): string | null {
@@ -123,7 +124,7 @@ export function readThread(id: string, m: Y.Map<any>): CommentThread | null {
     quote: String(m.get('quote') ?? ''),
     text: String(m.get('text') ?? ''),
     uid: String(m.get('uid') ?? ''),
-    name: String(m.get('name') ?? 'Anonymous'),
+    name: String(m.get('name') ?? t('collab.anonymous')),
     color: String(m.get('color') ?? '#888'),
     ts: Number(m.get('ts') ?? 0),
     resolved: !!m.get('resolved'),

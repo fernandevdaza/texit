@@ -2,11 +2,13 @@
  * Files feature: file-tree commands (the panel itself is registered by the
  * workspace feature).
  */
+import './i18n';
 import { FilePlus, FolderPlus, FolderSearch, Pencil, Star, Upload } from 'lucide-react';
 import { isTexPath } from '@texit/core';
 import { registerCommands } from '@/services/commands';
 import { useWorkspace } from '@/state/workspace';
 import { toast } from '@/ui';
+import { t } from '@/lib/i18n';
 import { requestFilesAction, revealInTree } from './api';
 
 const inProject = () => !!useWorkspace.getState().project;
@@ -50,7 +52,7 @@ export function activate(): void | (() => void) {
         const f = s.files.find((x) => x.id === s.activeFileId);
         if (!f || !s.project) return;
         s.project.setMeta({ mainFileId: f.id });
-        toast.success(`${f.name} is now the main file`);
+        toast.success(t('files.isNowMain', { name: f.name }));
       },
     },
   ]);

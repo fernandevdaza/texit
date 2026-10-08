@@ -40,6 +40,8 @@ import {
 import { strategyInfo, useCollabSettings } from './settings';
 import { StatusDot, statusLabel } from './StatusItem';
 import { toggleFollow } from './follow';
+import { t as tr, useT } from '@/lib/i18n';
+import { collabErrorText, richText, strategyInline, strategyLabel } from './i18n';
 
 export async function copyText(text: string): Promise<boolean> {
   try {
@@ -61,8 +63,8 @@ export async function copyText(text: string): Promise<boolean> {
 export async function copyInviteLink(viewOnly = false) {
   const link = inviteLink(viewOnly);
   if (!link) return;
-  if (await copyText(link)) toast.success(viewOnly ? 'View-only invite link copied' : 'Invite link copied', { description: 'Anyone with this link can decrypt the project — share it privately.' });
-  else toast.error('Could not copy the link');
+  if (await copyText(link)) toast.success(viewOnly ? tr('collab.viewOnlyLinkCopied') : tr('collab.inviteLinkCopied'), { description: tr('collab.linkCopiedHint') });
+  else toast.error(tr('collab.copyFailed'));
 }
 
 function Feature({ icon, title, children }: { icon: React.ReactNode; title: string; children: React.ReactNode }) {
@@ -78,27 +80,27 @@ function Feature({ icon, title, children }: { icon: React.ReactNode; title: stri
 }
 
 function IntroView() {
+  const t = useT();
   const strategy = useCollabSettings((s) => s.strategy);
   const [busy, setBusy] = useState(false);
   return (
     <div className="space-y-4 pb-1">
       <ul className="space-y-3.5">
-        <Feature icon={<Network />} title="Peer-to-peer">
-          Edits flow directly between browsers over WebRTC. There is no TexIt server and no account.
+        <Feature icon={<Network />} title={t('collab.p2pTitle')}>
+          {t('collab.p2pBody')}
         </Feature>
-        <Feature icon={<Lock />} title="End-to-end encrypted">
-          Everything is encrypted (AES-256-GCM) with a key that only exists inside the invite link.
+        <Feature icon={<Lock />} title={t('collab.e2eTitle')}>
+          {t('collab.e2eBody')}
         </Feature>
-        <Feature icon={<HardDrive />} title="Local-first">
-          Your copy always stays on this device. Changes sync whenever at least one collaborator who has the project is online.
+        <Feature icon={<HardDrive />} title={t('collab.localFirstTitle')}>
+          {t('collab.localFirstBody')}
         </Feature>
       </ul>
       <div className="flex items-start gap-2 rounded-lg bg-surface-2 px-3 py-2 text-[12px] leading-relaxed text-fg-muted ring-1 ring-border">
         <span>
-          Peers find each other through public <b className="font-medium text-fg">{strategyInfo[strategy].label}</b>; only encrypted connection offers pass
-          through them.{' '}
+          {richText(t('collab.signalingNote'), { network: <b className="font-medium text-fg">{strategyInline(t, strategy)}</b> })}{' '}
           <button className="font-medium text-accent hover:underline" onClick={() => executeCommand('app.settings', 'collab')}>
-            Change
+            {t('collab.change')}
           </button>
         </span>
       </div>
@@ -112,13 +114,13 @@ function IntroView() {
             try {
               await startSharing();
             } catch (err) {
-              toast.error('Could not start sharing', { description: String((err as Error)?.message ?? err) });
+              toast.error(t('collab.couldNotStart'), { description: String((err as Error)?.message ?? err) });
             } finally {
               setBusy(false);
             }
           }}
         >
-          Start sharing
+          {t('collab.startSharing')}
         </Button>
       </div>
     </div>
@@ -126,6 +128,7 @@ function IntroView() {
 }
 
 function InviteSection() {
+  const t = useT();
   const record = useCollab((s) => s.record)!;
   const [mode, setMode] = useState<'edit' | 'view'>(record.viewOnly ? 'view' : 'edit');
   const [showQr, setShowQr] = useState(false);
@@ -135,15 +138,15 @@ function InviteSection() {
   return (
     <section className="space-y-2">
       <div className="flex items-center justify-between">
-        <h3 className="text-[12px] font-semibold text-fg">Invite link</h3>
+        <h3 className="text-[12px] font-semibold text-fg">{t('collab.inviteLink')}</h3>
         {!record.viewOnly && (
           <Segmented
             size="sm"
             value={mode}
             onChange={setMode}
             options={[
-              { value: 'edit', label: 'Can edit', icon: <Pencil /> },
-              { value: 'view', label: 'View only', icon: <Eye /> },
+              { value: 'edit', label: t('collab.canEdit'), icon: <Pencil /> },
+              { value: 'view', label: t('collab.viewOnly'), icon: <Eye /> },
             ]}
           />
         )}
@@ -154,7 +157,7 @@ function InviteSection() {
           value={link}
           onFocus={(e) => e.currentTarget.select()}
           className="h-8 min-w-0 flex-1 truncate rounded-lg border border-border bg-surface-2 px-2.5 font-mono text-[11.5px] text-fg-muted outline-none focus:border-accent"
-          aria-label="Invite link"
+          aria-label={t('collab.inviteLink')}
         />
         <Button
           variant="primary"
@@ -166,53 +169,53 @@ function InviteSection() {
             }
           }}
         >
-          {copied ? 'Copied' : 'Copy'}
+          {copied ? t('common.copied') : t('common.copy')}
         </Button>
-        <Tooltip content={showQr ? 'Hide QR code' : 'Show QR code'}>
-          <Button variant="secondary" aria-label="QR code" icon={<QrIcon />} className={cn('px-2', showQr && 'bg-active')} onClick={() => setShowQr((v) => !v)} />
+        <Tooltip content={showQr ? t('collab.hideQr') : t('collab.showQr')}>
+          <Button variant="secondary" aria-label={t('collab.qrCode')} icon={<QrIcon />} className={cn('px-2', showQr && 'bg-active')} onClick={() => setShowQr((v) => !v)} />
         </Tooltip>
       </div>
       {showQr && (
         <div className="flex animate-fade-in items-center gap-3 rounded-lg bg-surface-2 p-3 ring-1 ring-border">
           <QrCode value={link} size={132} />
-          <p className="text-[11.5px] leading-relaxed text-fg-subtle">Scan to open the invite on another device. The QR code contains the decryption key — don't show it on a shared screen.</p>
+          <p className="text-[11.5px] leading-relaxed text-fg-subtle">{t('collab.qrHint')}</p>
         </div>
       )}
       {viewOnly ? (
         <p className="flex gap-1.5 rounded-lg bg-warning-soft px-2.5 py-2 text-[11.5px] leading-relaxed text-warning">
           <ShieldAlert className="mt-px size-3.5 shrink-0" />
           <span>
-            <b className="font-semibold">View-only is best-effort.</b> Peer-to-peer can't enforce permissions: the link still carries the decryption key and TexIt
-            simply opens it read-only. Share it only with people you trust.
+            <b className="font-semibold">{t('collab.viewOnlyWarnTitle')}</b> {t('collab.viewOnlyWarnBody')}
           </span>
         </p>
       ) : (
-        <p className="text-[11.5px] leading-relaxed text-fg-subtle">Anyone with this link can open, decrypt and edit the project. Send it privately.</p>
+        <p className="text-[11.5px] leading-relaxed text-fg-subtle">{t('collab.editLinkHint')}</p>
       )}
     </section>
   );
 }
 
 function PeerRow({ p, you, file, following }: { p: Pick<CollabPeerView, 'name' | 'color' | 'role' | 'viewOnly' | 'rtt' | 'direct'> & { clientId?: number }; you?: boolean; file?: string; following?: boolean }) {
-  const role = p.viewOnly ? 'Viewer' : p.role === 'owner' ? 'Owner' : 'Editor';
+  const t = useT();
+  const role = p.viewOnly ? t('collab.roleViewer') : p.role === 'owner' ? t('collab.roleOwner') : t('collab.roleEditor');
   return (
     <li className="flex items-center gap-2.5 py-1.5">
       <Avatar name={p.name} color={p.color} size={28} />
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-1.5 truncate text-[13px] font-medium text-fg">
           <span className="truncate">{p.name}</span>
-          {you && <span className="font-normal text-fg-subtle">(you)</span>}
+          {you && <span className="font-normal text-fg-subtle">{t('collab.you')}</span>}
           <Badge tone={p.viewOnly ? 'neutral' : p.role === 'owner' ? 'accent' : 'info'}>{role}</Badge>
         </div>
         <div className="truncate text-[11.5px] text-fg-subtle">
-          {you ? 'This device' : file ? `In ${file}` : 'Browsing the project'}
+          {you ? t('collab.thisDevice') : file ? t('collab.inFile', { file }) : t('collab.browsing')}
           {!you && p.rtt != null && ` · ${p.rtt} ms`}
-          {!you && !p.direct && ' · relayed via a peer'}
+          {!you && !p.direct && ` · ${t('collab.relayed')}`}
         </div>
       </div>
       {!you && p.clientId != null && (
         <Button size="xs" variant={following ? 'subtle' : 'ghost'} onClick={() => toggleFollow(p.clientId!)}>
-          {following ? 'Following' : 'Follow'}
+          {following ? t('collab.following') : t('collab.follow')}
         </Button>
       )}
     </li>
@@ -220,6 +223,7 @@ function PeerRow({ p, you, file, following }: { p: Pick<CollabPeerView, 'name' |
 }
 
 function PeopleSection() {
+  const t = useT();
   const { peers, connectedPeers, record, following } = useCollab(
     useShallow((s) => ({ peers: s.peers, connectedPeers: s.connectedPeers, record: s.record!, following: s.following })),
   );
@@ -228,17 +232,17 @@ function PeopleSection() {
   const pending = Math.max(0, connectedPeers - peers.filter((p) => p.direct).length);
   return (
     <section>
-      <h3 className="mb-1 text-[12px] font-semibold text-fg">People {peers.length > 0 && <span className="font-normal text-fg-subtle">· {peers.length + 1} online</span>}</h3>
+      <h3 className="mb-1 text-[12px] font-semibold text-fg">{t('collab.people')} {peers.length > 0 && <span className="font-normal text-fg-subtle">· {t('collab.online', { count: peers.length + 1 })}</span>}</h3>
       <ul className="divide-y divide-border">
         <PeerRow you p={{ name: userName, color: userColor, role: record.role, viewOnly: record.viewOnly, direct: true }} />
         {peers.map((p) => (
           <PeerRow key={p.clientId} p={p} file={files.find((f) => f.id === p.fileId)?.path} following={following === p.clientId} />
         ))}
       </ul>
-      {pending > 0 && <p className="mt-1 text-[11.5px] text-fg-subtle">{pending} more connecting…</p>}
+      {pending > 0 && <p className="mt-1 text-[11.5px] text-fg-subtle">{t('collab.moreConnecting', { count: pending })}</p>}
       {peers.length === 0 && pending === 0 && (
         <p className="mt-1 rounded-lg border border-dashed border-border px-3 py-2.5 text-center text-[12px] text-fg-subtle">
-          Nobody else is here yet. Send the invite link — collaborators appear as soon as they open it.
+          {t('collab.nobodyYet')}
         </p>
       )}
     </section>
@@ -246,6 +250,7 @@ function PeopleSection() {
 }
 
 function StatusSection() {
+  const t = useT();
   const { status, record, signaling, peers, connectedPeers, fingerprint, error } = useCollab(
     useShallow((s) => ({
       status: s.status,
@@ -263,11 +268,11 @@ function StatusSection() {
     <div className="rounded-lg bg-surface-2 px-3 py-2.5 ring-1 ring-border">
       <div className="flex items-center gap-2 text-[13px] font-medium text-fg">
         <StatusDot status={status} />
-        {status === 'live' ? `Live · ${others} collaborator${others === 1 ? '' : 's'} online` : statusLabel(status, others, info.short)}
+        {status === 'live' ? t('collab.liveOnline', { count: others }) : statusLabel(t, status, others, info.short)}
         <div className="flex-1" />
         {(status === 'connecting' || status === 'waiting' || status === 'offline') && (
-          <Tooltip content="Leave and rejoin the room now">
-            <button className="rounded p-1 text-fg-subtle hover:bg-hover hover:text-fg" onClick={() => void reconnectNow()} aria-label="Reconnect">
+          <Tooltip content={t('collab.rejoinTooltip')}>
+            <button className="rounded p-1 text-fg-subtle hover:bg-hover hover:text-fg" onClick={() => void reconnectNow()} aria-label={t('collab.reconnect')}>
               <RefreshCw className="size-3.5" />
             </button>
           </Tooltip>
@@ -275,32 +280,33 @@ function StatusSection() {
       </div>
       <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11.5px] text-fg-subtle">
         <span>
-          {info.label}: {signaling.connected}/{signaling.total || '…'} reachable
+          {t('collab.reachable', { network: strategyLabel(t, record.strategy), connected: signaling.connected, total: signaling.total || '…' })}
         </span>
         {fingerprint && (
-          <Tooltip content="Key fingerprint — collaborators with the same link see the same code">
+          <Tooltip content={t('collab.fingerprintTooltip')}>
             <span className="inline-flex items-center gap-1 font-mono">
               <KeyRound className="size-3" /> {fingerprint}
             </span>
           </Tooltip>
         )}
         <span className="inline-flex items-center gap-1">
-          <Lock className="size-3" /> End-to-end encrypted
+          <Lock className="size-3" /> {t('collab.e2eTitle')}
         </span>
       </div>
-      {error && <div className="mt-1.5 text-[11.5px] text-danger">{error}</div>}
+      {error && <div className="mt-1.5 text-[11.5px] text-danger">{collabErrorText(t, error)}</div>}
     </div>
   );
 }
 
 function SharedFooter() {
+  const t = useT();
   const { record, status } = useCollab(useShallow((s) => ({ record: s.record!, status: s.status })));
   const paused = status === 'paused' || isPaused();
   const owner = record.role === 'owner';
   return (
     <>
       <Button variant="ghost" icon={paused ? <Play /> : <Pause />} onClick={() => void setPaused(!paused)}>
-        {paused ? 'Resume syncing' : 'Pause syncing'}
+        {paused ? t('collab.resumeSync') : t('collab.pauseSync')}
       </Button>
       <div className="flex-1" />
       {owner ? (
@@ -309,39 +315,39 @@ function SharedFooter() {
           side="top"
           trigger={
             <Button variant="secondary" iconRight={<ChevronDown />}>
-              Stop sharing
+              {t('collab.stopSharing')}
             </Button>
           }
           items={[
             {
-              label: 'Stop sharing',
+              label: t('collab.stopSharing'),
               icon: <LogOut />,
               danger: true,
               onSelect: async () => {
                 const ok = await confirmDialog({
-                  title: 'Stop sharing this project?',
-                  message: 'You will disconnect from all collaborators. They keep their copies, but changes no longer sync with yours.',
-                  confirmLabel: 'Stop sharing',
+                  title: t('collab.stopSharingTitle'),
+                  message: t('collab.stopSharingMessage'),
+                  confirmLabel: t('collab.stopSharing'),
                   danger: true,
                 });
                 if (ok) {
                   await stopSharing();
-                  toast.success('Sharing stopped');
+                  toast.success(t('collab.sharingStopped'));
                 }
               },
             },
             {
-              label: 'Rotate key & re-share',
+              label: t('collab.rotateKey'),
               icon: <RefreshCw />,
               onSelect: async () => {
                 const ok = await confirmDialog({
-                  title: 'Rotate the room key?',
-                  message: 'A new room and key are generated. All existing invite links stop working and current collaborators are disconnected — send them the new link.',
-                  confirmLabel: 'Rotate key',
+                  title: t('collab.rotateTitle'),
+                  message: t('collab.rotateMessage'),
+                  confirmLabel: t('collab.rotateConfirm'),
                 });
                 if (ok) {
                   await stopSharing({ rotate: true });
-                  toast.success('New invite link ready', { description: 'Old links no longer work.' });
+                  toast.success(t('collab.newLinkReady'), { description: t('collab.oldLinksDead') });
                 }
               },
             },
@@ -353,15 +359,15 @@ function SharedFooter() {
           icon={<LogOut />}
           onClick={async () => {
             const ok = await confirmDialog({
-              title: 'Leave this shared project?',
-              message: 'Your local copy stays on this device but will no longer sync with collaborators.',
-              confirmLabel: 'Leave',
+              title: t('collab.leaveTitle'),
+              message: t('collab.leaveMessage'),
+              confirmLabel: t('collab.leave'),
               danger: true,
             });
             if (ok) await leaveSession();
           }}
         >
-          Leave session
+          {t('collab.leaveSession')}
         </Button>
       )}
     </>
@@ -370,16 +376,17 @@ function SharedFooter() {
 
 /** The share dialog (opened from the top-bar button, the status bar or `collab.share`). */
 export function ShareDialog() {
+  const t = useT();
   const open = useCollab((s) => s.shareOpen);
   const shared = useCollab((s) => !!s.record);
-  const name = useWorkspace((s) => s.meta?.name ?? 'project');
+  const name = useWorkspace((s) => s.meta?.name) ?? t('collab.projectFallback');
   return (
     <Dialog
       open={open}
       onOpenChange={(o) => openShareDialog(o)}
       icon={<Users />}
-      title={`Share “${name}”`}
-      description={shared ? 'Real-time, peer-to-peer collaboration.' : 'Collaborate in real time — without any server.'}
+      title={t('collab.shareTitle', { name })}
+      description={shared ? t('collab.sharedDescription') : t('collab.introDescription')}
       width="max-w-[520px]"
       footer={shared ? <SharedFooter /> : undefined}
     >

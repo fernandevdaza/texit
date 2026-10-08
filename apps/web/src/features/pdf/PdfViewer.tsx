@@ -5,6 +5,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from 'react';
 import { AlertTriangle, ArrowLeft, ChevronDown, Download, Maximize, MoveHorizontal, PanelLeft, Search, ZoomIn, ZoomOut, MoreHorizontal } from 'lucide-react';
 import { cn } from '@/lib/cn';
+import { useT, type TFunction } from '@/lib/i18n';
 import { downloadBlob } from '@/lib/format';
 import { matchesKeybinding } from '@/lib/platform';
 import { useResolvedTheme, useSettings } from '@/state/settings';
@@ -13,6 +14,7 @@ import { PdfView, ZOOM_PRESETS, type PdfPoint, type PdfPosition, type PdfViewSta
 import { PdfFindBar } from './PdfFindBar';
 import { PdfThumbnails } from './PdfThumbnails';
 import './pdf.css';
+import './i18n';
 
 export type { PdfPoint, PdfRect, Zoom, PdfPosition } from './engine';
 export { PdfView } from './engine';
@@ -69,6 +71,7 @@ export function PdfViewer({
   detached,
 }: PdfViewerProps) {
   const settingsPdf = useSettings((s) => s.pdf);
+  const t = useT();
   const theme = useResolvedTheme((s) => s.theme);
   const scrollerRef = useRef<HTMLDivElement>(null);
   const callbacks = useRef({ onInverseSearch, doubleClickToSource });
@@ -183,17 +186,17 @@ export function PdfViewer({
       <div className="relative flex min-h-0 flex-1">
         {thumbnails && state.status === 'ready' && <PdfThumbnails view={view} state={state} />}
         <div className="relative min-w-0 flex-1">
-          <div ref={scrollerRef} tabIndex={0} className="tx-pdf-scroller absolute inset-0" aria-label={fileName ? `PDF: ${fileName}` : 'PDF document'} />
+          <div ref={scrollerRef} tabIndex={0} className="tx-pdf-scroller absolute inset-0" aria-label={fileName ? t('pdf.documentNamed', { name: fileName }) : t('pdf.documentLabel')} />
           {state.status === 'loading' && (
             <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
               <div className="flex items-center gap-2 rounded-full bg-elevated/90 px-3 py-1.5 text-[12px] text-fg-muted shadow-pop">
-                <Spinner className="size-3.5" /> Opening PDF…
+                <Spinner className="size-3.5" /> {t('pdf.opening')}
               </div>
             </div>
           )}
           {state.status === 'error' && (
             <div className="absolute inset-0 flex items-center justify-center">
-              <EmptyState icon={<AlertTriangle />} title="This PDF could not be displayed" description={state.error ?? undefined} />
+              <EmptyState icon={<AlertTriangle />} title={t('pdf.cannotDisplay')} description={state.error ?? undefined} />
             </div>
           )}
           {findOpen && <PdfFindBar view={view} state={state} onClose={closeFind} focusNonce={findNonce} />}
@@ -203,7 +206,7 @@ export function PdfViewer({
               onClick={() => view.back()}
               className="absolute bottom-4 left-4 z-20 flex h-8 animate-slide-up items-center gap-1.5 rounded-full border border-border bg-elevated/95 pl-2.5 pr-3 text-[12px] font-medium text-fg shadow-pop backdrop-blur-xl transition-colors hover:bg-surface-2"
             >
-              <ArrowLeft className="size-3.5" /> Back
+              <ArrowLeft className="size-3.5" /> {t('pdf.back')}
             </button>
           )}
           {overlay}
@@ -215,8 +218,12 @@ export function PdfViewer({
 
 // ───────────────────────────── toolbar ─────────────────────────────
 
-function zoomLabel(state: PdfViewState) {
-  return `${Math.round(state.scale * 100)}%`;
+function pct(scale: number, t: TFunction) {
+  return t('pdf.percent', { pct: String(Math.round(scale * 100)) });
+}
+
+function zoomLabel(state: PdfViewState, t: TFunction) {
+  return pct(state.scale, t);
 }
 
 function PdfToolbar({
@@ -243,32 +250,33 @@ function PdfToolbar({
   onDownload?: () => void;
 }) {
   const ready = state.status === 'ready';
+  const t = useT();
   const zoomItems: MenuEntry[] = [
-    { label: 'Fit width', icon: <MoveHorizontal />, checked: state.zoom === 'page-width', onSelect: () => view.zoomTo('page-width') },
-    { label: 'Fit page', icon: <Maximize />, checked: state.zoom === 'page-fit', onSelect: () => view.zoomTo('page-fit') },
-    { label: 'Automatic', checked: state.zoom === 'auto', onSelect: () => view.zoomTo('auto') },
+    { label: t('pdf.fitWidth'), icon: <MoveHorizontal />, checked: state.zoom === 'page-width', onSelect: () => view.zoomTo('page-width') },
+    { label: t('pdf.fitPage'), icon: <Maximize />, checked: state.zoom === 'page-fit', onSelect: () => view.zoomTo('page-fit') },
+    { label: t('pdf.automatic'), checked: state.zoom === 'auto', onSelect: () => view.zoomTo('auto') },
     { type: 'separator' },
     ...ZOOM_PRESETS.map(
       (z): MenuEntry => ({
-        label: `${Math.round(z * 100)}%`,
+        label: pct(z, t),
         checked: typeof state.zoom === 'number' && Math.abs(state.zoom - z) < 0.001,
         onSelect: () => view.zoomTo(z),
       }),
     ),
     { type: 'separator' },
-    { label: 'Zoom in', icon: <ZoomIn />, shortcut: 'Mod-=', onSelect: () => view.zoomIn() },
-    { label: 'Zoom out', icon: <ZoomOut />, shortcut: 'Mod--', onSelect: () => view.zoomOut() },
+    { label: t('pdf.zoomIn'), icon: <ZoomIn />, shortcut: 'Mod-=', onSelect: () => view.zoomIn() },
+    { label: t('pdf.zoomOut'), icon: <ZoomOut />, shortcut: 'Mod--', onSelect: () => view.zoomOut() },
   ];
   const nt = detached; // no portalled tooltips in detached windows
 
   return (
     <div className="@container relative z-10 flex h-9 shrink-0 select-none items-center gap-0.5 border-b border-border bg-surface px-1.5">
-      <IconButton label="Thumbnails" size="sm" active={thumbnails} onClick={onToggleThumbnails} disabled={!ready} noTooltip={nt}>
+      <IconButton label={t('pdf.thumbnails')} size="sm" active={thumbnails} onClick={onToggleThumbnails} disabled={!ready} noTooltip={nt}>
         <PanelLeft />
       </IconButton>
       <PageInput view={view} state={state} />
       <div className="mx-auto flex items-center gap-0.5">
-        <IconButton label="Zoom out" shortcut="Mod--" size="sm" onClick={() => view.zoomOut()} disabled={!ready} noTooltip={nt} className="hidden @[300px]:inline-flex">
+        <IconButton label={t('pdf.zoomOut')} shortcut="Mod--" size="sm" onClick={() => view.zoomOut()} disabled={!ready} noTooltip={nt} className="hidden @[300px]:inline-flex">
           <ZoomOut />
         </IconButton>
         {detached ? (
@@ -280,13 +288,13 @@ function PdfToolbar({
             }}
             className="h-7 rounded-md bg-transparent px-1.5 text-[12px] tabular-nums text-fg-muted outline-none hover:bg-hover"
           >
-            <option value="page-width">Fit width</option>
-            <option value="page-fit">Fit page</option>
-            <option value="auto">Automatic</option>
-            {typeof state.zoom === 'number' && !ZOOM_PRESETS.includes(state.zoom) && <option value={String(state.zoom)}>{zoomLabel(state)}</option>}
+            <option value="page-width">{t('pdf.fitWidth')}</option>
+            <option value="page-fit">{t('pdf.fitPage')}</option>
+            <option value="auto">{t('pdf.automatic')}</option>
+            {typeof state.zoom === 'number' && !ZOOM_PRESETS.includes(state.zoom) && <option value={String(state.zoom)}>{zoomLabel(state, t)}</option>}
             {ZOOM_PRESETS.map((z) => (
               <option key={z} value={String(z)}>
-                {Math.round(z * 100)}%
+                {pct(z, t)}
               </option>
             ))}
           </select>
@@ -301,29 +309,29 @@ function PdfToolbar({
                 disabled={!ready}
                 className="flex h-7 min-w-[64px] items-center justify-center gap-1 rounded-md px-1.5 text-[12px] font-medium tabular-nums text-fg-muted transition-colors hover:bg-hover hover:text-fg disabled:opacity-40 data-[state=open]:bg-hover data-[state=open]:text-fg"
               >
-                {zoomLabel(state)}
+                {zoomLabel(state, t)}
                 <ChevronDown className="size-3 text-fg-subtle" />
               </button>
             }
           />
         )}
-        <IconButton label="Zoom in" shortcut="Mod-=" size="sm" onClick={() => view.zoomIn()} disabled={!ready} noTooltip={nt} className="hidden @[300px]:inline-flex">
+        <IconButton label={t('pdf.zoomIn')} shortcut="Mod-=" size="sm" onClick={() => view.zoomIn()} disabled={!ready} noTooltip={nt} className="hidden @[300px]:inline-flex">
           <ZoomIn />
         </IconButton>
       </div>
       {state.reloading && (
-        <Tooltip content="Loading the new version…" disabled={nt}>
+        <Tooltip content={t('pdf.loadingNewVersion')} disabled={nt}>
           <span className="flex size-6 items-center justify-center text-fg-subtle">
             <Spinner className="size-3" />
           </span>
         </Tooltip>
       )}
-      <IconButton label="Find in PDF" shortcut="Mod-f" size="sm" active={findOpen} onClick={onFind} disabled={!ready} noTooltip={nt}>
+      <IconButton label={t('pdf.find')} shortcut="Mod-f" size="sm" active={findOpen} onClick={onFind} disabled={!ready} noTooltip={nt}>
         <Search />
       </IconButton>
       {end}
       {onDownload && !menuItems && (
-        <IconButton label="Download PDF" size="sm" onClick={onDownload} noTooltip={nt} className="hidden @[380px]:inline-flex">
+        <IconButton label={t('pdf.download')} size="sm" onClick={onDownload} noTooltip={nt} className="hidden @[380px]:inline-flex">
           <Download />
         </IconButton>
       )}
@@ -334,7 +342,7 @@ function PdfToolbar({
           trigger={
             <button
               type="button"
-              aria-label="More"
+              aria-label={t('pdf.more')}
               className="inline-flex size-7 items-center justify-center rounded-md text-fg-muted transition-colors hover:bg-hover hover:text-fg data-[state=open]:bg-hover data-[state=open]:text-fg [&_svg]:size-4"
             >
               <MoreHorizontal />
@@ -348,6 +356,7 @@ function PdfToolbar({
 
 function PageInput({ view, state }: { view: PdfView; state: PdfViewState }) {
   const [draft, setDraft] = useState<string | null>(null);
+  const t = useT();
   const ready = state.status === 'ready';
   const commit = () => {
     if (draft != null) {
@@ -380,7 +389,7 @@ function PageInput({ view, state }: { view: PdfView; state: PdfViewState }) {
             view.goToPage(state.page + (e.key === 'ArrowUp' ? -1 : 1));
           }
         }}
-        aria-label="Page number"
+        aria-label={t('pdf.pageNumber')}
         style={{ width }}
         className="h-6 rounded-md border border-transparent bg-surface-2 px-1 text-center font-medium text-fg outline-none transition-[border,box-shadow] hover:border-border focus:border-accent focus:ring-2 focus:ring-accent/15 disabled:opacity-50"
       />

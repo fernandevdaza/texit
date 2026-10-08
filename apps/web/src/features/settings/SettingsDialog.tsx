@@ -18,6 +18,7 @@ import {
 import { defaultSettings, useSettings } from '@/state/settings';
 import { cn } from '@/lib/cn';
 import { host } from '@/lib/platform';
+import { t as tr, useLocale, useT, type Locale, translate } from '@/lib/i18n';
 import { Avatar, Button, Dialog, DialogClose, toast } from '@/ui';
 import { AiSettings } from '@/features/ai/AiSettings';
 import { CollabSettings } from '@/features/collab/CollabSettings';
@@ -46,10 +47,10 @@ interface SectionDef {
 }
 
 /** Reset helper with an Undo toast. */
-function resetWithUndo(label: string, pick: () => Partial<ReturnType<typeof useSettings.getState>>, apply: () => void) {
+function resetWithUndo(section: 'appearance' | 'editor' | 'compiler' | 'pdf', pick: () => Partial<ReturnType<typeof useSettings.getState>>, apply: () => void) {
   const prev = pick();
   apply();
-  toast(`${label} reset to defaults`, { action: { label: 'Undo', onClick: () => useSettings.setState(prev) } });
+  toast(tr(`settings.resetDone.${section}`), { action: { label: tr('common.undo'), onClick: () => useSettings.setState(prev) } });
 }
 
 const sections: SectionDef[] = [
@@ -72,7 +73,7 @@ const sections: SectionDef[] = [
     component: AppearanceSection,
     reset: () =>
       resetWithUndo(
-        'Appearance',
+        'appearance',
         () => {
           const s = useSettings.getState();
           return { theme: s.theme, accent: s.accent, locale: s.locale };
@@ -90,7 +91,7 @@ const sections: SectionDef[] = [
     component: EditorSection,
     reset: () =>
       resetWithUndo(
-        'Editor settings',
+        'editor',
         () => ({ editor: useSettings.getState().editor }),
         () => useSettings.setState({ editor: { ...defaultSettings.editor } }),
       ),
@@ -105,7 +106,7 @@ const sections: SectionDef[] = [
     component: CompilerSection,
     reset: () =>
       resetWithUndo(
-        'Compiler settings',
+        'compiler',
         () => ({ compile: useSettings.getState().compile }),
         () => useSettings.setState({ compile: { ...defaultSettings.compile } }),
       ),
@@ -120,7 +121,7 @@ const sections: SectionDef[] = [
     component: PdfSection,
     reset: () =>
       resetWithUndo(
-        'PDF settings',
+        'pdf',
         () => ({ pdf: useSettings.getState().pdf }),
         () => useSettings.setState({ pdf: { ...defaultSettings.pdf } }),
       ),
@@ -174,21 +175,26 @@ const sections: SectionDef[] = [
 
 const groupLabels: Record<SectionDef['group'], string | null> = {
   account: null,
-  preferences: 'Preferences',
-  integrations: 'Integrations',
-  help: 'Help',
+  preferences: 'settings.group.preferences',
+  integrations: 'settings.group.integrations',
+  help: 'settings.group.help',
 };
+
+/** Localized label / description of a section (the English strings above are the fallback). */
+const sectionLabel = (s: SectionDef, locale: Locale) => translate(locale, `settings.section.${s.id}.label`, undefined, s.label);
+const sectionDescription = (s: SectionDef, locale: Locale) => translate(locale, `settings.section.${s.id}.description`, undefined, s.description);
 
 export function SettingsDialog() {
   const open = useSettingsUi((s) => s.open);
   const hide = useSettingsUi((s) => s.hide);
+  const t = useT();
   return (
     <>
       <Dialog
         open={open}
         onOpenChange={(o) => !o && hide()}
         bare
-        title="Settings"
+        title={t('settings.title')}
         width="max-w-[960px]"
         className="h-[min(740px,calc(100dvh-32px))] max-h-none rounded-2xl"
       >
@@ -206,12 +212,19 @@ function SettingsBody() {
   const userColor = useSettings((s) => s.userColor);
   const [filter, setFilter] = useState('');
   const scrollRef = useRef<HTMLDivElement>(null);
+  const t = useT();
+  const locale = useLocale();
 
   const visible = useMemo(() => {
     const f = filter.trim().toLowerCase();
     if (!f) return sections;
-    return sections.filter((s) => `${s.label} ${s.keywords} ${s.description}`.toLowerCase().includes(f));
-  }, [filter]);
+    return sections.filter((s) =>
+      [s.label, s.keywords, s.description, sectionLabel(s, locale), sectionDescription(s, locale), translate(locale, `settings.section.${s.id}.keywords`, undefined, '')]
+        .join(' ')
+        .toLowerCase()
+        .includes(f),
+    );
+  }, [filter, locale]);
 
   const current = sections.find((s) => s.id === section) ?? sections[1]!;
   const Body = current.component;
@@ -223,7 +236,7 @@ function SettingsBody() {
   return (
     <div className="flex h-full min-h-0 flex-col sm:flex-row">
       {/* ── Nav ── */}
-      <nav className="flex shrink-0 flex-col border-b border-border bg-surface-2/60 sm:w-[236px] sm:border-b-0 sm:border-r" aria-label="Settings sections">
+      <nav className="flex shrink-0 flex-col border-b border-border bg-surface-2/60 sm:w-[236px] sm:border-b-0 sm:border-r" aria-label={t('settings.navLabel')}>
         <div className="hidden px-3 pb-2 pt-4 sm:block">
           <div className="relative">
             <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-fg-subtle" />
@@ -237,7 +250,7 @@ function SettingsBody() {
                   setFilter('');
                 }
               }}
-              placeholder="Search settings"
+              placeholder={t('settings.search')}
               spellCheck={false}
               className="h-8 w-full rounded-lg border border-transparent bg-hover pl-8 pr-2 text-[12.5px] text-fg outline-none transition-[border,background,box-shadow] placeholder:text-fg-subtle focus:border-accent focus:bg-surface focus:ring-3 focus:ring-accent/15"
             />
@@ -245,7 +258,7 @@ function SettingsBody() {
         </div>
 
         <div className="flex gap-1 overflow-x-auto px-2 py-2 sm:min-h-0 sm:flex-1 sm:flex-col sm:gap-0 sm:overflow-y-auto sm:overflow-x-visible sm:py-1">
-          {visible.length === 0 && <p className="hidden px-3 py-6 text-center text-[12px] text-fg-subtle sm:block">No settings match “{filter}”.</p>}
+          {visible.length === 0 && <p className="hidden px-3 py-6 text-center text-[12px] text-fg-subtle sm:block">{t('settings.noMatch', { query: filter })}</p>}
           {visible.map((s, i) => {
             const groupStart = i === 0 || visible[i - 1]!.group !== s.group;
             const active = s.id === current.id;
@@ -263,7 +276,7 @@ function SettingsBody() {
                   <Avatar name={userName} color={userColor} size={32} />
                   <span className="min-w-0">
                     <span className="block truncate text-[13px] font-medium text-fg">{userName}</span>
-                    <span className="block text-[11.5px] text-fg-subtle">Profile & presence</span>
+                    <span className="block text-[11.5px] text-fg-subtle">{t('settings.profilePresence')}</span>
                   </span>
                 </button>
               );
@@ -271,7 +284,7 @@ function SettingsBody() {
             return (
               <div key={s.id} className="contents">
                 {groupStart && groupLabels[s.group] && (
-                  <div className="hidden px-2.5 pb-1 pt-3.5 text-[10.5px] font-semibold uppercase tracking-wider text-fg-subtle sm:block">{groupLabels[s.group]}</div>
+                  <div className="hidden px-2.5 pb-1 pt-3.5 text-[10.5px] font-semibold uppercase tracking-wider text-fg-subtle sm:block">{t(groupLabels[s.group]!)}</div>
                 )}
                 <button
                   type="button"
@@ -283,7 +296,7 @@ function SettingsBody() {
                   )}
                 >
                   <s.icon className={cn('size-4 shrink-0', active ? 'text-accent' : 'text-fg-subtle')} />
-                  <span className="whitespace-nowrap">{s.label}</span>
+                  <span className="whitespace-nowrap">{sectionLabel(s, locale)}</span>
                 </button>
               </div>
             );
@@ -292,7 +305,9 @@ function SettingsBody() {
 
         <div className="hidden items-center justify-between border-t border-border px-4 py-2.5 text-[11px] text-fg-subtle sm:flex">
           <span>TexIt {host?.appVersion ?? (pkg as { version: string }).version}</span>
-          <span>{host ? 'Desktop' : 'Web'} · Local-first</span>
+          <span>
+            {host ? t('settings.platformDesktop') : t('settings.platformWeb')} · {t('settings.localFirst')}
+          </span>
         </div>
       </nav>
 
@@ -300,15 +315,15 @@ function SettingsBody() {
       <div className="flex min-h-0 min-w-0 flex-1 flex-col bg-elevated">
         <header className="flex shrink-0 items-start gap-4 border-b border-border px-6 pb-4 pt-5 sm:px-8">
           <div className="min-w-0 flex-1">
-            <h2 className="text-[17px] font-semibold tracking-tight text-fg">{current.title ?? current.label}</h2>
-            <p className="mt-0.5 text-[12.5px] leading-relaxed text-fg-subtle">{current.description}</p>
+            <h2 className="text-[17px] font-semibold tracking-tight text-fg">{sectionLabel(current, locale)}</h2>
+            <p className="mt-0.5 text-[12.5px] leading-relaxed text-fg-subtle">{sectionDescription(current, locale)}</p>
           </div>
           {current.reset && (
             <Button size="sm" variant="ghost" icon={<RotateCcw />} onClick={current.reset} className="mt-0.5 text-fg-subtle">
-              Reset
+              {t('common.reset')}
             </Button>
           )}
-          <DialogClose className="-mr-2 mt-0.5 rounded-lg p-1.5 text-fg-subtle transition-colors hover:bg-hover hover:text-fg" aria-label="Close settings">
+          <DialogClose className="-mr-2 mt-0.5 rounded-lg p-1.5 text-fg-subtle transition-colors hover:bg-hover hover:text-fg" aria-label={t('settings.close')}>
             <X className="size-4" />
           </DialogClose>
         </header>

@@ -8,6 +8,7 @@ import { Check, Copy, CornerDownLeft, Replace } from 'lucide-react';
 import { getEditorBridge } from '@/services/editor';
 import { IconButton, toast } from '@/ui';
 import { cn } from '@/lib/cn';
+import { useT } from '@/lib/i18n';
 import { highlightLatex, isLatexLang } from '../components/latexHighlight';
 
 /** Split Markdown into top-level blocks (respecting fences / display math) so finished blocks don't re-render while streaming. */
@@ -31,6 +32,7 @@ export function splitBlocks(md: string): string[] {
 }
 
 function CodeBlock({ lang, code }: { lang?: string; code: string }) {
+  const t = useT();
   const [copied, setCopied] = useState(false);
   const latex = isLatexLang(lang);
   const body = useMemo(() => (latex ? highlightLatex(code) : code), [code, latex]);
@@ -42,7 +44,7 @@ function CodeBlock({ lang, code }: { lang?: string; code: string }) {
         <div className="flex items-center opacity-70 transition-opacity group-hover/code:opacity-100">
           <IconButton
             size="xs"
-            label={copied ? 'Copied' : 'Copy'}
+            label={copied ? t('common.copied') : t('common.copy')}
             onClick={() => {
               void navigator.clipboard.writeText(code).then(() => {
                 setCopied(true);
@@ -54,9 +56,9 @@ function CodeBlock({ lang, code }: { lang?: string; code: string }) {
           </IconButton>
           <IconButton
             size="xs"
-            label="Insert at cursor"
+            label={t('ai.code.insertAtCursor')}
             onClick={() => {
-              if (!bridge?.getView()) return void toast.error('Open a file in the editor first.');
+              if (!bridge?.getView()) return void toast.error(t('ai.openFileFirst'));
               bridge.insertText(code);
               bridge.focus();
             }}
@@ -65,10 +67,10 @@ function CodeBlock({ lang, code }: { lang?: string; code: string }) {
           </IconButton>
           <IconButton
             size="xs"
-            label="Replace selection"
+            label={t('ai.code.replaceSelection')}
             onClick={() => {
               const sel = bridge?.getSelection();
-              if (!bridge || !sel || sel.from === sel.to) return void toast.error('Select text in the editor to replace.');
+              if (!bridge || !sel || sel.from === sel.to) return void toast.error(t('ai.code.selectToReplace'));
               bridge.replaceSelection(code);
               bridge.focus();
             }}

@@ -27,6 +27,9 @@ import {
 import { dropSettingsHandle, getSettingsHandle } from './settingsStore';
 import { appUi, notifyPluginError, requestPermissionApproval } from './appUi';
 import { usePluginPrefs, type RegistryEntry } from './registry';
+import { pluginName } from './localize';
+import { t } from '@/lib/i18n';
+import './i18n';
 
 export type PluginStatus = 'inactive' | 'activating' | 'active' | 'error';
 
@@ -98,14 +101,14 @@ async function persistRecords() {
 
 function withTimeout<T>(p: Promise<T>, ms: number, what: string): Promise<T> {
   return new Promise((resolve, reject) => {
-    const t = setTimeout(() => reject(new Error(`${what} timed out after ${ms / 1000}s`)), ms);
+    const timer = setTimeout(() => reject(new Error(t('plugins.timedOut', { what, seconds: ms / 1000 }))), ms);
     p.then(
       (v) => {
-        clearTimeout(t);
+        clearTimeout(timer);
         resolve(v);
       },
       (e) => {
-        clearTimeout(t);
+        clearTimeout(timer);
         reject(e);
       },
     );
@@ -125,7 +128,7 @@ export function reportPluginError(id: string, err: unknown, context: string) {
     if (!e) return;
     const count = (e.lastError?.count ?? 0) + 1;
     patch(id, { lastError: { message: errMsg(err), context, at: Date.now(), count } });
-    notifyPluginError(e.manifest.name, context, errMsg(err), id);
+    notifyPluginError(pluginName(e.manifest), context, errMsg(err), id);
   });
 }
 
@@ -173,7 +176,7 @@ async function activate(id: string, opts: { bust?: boolean } = {}): Promise<bool
     instances.delete(id);
     host?.dispose();
     patch(id, { status: 'error', error: errMsg(err) });
-    appUi.toast(`Plugin "${entry.manifest.name}" failed to start`, { type: 'error', description: errMsg(err) });
+    appUi.toast(t('plugins.failedToStartToast', { name: pluginName(entry.manifest) }), { type: 'error', description: errMsg(err) });
     return false;
   }
 }
@@ -294,7 +297,7 @@ export async function reloadPlugin(id: string): Promise<boolean> {
     try {
       const p = await loadPlugin(id, true);
       if (!(await ensurePermissions(p, entry.granted))) {
-        patch(id, { status: 'error', error: 'New permissions were not approved.' });
+        patch(id, { status: 'error', error: t('plugins.permissionsNotApproved') });
         return false;
       }
       refreshManifest(id, p);
@@ -352,13 +355,15 @@ interface InstallSpec {
 
 async function install(spec: InstallSpec): Promise<PluginEntry | null> {
   const plugin = await importPluginModule(spec.code != null ? { code: spec.code } : { url: spec.url }, true);
-  if (BUILTINS.has(plugin.id)) throw new PluginLoadError(`"${plugin.id}" is the id of a built-in plugin.`);
+  if (BUILTINS.has(plugin.id)) throw new PluginLoadError(t('plugins.builtinIdTaken', { id: plugin.id }));
   const existing = records.get(plugin.id);
   const manifest = manifestOf(plugin);
   if (existing) {
     const ok = await appUi.confirm({
-      title: `Update "${manifest.name}"?`,
-      message: `Version ${existing.manifest.version} is installed. Replace it with ${manifest.version}${spec.url ? ` from ${spec.url}` : ''}?`,
+      title: t('plugins.updateConfirm', { name: pluginName(manifest) }),
+      message: spec.url
+        ? t('plugins.updateMessageFrom', { installed: existing.manifest.version, version: manifest.version, url: spec.url })
+        : t('plugins.updateMessage', { installed: existing.manifest.version, version: manifest.version }),
     });
     if (!ok) return null;
   }
@@ -403,7 +408,7 @@ export async function installFromRegistry(entry: RegistryEntry): Promise<PluginE
 }
 
 export async function installFromFile(file: File): Promise<PluginEntry | null> {
-  if (file.size > 2_000_000) throw new PluginLoadError('Plugin files larger than 2 MB are not supported.');
+  if (file.size > 2_000_000) throw new PluginLoadError(t('plugins.fileTooLarge'));
   const code = await file.text();
   return install({ source: 'file', code, fileName: file.name });
 }
@@ -447,13 +452,13 @@ export async function reloadChangedPlugins(): Promise<string[]> {
       sourceHashes.set(rec.id, h);
       if (prev && prev !== h) {
         await reloadPlugin(rec.id);
-        reloaded.push(rec.manifest.name);
+        reloaded.push(pluginName(rec.manifest));
       }
     }
   } finally {
     checking = false;
   }
-  if (reloaded.length) appUi.toast(`Reloaded ${reloaded.join(', ')}`, { type: 'info', description: 'Developer mode: source changed.' });
+  if (reloaded.length) appUi.toast(t('plugins.devReloaded', { names: reloaded.join(', ') }), { type: 'info', description: t('plugins.devSourceChanged') });
   return reloaded;
 }
 

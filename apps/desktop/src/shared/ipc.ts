@@ -62,6 +62,7 @@ export const Invoke = {
 export const Send = {
   appSetTitle: 'texit:app:setTitle',
   appSetDocumentEdited: 'texit:app:setDocumentEdited',
+  appSetLocale: 'texit:app:setLocale',
 } as const;
 
 /** Main → renderer broadcast channels. */

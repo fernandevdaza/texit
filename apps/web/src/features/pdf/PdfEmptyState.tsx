@@ -1,9 +1,12 @@
 import { AlertTriangle, CloudDownload, Play, RotateCcw } from 'lucide-react';
 import { cn } from '@/lib/cn';
+import { useT } from '@/lib/i18n';
+import { localizeDetail } from '@/features/compile/format';
 import { executeCommand, useCommands } from '@/services/commands';
 import { Button, Kbd } from '@/ui';
 import type { CompileState } from '@/state/workspace';
 import './pdf.css';
+import './i18n';
 
 /** Percent from `progress` (0..1) or a "(34%)" in the detail string. */
 export function compilePercent(c: Pick<CompileState, 'progress' | 'detail'>): number | null {
@@ -83,6 +86,7 @@ function useCompileShortcut() {
 
 export function PdfEmptyState({ compile }: { compile: CompileState }) {
   const shortcut = useCompileShortcut();
+  const t = useT();
   const hasCancel = useCommands((s) => !!s.commands['compile.cancel']);
   const { status } = compile;
   const pct = compilePercent(compile);
@@ -94,35 +98,30 @@ export function PdfEmptyState({ compile }: { compile: CompileState }) {
   let actions: React.ReactNode = null;
 
   if (firstRun) {
-    title = 'Setting up the TeX engine';
-    description = (
-      <>
-        A one-time download of the TeX distribution. It's cached on this device, so later compiles start instantly — even
-        offline.
-      </>
-    );
+    title = t('pdf.empty.setupTitle');
+    description = t('pdf.empty.setupDesc');
   } else if (status === 'compiling') {
-    title = 'Typesetting your document…';
-    description = compile.detail || 'This usually takes a few seconds.';
+    title = t('pdf.empty.typesetting');
+    description = compile.detail ? localizeDetail(compile.detail, t) : t('pdf.empty.typesettingDesc');
   } else if (status === 'error') {
-    title = 'Compilation failed';
-    description = 'Fix the problems in your source and compile again.';
+    title = t('pdf.empty.failed');
+    description = t('pdf.empty.failedDesc');
     actions = (
       <div className="flex items-center gap-2">
         <Button size="md" variant="secondary" icon={<AlertTriangle />} onClick={() => executeCommand('view.problems')}>
-          View problems
+          {t('pdf.viewProblems')}
         </Button>
         <Button size="md" variant="primary" icon={<RotateCcw />} onClick={() => executeCommand('compile.run')}>
-          Try again
+          {t('pdf.empty.tryAgain')}
         </Button>
       </div>
     );
   } else {
-    title = 'No PDF yet';
-    description = 'Compile your project to see the typeset document here.';
+    title = t('pdf.empty.noPdf');
+    description = t('pdf.empty.noPdfDesc');
     actions = (
       <Button size="lg" variant="primary" icon={<Play className="fill-current" />} onClick={() => executeCommand('compile.run')} className="px-5">
-        Compile
+        {t('pdf.empty.compile')}
         <Kbd keys={shortcut} className="ml-1.5 [&_kbd]:border-white/25 [&_kbd]:bg-white/15 [&_kbd]:text-white" />
       </Button>
     );
@@ -138,23 +137,23 @@ export function PdfEmptyState({ compile }: { compile: CompileState }) {
           <div className="mt-5 w-full rounded-xl border border-border bg-surface/80 p-3 text-left shadow-[var(--shadow-card)] backdrop-blur">
             <div className="flex items-center gap-2 text-[12px]">
               <CloudDownload className="size-4 shrink-0 text-accent" />
-              <span className="min-w-0 flex-1 truncate font-medium text-fg">{compile.detail || 'Preparing…'}</span>
-              {pct != null && <span className="tabular-nums text-fg-muted">{pct}%</span>}
+              <span className="min-w-0 flex-1 truncate font-medium text-fg">{compile.detail ? localizeDetail(compile.detail, t) : t('pdf.empty.preparing')}</span>
+              {pct != null && <span className="tabular-nums text-fg-muted">{t('pdf.percent', { pct: String(pct) })}</span>}
             </div>
             <ProgressTrack percent={pct} className="mt-2.5" />
-            <div className="mt-2 text-[11px] text-fg-subtle">Only needed once · roughly 100–400 MB</div>
+            <div className="mt-2 text-[11px] text-fg-subtle">{t('pdf.empty.onlyOnce')}</div>
           </div>
         )}
         {status === 'compiling' && <ProgressTrack percent={pct} className="mt-5 w-40" />}
         {busy && hasCancel && (
           <Button size="sm" variant="ghost" className="mt-3" onClick={() => executeCommand('compile.cancel')}>
-            Cancel
+            {t('common.cancel')}
           </Button>
         )}
         {actions && <div className="mt-5">{actions}</div>}
         {!busy && status !== 'error' && (
           <p className="mt-4 text-[11.5px] text-fg-subtle">
-            Tip: double-click the PDF to jump to the source, and back with SyncTeX.
+            {t('pdf.empty.tip')}
           </p>
         )}
       </div>

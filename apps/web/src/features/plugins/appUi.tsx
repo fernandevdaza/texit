@@ -8,6 +8,9 @@ import { PanelIcon } from '@/features/workspace/PanelIcon';
 import { useLayout } from '@/state/workspace';
 import type { HostUi } from './host';
 import { PERMISSION_INFO } from './permissions';
+import { pluginName, useLocalizedManifest } from './localize';
+import { t, useT } from '@/lib/i18n';
+import './i18n';
 
 /** Tailwind needs static class names: map a pixel width to the closest max-w class. */
 const WIDTHS: [number, string][] = [
@@ -44,7 +47,7 @@ function DomHost({
       cleanup = render(el, close);
     } catch (err) {
       onError(err);
-      el.textContent = `This dialog failed to render: ${err instanceof Error ? err.message : String(err)}`;
+      el.textContent = t('plugins.dialogFailed', { error: err instanceof Error ? err.message : String(err) });
     }
     return () => {
       try {
@@ -73,7 +76,7 @@ export const appUi: HostUi = {
     return promptDialog({ title: opts.title, placeholder: opts.placeholder, value: opts.value });
   },
   confirm(opts) {
-    return confirmDialog({ title: opts.title, message: opts.message, danger: opts.danger, confirmLabel: opts.danger ? 'Continue' : 'OK' });
+    return confirmDialog({ title: opts.title, message: opts.message, danger: opts.danger, confirmLabel: opts.danger ? t('plugins.continue') : t('common.ok') });
   },
   modal(opts) {
     return openModal({
@@ -92,9 +95,9 @@ export function notifyPluginError(name: string, context: string, message: string
   const now = Date.now();
   if (now - (lastToast.get(id) ?? 0) < 6000) return;
   lastToast.set(id, now);
-  toast.error(`Plugin "${name}" hit an error`, {
+  toast.error(t('plugins.hitError', { name }), {
     description: `${context}: ${message}`,
-    action: { label: 'Details', onClick: () => useLayout.getState().showSidebarPanel('plugins') },
+    action: { label: t('plugins.details'), onClick: () => useLayout.getState().showSidebarPanel('plugins') },
   });
 }
 
@@ -110,8 +113,9 @@ export function PluginIconTile({ icon, size = 'md' }: { icon?: string; size?: 's
 }
 
 export function PermissionList({ permissions, highlight }: { permissions: PluginManifest['permissions']; highlight?: string[] }) {
+  const t = useT();
   if (!permissions?.length)
-    return <p className="rounded-lg bg-surface-2 px-3 py-2.5 text-[12.5px] text-fg-muted">This plugin does not request any special permissions.</p>;
+    return <p className="rounded-lg bg-surface-2 px-3 py-2.5 text-[12.5px] text-fg-muted">{t('plugins.noPermissions')}</p>;
   return (
     <ul className="divide-y divide-border overflow-hidden rounded-lg border border-border">
       {permissions.map((p) => {
@@ -123,11 +127,11 @@ export function PermissionList({ permissions, highlight }: { permissions: Plugin
             </span>
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2 text-[12.5px] font-medium text-fg">
-                {info?.title ?? p}
+                {info ? t(`plugins.perm.${p}.title`, undefined, info.title) : p}
                 <code className="text-[10.5px] font-normal text-fg-subtle">{p}</code>
-                {highlight?.includes(p) && <Badge tone="warning">new</Badge>}
+                {highlight?.includes(p) && <Badge tone="warning">{t('plugins.newBadge')}</Badge>}
               </div>
-              <div className="text-[12px] leading-relaxed text-fg-subtle">{info?.description}</div>
+              <div className="text-[12px] leading-relaxed text-fg-subtle">{info ? t(`plugins.perm.${p}.description`, undefined, info.description) : null}</div>
             </div>
           </li>
         );
@@ -140,9 +144,30 @@ export function requestPermissionApproval(manifest: PluginManifest, opts: { sour
   let approved = false;
   const isUpdate = !!opts.newPermissions;
   return openModal({
-    title: isUpdate ? `“${manifest.name}” requests new permissions` : `Install “${manifest.name}”?`,
+    title: isUpdate ? t('plugins.requestsNewPermissions', { name: pluginName(manifest) }) : t('plugins.installConfirm', { name: pluginName(manifest) }),
     width: 'max-w-lg',
-    render: (close) => (
+    render: (close) => <PermissionPrompt manifest={manifest} source={opts.source} newPermissions={opts.newPermissions} close={close} onApprove={() => (approved = true)} />,
+  }).then(() => approved);
+}
+
+function PermissionPrompt({
+  manifest: raw,
+  source,
+  newPermissions,
+  close,
+  onApprove,
+}: {
+  manifest: PluginManifest;
+  source?: string;
+  newPermissions?: string[];
+  close: () => void;
+  onApprove: () => void;
+}) {
+  const t = useT();
+  const manifest = useLocalizedManifest(raw);
+  const isUpdate = !!newPermissions;
+  const opts = { source, newPermissions };
+  return (
       <div className="space-y-4 pb-1">
         <div className="flex items-center gap-3">
           <PluginIconTile icon={manifest.icon} size="lg" />
@@ -152,7 +177,7 @@ export function requestPermissionApproval(manifest: PluginManifest, opts: { sour
               <Badge>v{manifest.version}</Badge>
             </div>
             <div className="truncate text-[12px] text-fg-subtle">
-              {manifest.author ? `by ${manifest.author} · ` : ''}
+              {manifest.author ? `${t('plugins.byAuthor', { author: manifest.author })} · ` : ''}
               <span className="font-mono">{manifest.id}</span>
             </div>
           </div>
@@ -165,30 +190,29 @@ export function requestPermissionApproval(manifest: PluginManifest, opts: { sour
         )}
         <div>
           <div className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-fg-subtle">
-            <ShieldCheck className="size-3.5" /> This plugin will be able to
+            <ShieldCheck className="size-3.5" /> {t('plugins.willBeAbleTo')}
           </div>
           <PermissionList permissions={manifest.permissions} highlight={opts.newPermissions} />
         </div>
         <div className="flex gap-2 rounded-lg bg-warning-soft px-3 py-2.5 text-[12px] leading-relaxed text-warning">
           <TriangleAlert className="mt-0.5 size-3.5 shrink-0" />
-          <span>Plugins run inside TexIt with access to this page. Only install plugins from authors you trust.</span>
+          <span>{t('plugins.trustWarning')}</span>
         </div>
         <div className="flex justify-end gap-2 pt-1">
           <Button variant="ghost" onClick={close}>
-            Cancel
+            {t('common.cancel')}
           </Button>
           <Button
             variant="primary"
             data-autofocus
             onClick={() => {
-              approved = true;
+              onApprove();
               close();
             }}
           >
-            {isUpdate ? 'Allow' : 'Install'}
+            {isUpdate ? t('plugins.allow') : t('plugins.install')}
           </Button>
         </div>
       </div>
-    ),
-  }).then(() => approved);
+  );
 }

@@ -1,10 +1,14 @@
 import type { LucideIcon } from 'lucide-react';
 import type { Command } from '@/services/commands';
+import { commandCategory, commandTitle, getLocale, translate, type Locale } from '@/lib/i18n';
 import { fuzzyWords } from './fuzzy';
 
 export interface ShortcutEntry {
   id: string;
+  /** Display title (localized). */
   title: string;
+  /** English title (also searchable). */
+  sourceTitle?: string;
   category: string;
   keys: string[];
   icon?: LucideIcon;
@@ -26,12 +30,13 @@ export const editorBuiltins: ShortcutEntry[] = [
 
 const order = ['Project', 'File', 'Edit', 'Editor', 'Insert', 'Format', 'View', 'Compile', 'PDF', 'AI', 'Collaboration', 'History', 'Plugins', 'Preferences', 'Help'];
 
+/** Groups commands (and editor built-ins) by category, localized. `category` is the stable English id; `label` is translated. */
 export function groupShortcuts(
   commands: Record<string, Command>,
   query: string,
-  opts: { onlyBound?: boolean; includeBuiltins?: boolean } = {},
-): { category: string; entries: ShortcutEntry[] }[] {
-  const { onlyBound = true, includeBuiltins = true } = opts;
+  opts: { onlyBound?: boolean; includeBuiltins?: boolean; locale?: Locale } = {},
+): { category: string; label: string; entries: ShortcutEntry[] }[] {
+  const { onlyBound = true, includeBuiltins = true, locale = getLocale() } = opts;
   const bound = new Set<string>();
   const entries: ShortcutEntry[] = [];
   for (const c of Object.values(commands)) {
@@ -39,20 +44,22 @@ export function groupShortcuts(
     if (onlyBound && !c.keybinding) continue;
     const keys = c.keybinding ? c.keybinding.split(/\s*\|\s*/) : [];
     keys.forEach((k) => bound.add(k.toLowerCase()));
-    entries.push({ id: c.id, title: c.title, category: c.category ?? 'Other', keys, icon: c.icon });
+    entries.push({ id: c.id, title: commandTitle(c, locale), sourceTitle: c.title, category: c.category ?? 'Other', keys, icon: c.icon });
   }
   if (includeBuiltins) {
     for (const b of editorBuiltins) {
       // Skip a builtin when a command already claims the same binding.
       if (b.keys.some((k) => bound.has(k.toLowerCase()) && k !== 'Mod-/')) continue;
-      entries.push(b);
+      entries.push({ ...b, title: translate(locale, `palette.builtin.${b.id.slice(3)}`, undefined, b.title), sourceTitle: b.title });
     }
   }
   const q = query.trim();
   const filtered = q
     ? entries
         .map((e) => {
-          const r = fuzzyWords(q, e.title) ?? fuzzyWords(q, `${e.title} ${e.category} ${e.id} ${e.keys.join(' ')}`);
+          const r =
+            fuzzyWords(q, e.title) ??
+            fuzzyWords(q, `${e.title} ${e.sourceTitle ?? ''} ${commandCategory(e.category, locale)} ${e.category} ${e.id} ${e.keys.join(' ')}`);
           return r ? { ...e, positions: r.positions.filter((p) => p < e.title.length), score: r.score } : null;
         })
         .filter(Boolean)
@@ -68,5 +75,9 @@ export function groupShortcuts(
       const ib = order.indexOf(b);
       return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib) || a.localeCompare(b);
     })
-    .map(([category, list]) => ({ category, entries: q ? list : list.sort((a, b) => a.title.localeCompare(b.title)) }));
+    .map(([category, list]) => ({
+      category,
+      label: commandCategory(category, locale),
+      entries: q ? list : list.sort((a, b) => a.title.localeCompare(b.title, locale)),
+    }));
 }

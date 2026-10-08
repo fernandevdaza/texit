@@ -5,6 +5,7 @@ import { executeCommand } from '@/services/commands';
 import { useLayout, useWorkspace } from '@/state/workspace';
 import { useResolvedTheme, useSettings } from '@/state/settings';
 import { cn } from '@/lib/cn';
+import { panelTitle, useLocale, useT } from '@/lib/i18n';
 import { Avatar, Tooltip } from '@/ui';
 import { PanelIcon } from './PanelIcon';
 
@@ -21,6 +22,8 @@ export function ActivityBar() {
   const theme = useResolvedTheme((s) => s.theme);
   const { userName, userColor, set } = useSettings();
   const problems = useWorkspace((s) => s.compile.diagnostics.filter((d) => d.severity === 'error').length);
+  const t = useT();
+  const locale = useLocale();
 
   return (
     <nav className="flex w-12 shrink-0 flex-col items-center gap-1 border-r border-border bg-surface py-2">
@@ -28,9 +31,9 @@ export function ActivityBar() {
         const active = sidebarOpen && focusMode === 'none' && sidebarPanel === p.id;
         const badge = p.badge?.();
         return (
-          <Tooltip key={p.id} content={p.title} shortcut={shortcuts[p.id]} side="right">
+          <Tooltip key={p.id} content={panelTitle(p, locale)} shortcut={shortcuts[p.id]} side="right">
             <button
-              aria-label={p.title}
+              aria-label={panelTitle(p, locale)}
               onClick={() => {
                 if (focusMode !== 'none') useLayout.getState().set({ focusMode: 'none' });
                 showSidebarPanel(p.id, { toggle: true });
@@ -52,9 +55,9 @@ export function ActivityBar() {
         );
       })}
       <div className="flex-1" />
-      <Tooltip content={problems ? `${problems} error${problems > 1 ? 's' : ''}` : 'Problems'} shortcut="Mod-j" side="right">
+      <Tooltip content={problems ? t('workspace.errorCount', { count: problems }) : t('panel.problems')} shortcut="Mod-j" side="right">
         <button
-          aria-label="Problems"
+          aria-label={t('panel.problems')}
           onClick={() => useLayout.getState().showBottomPanel('problems', { toggle: true })}
           className={cn(
             'relative flex size-9 items-center justify-center rounded-lg transition-colors hover:bg-hover',
@@ -69,26 +72,26 @@ export function ActivityBar() {
           )}
         </button>
       </Tooltip>
-      <Tooltip content={theme === 'dark' ? 'Light mode' : 'Dark mode'} side="right">
+      <Tooltip content={theme === 'dark' ? t('workspace.lightMode') : t('workspace.darkMode')} side="right">
         <button
-          aria-label="Toggle theme"
+          aria-label={t('workspace.toggleTheme')}
           onClick={() => set({ theme: theme === 'dark' ? 'light' : 'dark' })}
           className="flex size-9 items-center justify-center rounded-lg text-fg-subtle transition-colors hover:bg-hover hover:text-fg"
         >
           {theme === 'dark' ? <Sun className="size-[18px]" /> : <Moon className="size-[18px]" />}
         </button>
       </Tooltip>
-      <Tooltip content="Settings" shortcut="Mod-," side="right">
+      <Tooltip content={t('workspace.settings')} shortcut="Mod-," side="right">
         <button
-          aria-label="Settings"
+          aria-label={t('workspace.settings')}
           onClick={() => executeCommand('app.settings')}
           className="flex size-9 items-center justify-center rounded-lg text-fg-subtle transition-colors hover:bg-hover hover:text-fg"
         >
           <Settings className="size-[18px]" />
         </button>
       </Tooltip>
-      <Tooltip content={`${userName} — edit profile`} side="right">
-        <button className="mt-1" onClick={() => executeCommand('app.settings', 'profile')} aria-label="Profile">
+      <Tooltip content={t('workspace.editProfile', { name: userName })} side="right">
+        <button className="mt-1" onClick={() => executeCommand('app.settings', 'profile')} aria-label={t('workspace.profile')}>
           <Avatar name={userName} color={userColor} size={26} />
         </button>
       </Tooltip>

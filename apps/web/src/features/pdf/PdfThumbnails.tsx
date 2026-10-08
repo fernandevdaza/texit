@@ -1,5 +1,7 @@
 import { memo, useEffect, useMemo, useRef } from 'react';
 import { cn } from '@/lib/cn';
+import { useT } from '@/lib/i18n';
+import './i18n';
 import type { PdfView, PdfViewState } from './engine';
 
 const THUMB_W = 112;
@@ -35,6 +37,7 @@ function createQueue(view: PdfView) {
 
 export function PdfThumbnails({ view, state }: { view: PdfView; state: PdfViewState }) {
   const listRef = useRef<HTMLDivElement>(null);
+  const t = useT();
   const queue = useMemo(() => createQueue(view), [view]);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const sizes = useMemo(() => view.pageSizes(), [view, state.docVersion]);
@@ -46,7 +49,7 @@ export function PdfThumbnails({ view, state }: { view: PdfView; state: PdfViewSt
   }, [state.page]);
 
   return (
-    <div ref={listRef} className="h-full w-[148px] shrink-0 overflow-y-auto border-r border-border bg-surface/70 px-3 py-3 backdrop-blur" aria-label="Page thumbnails">
+    <div ref={listRef} className="h-full w-[148px] shrink-0 overflow-y-auto border-r border-border bg-surface/70 px-3 py-3 backdrop-blur" aria-label={t('pdf.pageThumbnails')}>
       <div className="flex flex-col items-center gap-3">
         {sizes.map((s, i) => (
           <Thumb
@@ -79,6 +82,7 @@ const Thumb = memo(function Thumb({
   queue: ReturnType<typeof createQueue>;
   onSelect: () => void;
 }) {
+  const t = useT();
   const boxRef = useRef<HTMLDivElement>(null);
   const paperRef = useRef<HTMLDivElement>(null);
   const renderedFor = useRef(-1);
@@ -118,7 +122,7 @@ const Thumb = memo(function Thumb({
       data-thumb={index + 1}
       onClick={onSelect}
       className="group flex w-full flex-col items-center gap-1.5 outline-none"
-      aria-label={`Page ${index + 1}`}
+      aria-label={t('pdf.page', { n: index + 1 })}
       aria-current={active ? 'page' : undefined}
     >
       <div

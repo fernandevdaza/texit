@@ -6,6 +6,8 @@ import { Avatar, Button, Field, IconButton, Input, SettingRow, Switch, Textarea 
 import { cn } from '@/lib/cn';
 import { strategyInfo, transportOptionsFor, useCollabSettings, type IceServerEntry } from './settings';
 import { loadStrategy, type SignalingStrategy } from './transport';
+import { t as tr, useT } from '@/lib/i18n';
+import { strategyDescription, strategyLabel } from './i18n';
 
 const STRATEGIES: SignalingStrategy[] = ['nostr', 'torrent', 'mqtt'];
 const SWATCHES = ['#f97316', '#eab308', '#22c55e', '#14b8a6', '#06b6d4', '#3b82f6', '#6366f1', '#a855f7', '#ec4899', '#f43f5e'];
@@ -41,11 +43,11 @@ function testRelay(url: string, strategy: SignalingStrategy, timeoutMs = 6000): 
       }
       resolve({ label: url.replace(/^wss?:\/\//, ''), ok, detail });
     };
-    const t = setTimeout(() => done(false, 'timed out'), timeoutMs);
+    const t = setTimeout(() => done(false, tr('collab.settings.timedOut')), timeoutMs);
     try {
       ws = strategy === 'mqtt' ? new WebSocket(url.replace(/^wss:\/\/[^@/]*@/, 'wss://'), ['mqtt']) : new WebSocket(url);
       ws.onopen = () => done(true, `${Math.round(performance.now() - start)} ms`);
-      ws.onerror = () => done(false, 'unreachable');
+      ws.onerror = () => done(false, tr('collab.settings.unreachable'));
     } catch (err) {
       done(false, String((err as Error)?.message ?? err));
     }
@@ -71,14 +73,15 @@ async function testIce(servers: RTCIceServer[]): Promise<TestResult[]> {
   pc.close();
   const hasTurn = servers.some((s) => [s.urls].flat().some((u) => /^turns?:/.test(u)));
   const out: TestResult[] = [
-    { label: 'Local network (host candidates)', ok: types.has('host'), detail: types.has('host') ? 'ok' : 'none' },
-    { label: 'STUN — public address discovery', ok: types.has('srflx'), detail: types.has('srflx') ? 'ok' : 'no reflexive candidate (strict NAT/firewall?)' },
+    { label: tr('collab.settings.hostCandidates'), ok: types.has('host'), detail: types.has('host') ? tr('collab.settings.ok') : tr('collab.settings.none') },
+    { label: tr('collab.settings.stun'), ok: types.has('srflx'), detail: types.has('srflx') ? tr('collab.settings.ok') : tr('collab.settings.noSrflx') },
   ];
-  if (hasTurn) out.push({ label: 'TURN relay', ok: types.has('relay'), detail: types.has('relay') ? 'ok' : 'no relay candidate — check credentials' });
+  if (hasTurn) out.push({ label: tr('collab.settings.turn'), ok: types.has('relay'), detail: types.has('relay') ? tr('collab.settings.ok') : tr('collab.settings.noRelay') });
   return out;
 }
 
 function ConnectivityTest({ strategy }: { strategy: SignalingStrategy }) {
+  const t = useT();
   const [running, setRunning] = useState(false);
   const [results, setResults] = useState<TestResult[] | null>(null);
   const [relayCount, setRelayCount] = useState(0);
@@ -103,11 +106,11 @@ function ConnectivityTest({ strategy }: { strategy: SignalingStrategy }) {
     <div className="space-y-2">
       <div className="flex items-center gap-3">
         <Button variant="secondary" icon={running ? <Loader2 className="animate-spin" /> : <Wifi />} onClick={run} disabled={running}>
-          {running ? 'Testing…' : 'Test connectivity'}
+          {running ? t('collab.settings.testing') : t('collab.settings.test')}
         </Button>
         {results && okRelays != null && (
           <span className={cn('text-[12px]', okRelays > 0 ? 'text-success' : 'text-danger')}>
-            {okRelays > 0 ? `${okRelays} ${strategyInfo[strategy].short} relay${okRelays > 1 ? 's' : ''} reachable` : 'No relay reachable'}
+            {okRelays > 0 ? t('collab.settings.relaysReachable', { count: okRelays, network: strategyInfo[strategy].short }) : t('collab.settings.noRelayReachable')}
           </span>
         )}
       </div>
@@ -127,6 +130,7 @@ function ConnectivityTest({ strategy }: { strategy: SignalingStrategy }) {
 }
 
 function IceServersEditor() {
+  const t = useT();
   const { iceServers, replaceDefaultIce, set } = useCollabSettings(
     useShallow((s) => ({ iceServers: s.iceServers, replaceDefaultIce: s.replaceDefaultIce, set: s.set })),
   );
@@ -136,18 +140,18 @@ function IceServersEditor() {
       {iceServers.map((e, i) => (
         <div key={i} className="grid grid-cols-[1fr_110px_110px_auto] items-center gap-1.5">
           <Input inputSize="sm" value={e.urls} placeholder="turn:turn.example.com:3478" onChange={(ev) => update(i, { urls: ev.target.value })} />
-          <Input inputSize="sm" value={e.username ?? ''} placeholder="username" onChange={(ev) => update(i, { username: ev.target.value })} />
-          <Input inputSize="sm" type="password" value={e.credential ?? ''} placeholder="credential" onChange={(ev) => update(i, { credential: ev.target.value })} />
-          <IconButton label="Remove server" size="sm" onClick={() => set({ iceServers: iceServers.filter((_, j) => j !== i) })}>
+          <Input inputSize="sm" value={e.username ?? ''} placeholder={t('collab.settings.username')} onChange={(ev) => update(i, { username: ev.target.value })} />
+          <Input inputSize="sm" type="password" value={e.credential ?? ''} placeholder={t('collab.settings.credential')} onChange={(ev) => update(i, { credential: ev.target.value })} />
+          <IconButton label={t('collab.settings.removeServer')} size="sm" onClick={() => set({ iceServers: iceServers.filter((_, j) => j !== i) })}>
             <Trash2 />
           </IconButton>
         </div>
       ))}
       <Button size="sm" variant="ghost" icon={<Plus />} onClick={() => set({ iceServers: [...iceServers, { urls: '' }] })}>
-        Add STUN/TURN server
+        {t('collab.settings.addServer')}
       </Button>
       {iceServers.length > 0 && (
-        <SettingRow title="Use only these servers" description="Skip the default public STUN servers (Google, Cloudflare).">
+        <SettingRow title={t('collab.settings.onlyThese')} description={t('collab.settings.onlyTheseDescription')}>
           <Switch checked={replaceDefaultIce} onCheckedChange={(v) => set({ replaceDefaultIce: v })} />
         </SettingRow>
       )}
@@ -157,6 +161,7 @@ function IceServersEditor() {
 
 /** Collaboration section of the Settings dialog. */
 export function CollabSettings() {
+  const t = useT();
   const s = useCollabSettings();
   const { userName, userColor, set: setProfile } = useSettings(useShallow((x) => ({ userName: x.userName, userColor: x.userColor, set: x.set })));
   const [relayText, setRelayText] = useState<Record<string, string>>({});
@@ -169,15 +174,15 @@ export function CollabSettings() {
 
   return (
     <div className="space-y-7">
-      <Section title="Your presence" description="How collaborators see you — your name labels your cursor, chat messages and comments.">
+      <Section title={t('collab.settings.presence')} description={t('collab.settings.presenceDescription')}>
         <div className="flex items-center gap-3">
           <Avatar name={userName || '?'} color={userColor} size={34} />
-          <Input value={userName} onChange={(e) => setProfile({ userName: e.target.value })} placeholder="Display name" className="max-w-[240px]" />
+          <Input value={userName} onChange={(e) => setProfile({ userName: e.target.value })} placeholder={t('collab.settings.displayName')} className="max-w-[240px]" />
           <div className="flex flex-wrap gap-1">
             {SWATCHES.map((c) => (
               <button
                 key={c}
-                aria-label={`Color ${c}`}
+                aria-label={t('collab.settings.color', { color: c })}
                 onClick={() => setProfile({ userColor: c })}
                 className={cn('size-5 rounded-full transition-transform hover:scale-110', userColor === c && 'ring-2 ring-fg/60 ring-offset-2 ring-offset-elevated')}
                 style={{ background: c }}
@@ -187,10 +192,7 @@ export function CollabSettings() {
         </div>
       </Section>
 
-      <Section
-        title="Signaling network"
-        description="Peers discover each other through public relays; only encrypted connection offers (no project data) pass through them. Used when you start sharing — invite links carry the network, so guests join the same one automatically."
-      >
+      <Section title={t('collab.settings.signaling')} description={t('collab.settings.signalingDescription')}>
         <div className="grid gap-2 sm:grid-cols-3">
           {STRATEGIES.map((id) => (
             <button
@@ -203,16 +205,16 @@ export function CollabSettings() {
             >
               <div className="flex items-center gap-1.5 text-[12.5px] font-semibold text-fg">
                 <Radio className={cn('size-3.5', strategy === id ? 'text-accent' : 'text-fg-subtle')} />
-                {strategyInfo[id].label}
+                {strategyLabel(t, id)}
               </div>
-              <div className="mt-1 text-[11.5px] leading-relaxed text-fg-subtle">{strategyInfo[id].description}</div>
+              <div className="mt-1 text-[11.5px] leading-relaxed text-fg-subtle">{strategyDescription(t, id)}</div>
             </button>
           ))}
         </div>
         <Field
-          label={`Custom ${strategyInfo[strategy].short} relays`}
-          hint="optional, one wss:// URL per line"
-          description="Leave empty to use the public defaults. Every collaborator must use the same relays to find each other."
+          label={t('collab.settings.customRelays', { network: strategyInfo[strategy].short })}
+          hint={t('collab.settings.customRelaysHint')}
+          description={t('collab.settings.customRelaysDescription')}
         >
           <Textarea
             value={relayValue}
@@ -227,30 +229,27 @@ export function CollabSettings() {
               setRelayText((r) => ({ ...r, [strategy]: urls.join('\n') }));
             }}
           />
-          {badRelays.length > 0 && <p className="text-[11.5px] text-danger">Ignored (must start with wss://): {badRelays.join(', ')}</p>}
+          {badRelays.length > 0 && <p className="text-[11.5px] text-danger">{t('collab.settings.ignored', { list: badRelays.join(', ') })}</p>}
         </Field>
       </Section>
 
-      <Section
-        title="STUN / TURN servers"
-        description="WebRTC needs STUN to traverse most NATs. On strict corporate or mobile networks add a TURN server (e.g. Cloudflare, Metered, coturn) — data relayed through it stays end-to-end encrypted."
-      >
+      <Section title={t('collab.settings.iceTitle')} description={t('collab.settings.iceDescription')}>
         <IceServersEditor />
       </Section>
 
-      <Section title="Diagnostics" description="Checks that the signaling relays of the selected network and your STUN/TURN servers are reachable from this device.">
+      <Section title={t('collab.settings.diagnostics')} description={t('collab.settings.diagnosticsDescription')}>
         <ConnectivityTest strategy={strategy} />
       </Section>
 
-      <Section title="Invites & notifications">
+      <Section title={t('collab.settings.invites')}>
         <Field
-          label="Invite link base URL"
-          hint="optional"
-          description="Where invite links point to. Useful in the desktop app: set it to the public web app so anyone can open your links."
+          label={t('collab.settings.baseUrl')}
+          hint={t('collab.settings.optional')}
+          description={t('collab.settings.baseUrlDescription')}
         >
           <Input value={s.inviteBaseUrl} placeholder={`${location.origin}${location.pathname}`} onChange={(e) => s.set({ inviteBaseUrl: e.target.value })} />
         </Field>
-        <SettingRow title="Chat notifications" description="Show a toast for new chat messages while the chat panel is hidden.">
+        <SettingRow title={t('collab.settings.chatToasts')} description={t('collab.settings.chatToastsDescription')}>
           <Switch checked={s.chatToasts} onCheckedChange={(v) => s.set({ chatToasts: v })} />
         </SettingRow>
       </Section>

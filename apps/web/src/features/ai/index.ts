@@ -4,6 +4,7 @@
  *
  * Nothing here imports @texit/ai statically — it is loaded on first use (sdk.ts).
  */
+import './i18n';
 import { Bug, MessageSquarePlus, MessageSquareText, Sparkles, Wand2 } from 'lucide-react';
 import { setAiBridge } from '@/services/ai';
 import { registerCommands } from '@/services/commands';
@@ -11,6 +12,7 @@ import { contributeEditorExtension, getEditorBridge } from '@/services/editor';
 import { registerStatusItem } from '@/services/panels';
 import { useLayout, useWorkspace } from '@/state/workspace';
 import { toast } from '@/ui';
+import { t } from '@/lib/i18n';
 import { loadAi } from './sdk';
 import { chatModelRef, ensureSecrets, isConfigured, registerPluginTool, resolveModel } from './runtime';
 import { focusComposer, loadProject, newThread, useChat } from './chat/store';
@@ -36,7 +38,7 @@ export function activate(): void | (() => void) {
   setAiBridge({
     async complete(prompt, opts) {
       const resolved = await resolveModel(chatModelRef());
-      if (!resolved.model) throw new Error('The default model is a CLI agent; choose an API or local model for completions.');
+      if (!resolved.model) throw new Error(t('ai.err.cliNoCompletions'));
       const ai = await loadAi();
       return ai.completeText({ model: resolved.model, prompt, system: opts?.system, signal: opts?.signal });
     },
@@ -61,7 +63,7 @@ export function activate(): void | (() => void) {
     contributeEditorExtension('ai.ghostText', ghostTextExtension()),
     registerStatusItem({ id: 'ai.status', align: 'right', order: 80, component: AiStatusItem }),
     registerCommands([
-      { id: 'ai.openChat', title: 'Open AI assistant', category: 'AI', icon: Sparkles, keywords: ['chat', 'copilot', 'agent'], run: openPanel },
+      { id: 'ai.openChat', title: 'Open AI assistant', category: 'AI', icon: Sparkles, keywords: ['chat', 'copilot', 'agent', 'ia', 'asistente'], run: openPanel },
       {
         id: 'ai.inlineEdit',
         title: 'Edit with AI (inline)',
@@ -71,7 +73,7 @@ export function activate(): void | (() => void) {
         when: inProject,
         run: () => {
           const view = getEditorBridge()?.getView();
-          if (!view) return void toast.info('Open a file in the editor first.');
+          if (!view) return void toast.info(t('ai.openFileFirst'));
           view.focus();
           openInlineEdit(view);
         },
@@ -84,7 +86,7 @@ export function activate(): void | (() => void) {
         when: inProject,
         run: () => {
           const sel = getEditorBridge()?.getSelection();
-          if (!sel?.text) return void toast.info('Select some LaTeX in the editor first.');
+          if (!sel?.text) return void toast.info(t('ai.selectLatexFirst'));
           void askAi('Explain what the selected LaTeX does, briefly. Do not change any files.', { includeSelection: true });
         },
       },

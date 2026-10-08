@@ -7,6 +7,8 @@ import { paths } from '../paths';
 import { PendingQueue } from '../open-paths';
 import { checkForUpdates } from '../updater';
 import { setTitleBarOverlay } from '../window';
+import { setMenuLocale } from '../menu';
+import { MENU_LOCALES } from '../menu-template';
 import { handle, on, safeSend } from './util';
 
 /** OS-provided paths / deep links waiting for a renderer to subscribe. */
@@ -55,6 +57,10 @@ export function registerAppIpc(): void {
 
   on(Send.appSetTitle, z.tuple([z.string().max(1024)]), (event, title) => {
     BrowserWindow.fromWebContents(event.sender)?.setTitle(title || 'TexIt');
+  });
+  // UI language of the renderer → localized native menu.
+  on(Send.appSetLocale, z.tuple([z.enum(MENU_LOCALES as ['en', 'es'])]), (_event, locale) => {
+    setMenuLocale(locale);
   });
   on(Send.appSetDocumentEdited, z.tuple([z.boolean()]), (event, edited) => {
     if (process.platform === 'darwin') BrowserWindow.fromWebContents(event.sender)?.setDocumentEdited(edited);

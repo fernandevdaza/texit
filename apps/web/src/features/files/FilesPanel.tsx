@@ -17,6 +17,7 @@ import {
 import { basename, exportZip, isTexPath, joinPath, ROOT_ID, uniquePath, type FileNode } from '@texit/core';
 import { useWorkspace } from '@/state/workspace';
 import { cn } from '@/lib/cn';
+import { t as translate, useT } from '@/lib/i18n';
 import { downloadBlob } from '@/lib/format';
 import { confirmDialog, ContextMenu, EmptyState, IconButton, PanelHeader, toast, type MenuEntry } from '@/ui';
 import { usePeersByFile } from '@/features/editor/presence';
@@ -53,6 +54,7 @@ export function FilesPanel() {
     }
   });
   const peers = usePeersByFile();
+  const t = useT();
 
   const [expanded, setExpanded] = useState<Set<string>>(() => loadExpanded(projectId));
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -181,14 +183,14 @@ export function FilesPanel() {
           return;
         }
         if (name.includes('/')) {
-          toast.error('Use drag & drop to move files between folders');
+          toast.error(t('files.useDragToMove'));
           return;
         }
         project.rename(ed.id, name);
         requestAnimationFrame(() => treeRef.current?.focus());
       }
     } catch (err) {
-      toast.error('Something went wrong', { description: String((err as Error)?.message ?? err) });
+      toast.error(t('files.somethingWrong'), { description: String((err as Error)?.message ?? err) });
     }
   };
 
@@ -205,17 +207,15 @@ export function FilesPanel() {
       .filter((n): n is FileNode => !!n);
     const folderCount = nodes.filter((n) => n.kind === 'folder').length;
     const ok = await confirmDialog({
-      title: nodes.length === 1 ? `Delete “${nodes[0].name}”?` : `Delete ${nodes.length} items?`,
-      message:
-        (folderCount ? 'Folders are deleted with everything inside them. ' : '') +
-        'You can restore deleted files from History if snapshots were taken.',
-      confirmLabel: 'Delete',
+      title: nodes.length === 1 ? t('files.deleteOneTitle', { name: nodes[0].name }) : t('files.deleteManyTitle', { count: nodes.length }),
+      message: (folderCount ? t('files.deleteFoldersNote') : '') + t('files.deleteRestoreNote'),
+      confirmLabel: t('common.delete'),
       danger: true,
     });
     if (!ok) return;
     project.doc.transact(() => nodes.forEach((n) => project.delete(n.id)));
     setSelected(new Set());
-    toast.success(nodes.length === 1 ? `Deleted ${nodes[0].name}` : `Deleted ${nodes.length} items`);
+    toast.success(nodes.length === 1 ? t('files.deletedOne', { name: nodes[0].name }) : t('files.deletedMany', { count: nodes.length }));
   };
 
   const duplicate = (id: string) => {
@@ -242,18 +242,18 @@ export function FilesPanel() {
         .map((f) => ({ ...f, path: f.path.slice(prefix.length) }));
       downloadBlob(exportZip(filesIn), `${node.name}.zip`, 'application/zip');
     } catch (err) {
-      toast.error('Could not create the archive', { description: String((err as Error)?.message ?? err) });
+      toast.error(t('files.couldNotArchive'), { description: String((err as Error)?.message ?? err) });
     }
   };
 
   const copyPath = (node: FileNode) => {
     void navigator.clipboard?.writeText(node.path);
-    toast.success('Path copied', { description: node.path });
+    toast.success(t('files.pathCopied'), { description: node.path });
   };
 
   const setMain = (node: FileNode) => {
     project?.setMeta({ mainFileId: node.id });
-    toast.success(`${node.name} is now the main file`);
+    toast.success(t('files.isNowMain', { name: node.name }));
   };
 
   const moveNodes = (ids: string[], targetFolder: string) => {
@@ -272,9 +272,11 @@ export function FilesPanel() {
         }
       });
       if (targetFolder !== ROOT_ID) expand([targetFolder]);
-      toast.success(nodes.length === 1 ? `Moved ${nodes[0].name}` : `Moved ${nodes.length} items`, { description: `to ${targetPath || 'project root'}` });
+      toast.success(nodes.length === 1 ? t('files.movedOne', { name: nodes[0].name }) : t('files.movedMany', { count: nodes.length }), {
+        description: t('files.toFolder', { path: targetPath || t('files.projectRoot') }),
+      });
     } catch (err) {
-      toast.error('Could not move', { description: String((err as Error)?.message ?? err) });
+      toast.error(t('files.couldNotMove'), { description: String((err as Error)?.message ?? err) });
     }
   };
 
@@ -492,33 +494,33 @@ export function FilesPanel() {
     const multi = node && selected.has(node.id) && selected.size > 1;
     if (multi) {
       return [
-        { type: 'label', label: `${selected.size} items selected` },
-        { label: `Delete ${selected.size} items`, icon: <Trash2 />, danger: true, shortcut: 'Mod-Backspace', onSelect: () => void deleteNodes([...selected]) },
+        { type: 'label', label: t('files.itemsSelected', { count: selected.size }) },
+        { label: t('files.deleteItems', { count: selected.size }), icon: <Trash2 />, danger: true, shortcut: 'Mod-Backspace', onSelect: () => void deleteNodes([...selected]) },
       ];
     }
     const folder = dropFolderFor(node);
     const base: MenuEntry[] = [
-      { label: 'New file…', icon: <FilePlus />, onSelect: () => startCreate('file', folder) },
-      { label: 'New folder…', icon: <FolderPlus />, onSelect: () => startCreate('folder', folder) },
-      { label: 'Upload files…', icon: <Upload />, onSelect: () => upload(folder) },
+      { label: t('files.newFileMenu'), icon: <FilePlus />, onSelect: () => startCreate('file', folder) },
+      { label: t('files.newFolderMenu'), icon: <FolderPlus />, onSelect: () => startCreate('folder', folder) },
+      { label: t('files.uploadFilesMenu'), icon: <Upload />, onSelect: () => upload(folder) },
     ];
-    if (!node) return [...base, { type: 'separator' }, { label: 'Collapse all folders', icon: <ChevronsDownUp />, onSelect: () => setExpanded(new Set()) }];
+    if (!node) return [...base, { type: 'separator' }, { label: t('files.collapseAllFolders'), icon: <ChevronsDownUp />, onSelect: () => setExpanded(new Set()) }];
     return [
       ...(node.kind === 'file'
         ? ([
-            { label: 'Open', onSelect: () => openNode(node, false) },
-            ...(isTexPath(node.path) && node.id !== mainId ? [{ label: 'Set as main file', icon: <Star />, onSelect: () => setMain(node) }] : []),
+            { label: t('common.open'), onSelect: () => openNode(node, false) },
+            ...(isTexPath(node.path) && node.id !== mainId ? [{ label: t('files.setAsMain'), icon: <Star />, onSelect: () => setMain(node) }] : []),
             { type: 'separator' },
           ] as MenuEntry[])
         : []),
       ...base,
       { type: 'separator' },
-      { label: 'Rename', icon: <Pencil />, shortcut: 'F2', onSelect: () => startRename(node.id) },
-      ...(node.kind === 'file' ? [{ label: 'Duplicate', icon: <CopyPlus />, onSelect: () => duplicate(node.id) }] : []),
-      { label: node.kind === 'folder' ? 'Download as .zip' : 'Download', icon: <Download />, onSelect: () => download(node) },
-      { label: 'Copy path', icon: <Copy />, onSelect: () => copyPath(node) },
+      { label: t('common.rename'), icon: <Pencil />, shortcut: 'F2', onSelect: () => startRename(node.id) },
+      ...(node.kind === 'file' ? [{ label: t('common.duplicate'), icon: <CopyPlus />, onSelect: () => duplicate(node.id) }] : []),
+      { label: node.kind === 'folder' ? t('files.downloadZip') : t('common.download'), icon: <Download />, onSelect: () => download(node) },
+      { label: t('files.copyPath'), icon: <Copy />, onSelect: () => copyPath(node) },
       { type: 'separator' },
-      { label: 'Delete', icon: <Trash2 />, danger: true, shortcut: 'Mod-Backspace', onSelect: () => void deleteNodes([node.id]) },
+      { label: t('common.delete'), icon: <Trash2 />, danger: true, shortcut: 'Mod-Backspace', onSelect: () => void deleteNodes([node.id]) },
     ];
   };
 
@@ -538,22 +540,22 @@ export function FilesPanel() {
   return (
     <div className="flex h-full min-h-0 flex-col" data-keep-focus>
       <PanelHeader
-        title="Files"
+        title={t('panel.files')}
         actions={
           <>
-            <IconButton size="xs" label="New file" onClick={() => startCreate('file')}>
+            <IconButton size="xs" label={t('files.newFile')} onClick={() => startCreate('file')}>
               <FilePlus />
             </IconButton>
-            <IconButton size="xs" label="New folder" onClick={() => startCreate('folder')}>
+            <IconButton size="xs" label={t('files.newFolder')} onClick={() => startCreate('folder')}>
               <FolderPlus />
             </IconButton>
-            <IconButton size="xs" label="Upload files" onClick={() => upload()}>
+            <IconButton size="xs" label={t('files.uploadFiles')} onClick={() => upload()}>
               <Upload />
             </IconButton>
-            <IconButton size="xs" label="Filter files" active={showFilter || !!filter} onClick={() => setShowFilter((v) => !v || !!filter)}>
+            <IconButton size="xs" label={t('files.filterFiles')} active={showFilter || !!filter} onClick={() => setShowFilter((v) => !v || !!filter)}>
               <Search />
             </IconButton>
-            <IconButton size="xs" label="Collapse all" onClick={() => setExpanded(new Set())}>
+            <IconButton size="xs" label={t('files.collapseAll')} onClick={() => setExpanded(new Set())}>
               <ChevronsDownUp />
             </IconButton>
           </>
@@ -583,12 +585,12 @@ export function FilesPanel() {
                   treeRef.current?.focus();
                 }
               }}
-              placeholder="Filter files"
+              placeholder={t('files.filterFiles')}
               spellCheck={false}
               className="h-full min-w-0 flex-1 bg-transparent text-[12px] text-fg outline-none placeholder:text-fg-subtle"
             />
             {filter && (
-              <button onClick={() => setFilter('')} className="text-fg-subtle hover:text-fg" aria-label="Clear filter">
+              <button onClick={() => setFilter('')} className="text-fg-subtle hover:text-fg" aria-label={t('files.clearFilter')}>
                 <X className="size-3.5" />
               </button>
             )}
@@ -599,7 +601,7 @@ export function FilesPanel() {
         <div
           ref={treeRef}
           role="tree"
-          aria-label="Project files"
+          aria-label={t('files.projectFiles')}
           aria-multiselectable
           tabIndex={0}
           onKeyDown={onKeyDown}
@@ -696,9 +698,9 @@ export function FilesPanel() {
                     <Highlight text={node.name} query={filter} />
                   </span>
                   {node.id === mainId && (
-                    <span title="Main file (compiled)" className="flex shrink-0 items-center gap-0.5 rounded px-1 text-[10px] font-semibold uppercase tracking-wide text-accent">
+                    <span title={t('files.mainFileTitle')} className="flex shrink-0 items-center gap-0.5 rounded px-1 text-[10px] font-semibold uppercase tracking-wide text-accent">
                       <Star className="size-3 fill-current" />
-                      main
+                      {t('files.mainBadge')}
                     </span>
                   )}
                   <PresenceDots peers={folderPeers} className={isSelected ? '[--dot-ring:transparent]' : undefined} />
@@ -709,12 +711,12 @@ export function FilesPanel() {
           {!files.length && !editing && (
             <EmptyState
               icon={<FilePlus />}
-              title="No files yet"
-              description="Create a file, or drop files and folders here."
+              title={t('files.noFilesYet')}
+              description={t('files.noFilesHint')}
               className="py-8"
             />
           )}
-          {filter && !rows.length && <div className="px-4 py-6 text-center text-[12px] text-fg-subtle">No files match “{filter}”</div>}
+          {filter && !rows.length && <div className="px-4 py-6 text-center text-[12px] text-fg-subtle">{t('files.noFilesMatch', { filter })}</div>}
         </div>
       </ContextMenu>
       <input
@@ -803,7 +805,7 @@ function EditRow({
             }
           }}
           onBlur={() => finish(true)}
-          placeholder={kind === 'file' ? 'name.tex' : 'folder name'}
+          placeholder={kind === 'file' ? translate('files.namePlaceholder') : translate('files.folderNamePlaceholder')}
           spellCheck={false}
           className={cn(
             'h-[22px] min-w-0 flex-1 rounded border bg-surface px-1.5 text-[12.5px] text-fg outline-none ring-2',

@@ -2,6 +2,7 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { diffLines, diffWordsWithSpace } from 'diff';
 import { cn } from '@/lib/cn';
+import { useT } from '@/lib/i18n';
 
 type Row =
   | { kind: 'ctx' | 'del' | 'add'; oldNo?: number; newNo?: number; text: string; words?: { value: string; changed: boolean }[] }
@@ -94,6 +95,7 @@ function Line({ row }: { row: Exclude<Row, { kind: 'gap' }> }) {
 }
 
 export function DiffView({ before, after, maxHeight = 320, className }: { before: string; after: string; maxHeight?: number; className?: string }) {
+  const t = useT();
   const { rows } = useMemo(() => computeRows(before, after), [before, after]);
   const [open, setOpen] = useState<Set<number>>(new Set());
   return (
@@ -108,7 +110,7 @@ export function DiffView({ before, after, maxHeight = 320, className }: { before
               onClick={() => setOpen(new Set(open).add(i))}
               className="block w-full bg-surface-2/70 py-0.5 text-center text-[10.5px] text-fg-subtle hover:bg-hover hover:text-fg"
             >
-              ⋯ {r.count} unchanged line{r.count === 1 ? '' : 's'}
+              ⋯ {t('ai.diff.unchanged', { count: r.count })}
             </button>
           )
         ) : (

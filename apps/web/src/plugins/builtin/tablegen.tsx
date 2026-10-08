@@ -7,6 +7,68 @@ import { AlignCenter, AlignLeft, AlignRight, ClipboardPaste, Copy, Minus, Plus, 
 import { definePlugin, type PluginAPI } from '@texit/plugin-api';
 import { Button, Input, Segmented, Switch, Textarea } from '@/ui';
 import { mountReact } from './mount';
+import { createTr, useTr, type Catalog, type Tr } from './i18n';
+
+const MESSAGES: Catalog = {
+  en: {
+    rows: 'Rows',
+    columns: 'Columns',
+    fewer: 'Fewer {what}',
+    more: 'More {what}',
+    headerRow: 'Header row',
+    gridLines: 'Grid lines',
+    escapeTitle: 'Escape & % $ # _ { } ~ ^ \\ in cells',
+    escapeSpecials: 'Escape specials',
+    pasteData: 'Paste data…',
+    pastePlaceholder: 'Paste cells from Excel, Google Sheets, Numbers, or CSV/TSV text…',
+    cancel: 'Cancel',
+    replaceTable: 'Replace table',
+    left: 'Left',
+    center: 'Center',
+    right: 'Right',
+    deleteColumn: 'Delete column',
+    deleteRow: 'Delete row',
+    caption: 'Caption',
+    captionPlaceholder: 'Results of the experiment',
+    label: 'Label',
+    floatTitle: 'Wrap in a floating table environment',
+    float: 'Float',
+    copied: 'LaTeX copied to the clipboard',
+    copyLatex: 'Copy LaTeX',
+    tip: 'Tip: paste a range of cells into any cell to fill the grid.',
+    insertTable: 'Insert table',
+    addedPackage: 'Added {command} to {path}',
+  },
+  es: {
+    rows: 'Filas',
+    columns: 'Columnas',
+    fewer: 'Menos {what}',
+    more: 'Más {what}',
+    headerRow: 'Fila de encabezado',
+    gridLines: 'Líneas de cuadrícula',
+    escapeTitle: 'Escapa & % $ # _ { } ~ ^ \\ en las celdas',
+    escapeSpecials: 'Escapar especiales',
+    pasteData: 'Pegar datos…',
+    pastePlaceholder: 'Pega celdas de Excel, Google Sheets, Numbers o texto CSV/TSV…',
+    cancel: 'Cancelar',
+    replaceTable: 'Reemplazar tabla',
+    left: 'Izquierda',
+    center: 'Centro',
+    right: 'Derecha',
+    deleteColumn: 'Eliminar columna',
+    deleteRow: 'Eliminar fila',
+    caption: 'Leyenda',
+    captionPlaceholder: 'Resultados del experimento',
+    label: 'Etiqueta',
+    floatTitle: 'Envolver en un entorno table flotante',
+    float: 'Flotante',
+    copied: 'LaTeX copiado al portapapeles',
+    copyLatex: 'Copiar LaTeX',
+    tip: 'Consejo: pega un rango de celdas en cualquier celda para llenar la cuadrícula.',
+    insertTable: 'Insertar tabla',
+    addedPackage: 'Se añadió {command} a {path}',
+  },
+};
 
 export type Align = 'l' | 'c' | 'r';
 
@@ -109,16 +171,16 @@ export function generateLatex(m: TableModel, indent = '  '): string {
 
 const blank = (r: number, c: number) => Array.from({ length: r }, () => Array(c).fill(''));
 
-function Stepper({ label, value, onChange, min = 1, max = 40 }: { label: string; value: number; onChange: (n: number) => void; min?: number; max?: number }) {
+function Stepper({ label, value, onChange, min = 1, max = 40, tr }: { label: string; value: number; onChange: (n: number) => void; min?: number; max?: number; tr: Tr }) {
   return (
     <div className="flex items-center gap-1.5">
       <span className="text-[12px] text-fg-muted">{label}</span>
       <div className="flex h-7 items-center rounded-md ring-1 ring-inset ring-border">
-        <button className="flex h-full w-6 items-center justify-center text-fg-muted hover:text-fg disabled:opacity-40" disabled={value <= min} onClick={() => onChange(value - 1)} aria-label={`Fewer ${label}`}>
+        <button className="flex h-full w-6 items-center justify-center text-fg-muted hover:text-fg disabled:opacity-40" disabled={value <= min} onClick={() => onChange(value - 1)} aria-label={tr('fewer', { what: label.toLowerCase() })}>
           <Minus className="size-3" />
         </button>
         <span className="w-6 text-center text-[12px] tabular-nums">{value}</span>
-        <button className="flex h-full w-6 items-center justify-center text-fg-muted hover:text-fg disabled:opacity-40" disabled={value >= max} onClick={() => onChange(value + 1)} aria-label={`More ${label}`}>
+        <button className="flex h-full w-6 items-center justify-center text-fg-muted hover:text-fg disabled:opacity-40" disabled={value >= max} onClick={() => onChange(value + 1)} aria-label={tr('more', { what: label.toLowerCase() })}>
           <Plus className="size-3" />
         </button>
       </div>
@@ -127,6 +189,7 @@ function Stepper({ label, value, onChange, min = 1, max = 40 }: { label: string;
 }
 
 function TableGenerator({ api, close }: { api: PluginAPI; close: () => void }) {
+  const tr = useTr(api, MESSAGES);
   const [m, setM] = useState<TableModel>(() => ({
     cells: blank(4, 3),
     align: ['l', 'c', 'r'],
@@ -184,25 +247,25 @@ function TableGenerator({ api, close }: { api: PluginAPI; close: () => void }) {
   return (
     <div className="space-y-3 pb-1">
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-        <Stepper label="Rows" value={rows} onChange={(n) => resize(n, cols)} />
-        <Stepper label="Columns" value={cols} onChange={(n) => resize(rows, n)} max={20} />
+        <Stepper tr={tr} label={tr('rows')} value={rows} onChange={(n) => resize(n, cols)} />
+        <Stepper tr={tr} label={tr('columns')} value={cols} onChange={(n) => resize(rows, n)} max={20} />
         <label className="flex items-center gap-1.5 text-[12px] text-fg-muted">
-          <Switch size="sm" checked={m.header} onCheckedChange={(v) => set({ header: v })} /> Header row
+          <Switch size="sm" checked={m.header} onCheckedChange={(v) => set({ header: v })} /> {tr('headerRow')}
         </label>
         <label className="flex items-center gap-1.5 text-[12px] text-fg-muted">
           <Switch size="sm" checked={m.booktabs} onCheckedChange={(v) => set({ booktabs: v })} /> booktabs
         </label>
         {!m.booktabs && (
           <label className="flex items-center gap-1.5 text-[12px] text-fg-muted">
-            <Switch size="sm" checked={m.verticalRules} onCheckedChange={(v) => set({ verticalRules: v })} /> Grid lines
+            <Switch size="sm" checked={m.verticalRules} onCheckedChange={(v) => set({ verticalRules: v })} /> {tr('gridLines')}
           </label>
         )}
-        <label className="flex items-center gap-1.5 text-[12px] text-fg-muted" title="Escape & % $ # _ { } ~ ^ \\ in cells">
-          <Switch size="sm" checked={m.escape} onCheckedChange={(v) => set({ escape: v })} /> Escape specials
+        <label className="flex items-center gap-1.5 text-[12px] text-fg-muted" title={tr('escapeTitle')}>
+          <Switch size="sm" checked={m.escape} onCheckedChange={(v) => set({ escape: v })} /> {tr('escapeSpecials')}
         </label>
         <div className="flex-1" />
         <Button size="sm" variant="ghost" icon={<ClipboardPaste />} onClick={() => setPasteOpen((v) => !v)}>
-          Paste data…
+          {tr('pasteData')}
         </Button>
       </div>
 
@@ -211,12 +274,12 @@ function TableGenerator({ api, close }: { api: PluginAPI; close: () => void }) {
           <Textarea
             value={pasteText}
             onChange={(e) => setPasteText(e.target.value)}
-            placeholder={'Paste cells from Excel, Google Sheets, Numbers, or CSV/TSV text…'}
+            placeholder={tr('pastePlaceholder')}
             className="min-h-24 font-mono text-[12px]"
           />
           <div className="flex justify-end gap-2">
             <Button size="sm" variant="ghost" onClick={() => setPasteOpen(false)}>
-              Cancel
+              {tr('cancel')}
             </Button>
             <Button
               size="sm"
@@ -229,7 +292,7 @@ function TableGenerator({ api, close }: { api: PluginAPI; close: () => void }) {
                 setPasteText('');
               }}
             >
-              Replace table
+              {tr('replaceTable')}
             </Button>
           </div>
         </div>
@@ -248,16 +311,16 @@ function TableGenerator({ api, close }: { api: PluginAPI; close: () => void }) {
                       value={a}
                       onChange={(v) => set({ align: m.align.map((x, k) => (k === j ? v : x)) })}
                       options={[
-                        { value: 'l', label: '', icon: <AlignLeft />, title: 'Left' },
-                        { value: 'c', label: '', icon: <AlignCenter />, title: 'Center' },
-                        { value: 'r', label: '', icon: <AlignRight />, title: 'Right' },
+                        { value: 'l', label: '', icon: <AlignLeft />, title: tr('left') },
+                        { value: 'c', label: '', icon: <AlignCenter />, title: tr('center') },
+                        { value: 'r', label: '', icon: <AlignRight />, title: tr('right') },
                       ]}
                     />
                     <button
                       disabled={cols <= 1}
                       onClick={() => setM((x) => ({ ...x, cells: x.cells.map((r) => r.filter((_, k) => k !== j)), align: x.align.filter((_, k) => k !== j) }))}
                       className="rounded p-1 text-fg-subtle hover:bg-hover hover:text-danger disabled:opacity-30"
-                      aria-label="Delete column"
+                      aria-label={tr('deleteColumn')}
                     >
                       <Trash2 className="size-3" />
                     </button>
@@ -274,7 +337,7 @@ function TableGenerator({ api, close }: { api: PluginAPI; close: () => void }) {
                     disabled={rows <= 1}
                     onClick={() => setM((x) => ({ ...x, cells: x.cells.filter((_, k) => k !== i) }))}
                     className="rounded p-1 text-fg-subtle hover:bg-hover hover:text-danger disabled:opacity-30"
-                    aria-label="Delete row"
+                    aria-label={tr('deleteRow')}
                   >
                     <Trash2 className="size-3" />
                   </button>
@@ -310,15 +373,15 @@ function TableGenerator({ api, close }: { api: PluginAPI; close: () => void }) {
 
       <div className="grid grid-cols-[1fr_1fr_auto] items-end gap-2">
         <label className="block">
-          <span className="mb-1 block text-[11.5px] font-medium text-fg-muted">Caption</span>
-          <Input inputSize="sm" value={m.caption} onChange={(e) => set({ caption: e.target.value })} placeholder="Results of the experiment" />
+          <span className="mb-1 block text-[11.5px] font-medium text-fg-muted">{tr('caption')}</span>
+          <Input inputSize="sm" value={m.caption} onChange={(e) => set({ caption: e.target.value })} placeholder={tr('captionPlaceholder')} />
         </label>
         <label className="block">
-          <span className="mb-1 block text-[11.5px] font-medium text-fg-muted">Label</span>
+          <span className="mb-1 block text-[11.5px] font-medium text-fg-muted">{tr('label')}</span>
           <Input inputSize="sm" value={m.label} onChange={(e) => set({ label: e.target.value })} placeholder="tab:results" className="font-mono" />
         </label>
-        <label className="flex h-7 items-center gap-1.5 whitespace-nowrap text-[12px] text-fg-muted" title="Wrap in a floating table environment">
-          <Switch size="sm" checked={m.float} onCheckedChange={(v) => set({ float: v })} /> Float
+        <label className="flex h-7 items-center gap-1.5 whitespace-nowrap text-[12px] text-fg-muted" title={tr('floatTitle')}>
+          <Switch size="sm" checked={m.float} onCheckedChange={(v) => set({ float: v })} /> {tr('float')}
         </label>
       </div>
 
@@ -328,22 +391,22 @@ function TableGenerator({ api, close }: { api: PluginAPI; close: () => void }) {
           className="absolute right-2 top-2 rounded-md bg-surface p-1.5 text-fg-subtle ring-1 ring-border hover:text-fg"
           onClick={() => {
             void navigator.clipboard?.writeText(code);
-            api.ui.toast('LaTeX copied to the clipboard', { type: 'success' });
+            api.ui.toast(tr('copied'), { type: 'success' });
           }}
-          aria-label="Copy LaTeX"
+          aria-label={tr('copyLatex')}
         >
           <Copy className="size-3.5" />
         </button>
       </div>
 
       <div className="flex items-center justify-between gap-2 pt-1">
-        <span className="text-[11.5px] text-fg-subtle">Tip: paste a range of cells into any cell to fill the grid.</span>
+        <span className="text-[11.5px] text-fg-subtle">{tr('tip')}</span>
         <div className="flex gap-2">
           <Button variant="ghost" onClick={close}>
-            Cancel
+            {tr('cancel')}
           </Button>
           <Button variant="primary" onClick={() => void insert()}>
-            Insert table
+            {tr('insertTable')}
           </Button>
         </div>
       </div>
@@ -365,7 +428,7 @@ export async function ensurePackage(api: PluginAPI, pkg: string): Promise<boolea
   const dc = /^.*\\documentclass.*$/m.exec(preamble);
   const at = lastPkg ? lastPkg.index! + lastPkg[0].length : dc ? dc.index + dc[0].length : 0;
   await api.project.writeFile(main, `${src.slice(0, at)}\n\\usepackage{${pkg}}${src.slice(at)}`);
-  api.ui.toast(`Added \\usepackage{${pkg}} to ${main}`, { type: 'info' });
+  api.ui.toast(createTr(api, MESSAGES)('addedPackage', { command: `\\usepackage{${pkg}}`, path: main }), { type: 'info' });
   return true;
 }
 
@@ -378,6 +441,18 @@ export default definePlugin({
   description: 'Build LaTeX tables in a spreadsheet-like grid — paste from Excel/Sheets/CSV, set alignment, booktabs, caption and label.',
   permissions: ['editor', 'ui', 'project:write'],
   tags: ['tables', 'insert'],
+  locales: {
+    es: {
+      name: 'Generador de tablas',
+      description: 'Crea tablas de LaTeX en una cuadrícula tipo hoja de cálculo: pega desde Excel/Sheets/CSV y define alineación, booktabs, leyenda y etiqueta.',
+      commands: { insert: 'Insertar tabla…' },
+      settings: {
+        booktabs: { title: 'Usar booktabs por defecto' },
+        addPackage: { title: 'Añadir \\usepackage{booktabs} si falta' },
+        placement: { title: 'Posición del flotante' },
+      },
+    },
+  },
   settings: [
     { key: 'booktabs', title: 'Use booktabs by default', type: 'boolean', default: true },
     { key: 'addPackage', title: 'Add \\usepackage{booktabs} when missing', type: 'boolean', default: true },
@@ -392,7 +467,7 @@ export default definePlugin({
       keybinding: 'Mod-Alt-t',
       run: () =>
         api.ui.modal({
-          title: 'Insert table',
+          title: createTr(api, MESSAGES)('insertTable'),
           width: 900,
           render: (el, close) => mountReact(el, <TableGenerator api={api} close={close} />),
         }),

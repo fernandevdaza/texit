@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { CaseSensitive, ChevronDown, ChevronUp, Search, WholeWord, X } from 'lucide-react';
 import { cn } from '@/lib/cn';
+import { useT } from '@/lib/i18n';
 import { Spinner } from '@/ui';
+import './i18n';
 import type { PdfView, PdfViewState } from './engine';
 
 /** Floating find-in-PDF bar (Mod-f while the viewer has focus). */
@@ -17,6 +19,7 @@ export function PdfFindBar({
   /** Changes whenever Mod-f is pressed again → refocus + select. */
   focusNonce: number;
 }) {
+  const t = useT();
   const inputRef = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState(state.find.query);
   const [caseSensitive, setCaseSensitive] = useState(false);
@@ -66,29 +69,29 @@ export function PdfFindBar({
             view.findNext(e.shiftKey ? -1 : 1);
           }
         }}
-        placeholder="Find in PDF"
+        placeholder={t('pdf.find')}
         spellCheck={false}
-        aria-label="Find in PDF"
+        aria-label={t('pdf.find')}
         className="h-7 w-40 min-w-0 bg-transparent text-[12.5px] text-fg outline-none placeholder:text-fg-subtle"
       />
-      <span className={cn('flex min-w-[52px] items-center justify-end gap-1 px-1 text-[11px] tabular-nums', hasQuery && !searching && total === 0 ? 'text-danger' : 'text-fg-subtle')}>
+      <span className={cn('flex min-w-[52px] items-center justify-end gap-1 whitespace-nowrap px-1 text-[11px] tabular-nums', hasQuery && !searching && total === 0 ? 'text-danger' : 'text-fg-subtle')}>
         {searching && <Spinner className="size-3" />}
-        {hasQuery ? (total ? `${current || '–'}/${total}` : searching ? '' : 'No results') : ''}
+        {hasQuery ? (total ? `${current || '–'}/${total}` : searching ? '' : t('pdf.findNoResults')) : ''}
       </span>
       <div className="mx-0.5 h-4 w-px bg-border" />
-      <button type="button" className={toggleCls(caseSensitive)} onClick={() => setCaseSensitive((v) => !v)} title="Match case" aria-pressed={caseSensitive}>
+      <button type="button" className={toggleCls(caseSensitive)} onClick={() => setCaseSensitive((v) => !v)} title={t('pdf.matchCase')} aria-pressed={caseSensitive}>
         <CaseSensitive />
       </button>
-      <button type="button" className={toggleCls(wholeWord)} onClick={() => setWholeWord((v) => !v)} title="Whole word" aria-pressed={wholeWord}>
+      <button type="button" className={toggleCls(wholeWord)} onClick={() => setWholeWord((v) => !v)} title={t('pdf.wholeWord')} aria-pressed={wholeWord}>
         <WholeWord />
       </button>
-      <button type="button" className={navCls} onClick={() => view.findNext(-1)} disabled={!total} title="Previous match (⇧↩)">
+      <button type="button" className={navCls} onClick={() => view.findNext(-1)} disabled={!total} title={t('pdf.prevMatch')}>
         <ChevronUp />
       </button>
-      <button type="button" className={navCls} onClick={() => view.findNext(1)} disabled={!total} title="Next match (↩)">
+      <button type="button" className={navCls} onClick={() => view.findNext(1)} disabled={!total} title={t('pdf.nextMatch')}>
         <ChevronDown />
       </button>
-      <button type="button" className={navCls} onClick={onClose} title="Close (Esc)">
+      <button type="button" className={navCls} onClick={onClose} title={t('pdf.closeFind')}>
         <X />
       </button>
     </div>

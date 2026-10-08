@@ -6,6 +6,7 @@
 import { Prec, StateEffect, StateField, type EditorState, type Extension } from '@codemirror/state';
 import { Decoration, EditorView, ViewPlugin, WidgetType, keymap, type DecorationSet } from '@codemirror/view';
 import { getEditorBridge } from '@/services/editor';
+import { t } from '@/lib/i18n';
 import { loadAi } from '../sdk';
 import { chatModelRef, resolveModel } from '../runtime';
 
@@ -43,12 +44,8 @@ export const inlineEditField = StateField.define<Session | null>({
 
 // ─────────────────────────── prompt widget (plain DOM) ───────────────────────────
 
-const QUICK = [
-  ['Fix grammar', 'Fix grammar, spelling and punctuation; change as little as possible.'],
-  ['More formal', 'Rewrite in a more formal, academic register.'],
-  ['More concise', 'Make this more concise without losing content.'],
-  ['To English', 'Translate into English, keeping LaTeX intact.'],
-] as const;
+/** Quick chips: `ai.inline.<id>` label + `ai.inline.<id>Prompt` instruction (shown in the input, so translated). */
+const QUICK = ['fixGrammar', 'formal', 'concise', 'toEnglish'] as const;
 
 class Controller {
   dom: HTMLElement;
@@ -93,15 +90,16 @@ class Controller {
       this.buttons[act] = b;
       row.appendChild(b);
     };
-    mk('generate', 'Generate', '↵', true);
-    mk('stop', 'Stop');
-    mk('accept', 'Accept', 'Tab', true);
-    mk('retry', 'Retry');
-    mk('reject', 'Reject', 'Esc');
+    mk('generate', t('ai.inline.generate'), '↵', true);
+    mk('stop', t('ai.inline.stop'));
+    mk('accept', t('ai.inline.accept'), 'Tab', true);
+    mk('retry', t('ai.inline.retry'));
+    mk('reject', t('ai.inline.reject'), 'Esc');
     this.dom.appendChild(row);
     this.chips = el('div', 'cm-ai-edit-chips');
-    for (const [label, instruction] of QUICK) {
-      const c = el('button', 'cm-ai-edit-chip', label) as HTMLButtonElement;
+    for (const id of QUICK) {
+      const instruction = t(`ai.inline.${id}Prompt`);
+      const c = el('button', 'cm-ai-edit-chip', t(`ai.inline.${id}`)) as HTMLButtonElement;
       c.type = 'button';
       c.addEventListener('mousedown', (e) => e.preventDefault());
       c.addEventListener('click', () => {
@@ -140,7 +138,7 @@ class Controller {
   }
 
   sync(s: Session) {
-    const placeholder = s.from === s.to ? 'Generate at cursor… (e.g. “a table of the results”)' : 'Edit selection… (e.g. “make this more formal”)';
+    const placeholder = s.from === s.to ? t('ai.inline.placeholderCursor') : t('ai.inline.placeholderSelection');
     if (this.input.placeholder !== placeholder) this.input.placeholder = placeholder;
     if (s.phase === this.lastPhase && s.phase !== 'error') return;
     this.lastPhase = s.phase;
@@ -151,9 +149,9 @@ class Controller {
     show('retry', s.phase === 'done' || s.phase === 'error');
     show('reject', true);
     this.chips.style.display = s.phase === 'prompt' && s.from !== s.to ? '' : 'none';
-    this.status.textContent = s.phase === 'streaming' ? 'Writing…' : '';
+    this.status.textContent = s.phase === 'streaming' ? t('ai.inline.writing') : '';
     this.status.classList.toggle('cm-ai-edit-busy', s.phase === 'streaming');
-    this.err.textContent = s.phase === 'error' ? (s.error ?? 'Something went wrong') : '';
+    this.err.textContent = s.phase === 'error' ? (s.error ?? t('ai.err.generic')) : '';
     this.err.style.display = s.phase === 'error' ? '' : 'none';
     this.input.disabled = s.phase === 'streaming';
   }
@@ -210,7 +208,7 @@ class Controller {
     let raf = 0;
     try {
       const [ai, resolved] = await Promise.all([loadAi(), resolveModel(chatModelRef())]);
-      if (!resolved.model) throw new Error('Inline edits need an API or local model (CLI agents are chat-only).');
+      if (!resolved.model) throw new Error(t('ai.err.inlineNeedsApiModel'));
       const s = this.session();
       if (!s || ac.signal.aborted) return;
       const doc = view.state.doc;

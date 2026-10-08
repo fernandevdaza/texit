@@ -3,6 +3,7 @@ import { Link2, ShieldCheck, Tag } from 'lucide-react';
 import { useProjects } from '@/services/projects';
 import { navigate } from '@/lib/router';
 import { Button, Dialog, Input } from '@/ui';
+import { useT } from '@/lib/i18n';
 import { TagInput } from '@/ui/TagInput';
 import { NewProjectDialog } from './NewProjectDialog';
 import { useDashboardUi } from './store';
@@ -22,12 +23,13 @@ export function DashboardDialogs() {
 function JoinDialog() {
   const open = useDashboardUi((s) => s.joinOpen);
   const setOpen = useDashboardUi((s) => s.setJoinOpen);
+  const t = useT();
   return (
     <Dialog
       open={open}
       onOpenChange={setOpen}
-      title="Join a shared project"
-      description="Paste the invite link a collaborator shared with you."
+      title={t('dashboard.join.title')}
+      description={t('dashboard.join.description')}
       icon={<Link2 />}
       width="max-w-md"
     >
@@ -39,6 +41,7 @@ function JoinDialog() {
 function JoinBody({ onDone }: { onDone: () => void }) {
   const [v, setV] = useState('');
   const route = parseJoinLink(v);
+  const t = useT();
   const submit = () => {
     if (!route) return;
     onDone();
@@ -53,17 +56,17 @@ function JoinBody({ onDone }: { onDone: () => void }) {
       className="pb-2"
     >
       <Input autoFocus value={v} onChange={(e) => setV(e.target.value)} placeholder="https://…/#/join/…" className="font-mono text-[12px]" />
-      <div className="mt-1.5 h-4 text-[11.5px] text-danger">{v.trim() && !route ? 'That doesn’t look like a TexIt invite link.' : ''}</div>
+      <div className="mt-1.5 h-4 text-[11.5px] text-danger">{v.trim() && !route ? t('dashboard.join.invalid') : ''}</div>
       <div className="mt-1 flex items-start gap-2 rounded-lg bg-surface-2 p-2.5 text-[11.5px] leading-relaxed text-fg-muted">
         <ShieldCheck className="mt-0.5 size-3.5 shrink-0 text-success" />
-        Peer-to-peer and end-to-end encrypted. A local copy is kept on this device so you can keep working offline.
+        {t('dashboard.join.note')}
       </div>
       <div className="mt-4 flex justify-end gap-2">
         <Button variant="ghost" onClick={onDone}>
-          Cancel
+          {t('common.cancel')}
         </Button>
         <Button variant="primary" type="submit" disabled={!route}>
-          Join project
+          {t('dashboard.join.submit')}
         </Button>
       </div>
     </form>
@@ -74,12 +77,13 @@ function TagsDialog() {
   const id = useDashboardUi((s) => s.tagsFor);
   const setFor = useDashboardUi((s) => s.setTagsFor);
   const project = useProjects((s) => s.projects.find((p) => p.id === id));
+  const t = useT();
   return (
     <Dialog
       open={!!id && !!project}
       onOpenChange={(o) => !o && setFor(null)}
-      title="Tags"
-      description={project ? <>Organize “{project.name}” on your dashboard.</> : undefined}
+      title={t('dashboard.tagsDialog.title')}
+      description={project ? t('dashboard.tagsDialog.description', { name: project.name }) : undefined}
       icon={<Tag />}
       width="max-w-md"
     >
@@ -92,19 +96,20 @@ function TagsBody({ id, initial, onDone }: { id: string; initial: string[]; onDo
   const [tags, setLocal] = useState(initial);
   const projects = useProjects((s) => s.projects);
   const all = useMemo(() => [...new Set(projects.flatMap((p) => p.tags ?? []))].sort(), [projects]);
+  const t = useT();
   const save = () => {
     void setTags(id, tags);
     onDone();
   };
   return (
     <div className="pb-2">
-      <TagInput autoFocus value={tags} onChange={setLocal} suggestions={all} placeholder="thesis, draft, 2026…" />
+      <TagInput autoFocus value={tags} onChange={setLocal} suggestions={all} placeholder={t('dashboard.tagsDialog.placeholder')} />
       <div className="mt-4 flex justify-end gap-2">
         <Button variant="ghost" onClick={onDone}>
-          Cancel
+          {t('common.cancel')}
         </Button>
         <Button variant="primary" onClick={save}>
-          Save tags
+          {t('dashboard.tagsDialog.save')}
         </Button>
       </div>
     </div>

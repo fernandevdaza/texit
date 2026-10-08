@@ -1,6 +1,7 @@
 /**
  * Settings feature: the app-wide Settings dialog (⌘,) and per-project settings.
  */
+import './i18n';
 import { Info, Monitor, Moon, Settings, Settings2, Sun, SunMoon, UserRound } from 'lucide-react';
 import { registerCommands } from '@/services/commands';
 import { resolveTheme, useSettings } from '@/state/settings';

@@ -8,6 +8,7 @@ import { AlertTriangle } from 'lucide-react';
 import { Dialog } from './Dialog';
 import { Button } from './Button';
 import { Input } from './Fields';
+import { useT } from '@/lib/i18n';
 
 type Pending =
   | {
@@ -75,6 +76,7 @@ export function openModal(opts: { title: ReactNode; width?: string; render: (clo
 function PromptBody({ p, onDone }: { p: Extract<Pending, { kind: 'prompt' }>; onDone: (v: string | undefined) => void }) {
   const [value, setValue] = useState(p.value ?? '');
   const ref = useRef<HTMLInputElement>(null);
+  const t = useT();
   const error = p.validate ? p.validate(value) : null;
   useEffect(() => {
     const el = ref.current;
@@ -98,10 +100,10 @@ function PromptBody({ p, onDone }: { p: Extract<Pending, { kind: 'prompt' }>; on
       <div className="mt-1.5 h-4 text-[11.5px] text-danger">{value && error}</div>
       <div className="mt-2 flex justify-end gap-2">
         <Button variant="ghost" onClick={() => onDone(undefined)}>
-          Cancel
+          {t('common.cancel')}
         </Button>
         <Button variant="primary" type="submit" disabled={!!error || !value.trim()}>
-          {p.confirmLabel ?? 'OK'}
+          {p.confirmLabel ?? t('common.ok')}
         </Button>
       </div>
     </form>
@@ -110,6 +112,7 @@ function PromptBody({ p, onDone }: { p: Extract<Pending, { kind: 'prompt' }>; on
 
 export function DialogHost() {
   const stack = useDialogs((s) => s.stack);
+  const t = useT();
   return (
     <>
       {stack.map((p) => {
@@ -129,10 +132,10 @@ export function DialogHost() {
               footer={
                 <>
                   <Button variant="ghost" onClick={() => done(false)}>
-                    {p.cancelLabel ?? 'Cancel'}
+                    {p.cancelLabel ?? t('common.cancel')}
                   </Button>
                   <Button data-autofocus variant={p.danger ? 'danger' : 'primary'} onClick={() => done(true)}>
-                    {p.confirmLabel ?? 'Confirm'}
+                    {p.confirmLabel ?? t('common.confirm')}
                   </Button>
                 </>
               }

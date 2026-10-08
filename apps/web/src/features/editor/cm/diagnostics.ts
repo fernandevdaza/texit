@@ -9,6 +9,7 @@ import type { EditorView } from '@codemirror/view';
 import { lintLatex, normalizePath, type Diagnostic } from '@texit/core';
 import { latexLinter } from 'codemirror-lang-latex';
 import { useWorkspace } from '@/state/workspace';
+import { t } from '@/lib/i18n';
 import { fileInfo } from './fileInfo';
 import { languageIdFor } from './language';
 
@@ -78,7 +79,7 @@ function compileDiagnostics(view: EditorView): CmDiagnostic[] {
       severity: d.severity === 'error' ? 'error' : d.severity === 'warning' ? 'warning' : 'info',
       markClass: d.severity === 'badbox' ? 'cm-badbox' : undefined,
       message: d.message + (d.context ? `\n${d.context.trim().slice(0, 400)}` : ''),
-      source: d.severity === 'badbox' ? 'Bad box' : 'Compiler',
+      source: d.severity === 'badbox' ? t('editor.diag.badBox') : t('editor.diag.compiler'),
     });
   }
   return out;

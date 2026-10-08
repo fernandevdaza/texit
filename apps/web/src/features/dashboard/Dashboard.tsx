@@ -33,6 +33,7 @@ import { executeCommand } from '@/services/commands';
 import { useResolvedTheme, useSettings } from '@/state/settings';
 import { host, isDesktop, isMac } from '@/lib/platform';
 import { cn } from '@/lib/cn';
+import { t as tr, useT } from '@/lib/i18n';
 import { Avatar, Button, ContextMenu, DropdownMenu, EmptyState, IconButton, Kbd, Logo, Segmented, Tooltip, type MenuEntry } from '@/ui';
 import { fuzzyWords } from '@/features/palette/fuzzy';
 import { Hero } from './Hero';
@@ -41,14 +42,14 @@ import { ensurePreviews, prunePreviews } from './preview';
 import { focusSearch, useDashboardPrefs, useDashboardSearch as useSearch, useDashboardUi, type DashSection, type SortKey } from './store';
 import * as actions from './actions';
 
-const sortLabels: Record<SortKey, string> = { opened: 'Last opened', modified: 'Last modified', name: 'Name', created: 'Date created' };
+const sortKeys: SortKey[] = ['opened', 'modified', 'name', 'created'];
 
-const sectionMeta: Record<'all' | 'recent' | 'starred' | 'shared' | 'trash', { label: string; icon: LucideIcon }> = {
-  all: { label: 'All projects', icon: Library },
-  recent: { label: 'Recent', icon: Clock },
-  starred: { label: 'Starred', icon: Star },
-  shared: { label: 'Shared', icon: Users },
-  trash: { label: 'Trash', icon: Trash2 },
+const sectionMeta: Record<'all' | 'recent' | 'starred' | 'shared' | 'trash', { icon: LucideIcon }> = {
+  all: { icon: Library },
+  recent: { icon: Clock },
+  starred: { icon: Star },
+  shared: { icon: Users },
+  trash: { icon: Trash2 },
 };
 
 function sortProjects(list: ProjectSummary[], sort: SortKey) {
@@ -62,12 +63,12 @@ function sortProjects(list: ProjectSummary[], sort: SortKey) {
 
 export function newProjectMenu(): MenuEntry[] {
   return [
-    { label: 'Blank project', icon: <FilePlus2 />, onSelect: () => void actions.createBlankProject() },
-    { label: 'From template…', icon: <LayoutGrid />, shortcut: 'Mod-Alt-n', onSelect: () => useDashboardUi.getState().openNewProject() },
+    { label: tr('dashboard.menu.blank'), icon: <FilePlus2 />, onSelect: () => void actions.createBlankProject() },
+    { label: tr('dashboard.menu.fromTemplate'), icon: <LayoutGrid />, shortcut: 'Mod-Alt-n', onSelect: () => useDashboardUi.getState().openNewProject() },
     { type: 'separator' },
-    { label: 'Import .zip…', icon: <FileArchive />, onSelect: () => void actions.pickAndImportZip() },
-    ...(isDesktop ? [{ label: 'Open folder…', icon: <FolderOpen />, onSelect: () => void actions.openFolderDesktop() } as MenuEntry] : []),
-    { label: 'Join shared project…', icon: <Link2 />, onSelect: () => useDashboardUi.getState().setJoinOpen(true) },
+    { label: tr('dashboard.menu.importZip'), icon: <FileArchive />, onSelect: () => void actions.pickAndImportZip() },
+    ...(isDesktop ? [{ label: tr('dashboard.menu.openFolder'), icon: <FolderOpen />, onSelect: () => void actions.openFolderDesktop() } as MenuEntry] : []),
+    { label: tr('dashboard.menu.join'), icon: <Link2 />, onSelect: () => useDashboardUi.getState().setJoinOpen(true) },
   ];
 }
 
@@ -122,6 +123,7 @@ function SearchBox({ className, inputClassName }: { className?: string; inputCla
   const query = useSearch((s) => s.query);
   const setQuery = useSearch((s) => s.setQuery);
   const ref = useRef<HTMLInputElement>(null);
+  const t = useT();
   useEffect(() => {
     const d = focusSearch.on(() => {
       const el = ref.current;
@@ -153,7 +155,7 @@ function SearchBox({ className, inputClassName }: { className?: string; inputCla
             else first.focus();
           }
         }}
-        placeholder="Search projects…"
+        placeholder={t('dashboard.searchPlaceholder')}
         className={cn(
           'h-9 w-full rounded-xl border border-border bg-surface pl-9 pr-16 text-[13px] text-fg shadow-xs outline-none transition-[border,box-shadow,background] placeholder:text-fg-subtle hover:border-border-strong focus:border-accent focus:ring-4 focus:ring-accent/12',
           inputClassName,
@@ -162,7 +164,7 @@ function SearchBox({ className, inputClassName }: { className?: string; inputCla
       {query ? (
         <button
           type="button"
-          aria-label="Clear search"
+          aria-label={t('dashboard.clearSearch')}
           onClick={() => {
             setQuery('');
             ref.current?.focus();
@@ -185,6 +187,7 @@ function Header({ hero, trashCount, onTrash }: { hero: boolean; trashCount: numb
   const userName = useSettings((s) => s.userName);
   const userColor = useSettings((s) => s.userColor);
   const macDesktop = isDesktop && isMac;
+  const t = useT();
 
   return (
     <header
@@ -194,7 +197,7 @@ function Header({ hero, trashCount, onTrash }: { hero: boolean; trashCount: numb
         macDesktop ? 'pl-[84px]' : 'pl-4 sm:pl-5',
       )}
     >
-      <a href="#/" className="app-no-drag flex items-center gap-2.5 rounded-lg pr-1" aria-label="TexIt home">
+      <a href="#/" className="app-no-drag flex items-center gap-2.5 rounded-lg pr-1" aria-label={t('dashboard.home')}>
         <Logo size={26} className="drop-shadow-[0_4px_10px_rgb(91_91_240/0.35)]" />
         <span className="text-[15px] font-semibold tracking-[-0.02em] text-fg">TexIt</span>
       </a>
@@ -209,36 +212,36 @@ function Header({ hero, trashCount, onTrash }: { hero: boolean; trashCount: numb
       <div className={cn('app-no-drag flex items-center gap-1', !hero && 'ml-auto sm:ml-0')}>
         {hero && trashCount > 0 && (
           <Button variant="ghost" size="sm" icon={<Trash2 />} onClick={onTrash} className="text-fg-subtle">
-            Trash · {trashCount}
+            {t('dashboard.trashCount', { count: trashCount })}
           </Button>
         )}
         {!hero && (
           <div className="mr-1.5 flex">
-            <Tooltip content="New project" shortcut="Mod-Alt-n">
+            <Tooltip content={t('dashboard.newProject')} shortcut="Mod-Alt-n">
               <Button variant="primary" icon={<Plus />} onClick={() => useDashboardUi.getState().openNewProject()} className="rounded-r-none pr-2.5">
-                <span className="hidden sm:inline">New project</span>
-                <span className="sm:hidden">New</span>
+                <span className="hidden sm:inline">{t('dashboard.newProject')}</span>
+                <span className="sm:hidden">{t('dashboard.newShort')}</span>
               </Button>
             </Tooltip>
             <DropdownMenu
               align="end"
               items={newProjectMenu()}
               trigger={
-                <Button variant="primary" aria-label="More ways to create a project" className="rounded-l-none border-l border-white/20 px-1.5">
+                <Button variant="primary" aria-label={t('dashboard.moreCreate')} className="rounded-l-none border-l border-white/20 px-1.5">
                   <ChevronDown />
                 </Button>
               }
             />
           </div>
         )}
-        <IconButton label={theme === 'dark' ? 'Light theme' : 'Dark theme'} size="md" onClick={() => set({ theme: theme === 'dark' ? 'light' : 'dark' })}>
+        <IconButton label={theme === 'dark' ? t('dashboard.lightTheme') : t('dashboard.darkTheme')} size="md" onClick={() => set({ theme: theme === 'dark' ? 'light' : 'dark' })}>
           {theme === 'dark' ? <Sun /> : <Moon />}
         </IconButton>
-        <IconButton label="Settings" shortcut="Mod-," size="md" onClick={() => void executeCommand('app.settings')}>
+        <IconButton label={t('dashboard.settings')} shortcut="Mod-," size="md" onClick={() => void executeCommand('app.settings')}>
           <Settings />
         </IconButton>
-        <Tooltip content={`${userName} — profile`}>
-          <button type="button" aria-label="Profile" onClick={() => void executeCommand('app.settings', 'profile')} className="ml-1 rounded-full transition-transform hover:scale-105 active:scale-95">
+        <Tooltip content={t('dashboard.profileTooltip', { name: userName })}>
+          <button type="button" aria-label={t('dashboard.profile')} onClick={() => void executeCommand('app.settings', 'profile')} className="ml-1 rounded-full transition-transform hover:scale-105 active:scale-95">
             <Avatar name={userName} color={userColor} size={28} />
           </button>
         </Tooltip>
@@ -258,6 +261,7 @@ function Projects({ section, setSection, loaded }: { section: DashSection; setSe
   const anchor = useRef<number | null>(null);
   const itemRefs = useRef<(HTMLDivElement | null)[]>([]);
   const containerRef = useRef<HTMLDivElement>(null);
+  const t = useT();
 
   const live = useMemo(() => projects.filter((p) => !p.trashed), [projects]);
   const tags = useMemo(() => actions.projectsByTag(projects), [projects]);
@@ -431,8 +435,8 @@ function Projects({ section, setSection, loaded }: { section: DashSection; setSe
   // "/" focuses the search; Escape clears the selection.
   useEffect(() => {
     const h = (e: globalThis.KeyboardEvent) => {
-      const t = e.target as HTMLElement;
-      const typing = t.closest('input,textarea,[contenteditable=true],[role=dialog],[role=menu]');
+      const target = e.target as HTMLElement;
+      const typing = target.closest('input,textarea,[contenteditable=true],[role=dialog],[role=menu]');
       if (typing) return;
       if (e.key === '/') {
         e.preventDefault();
@@ -445,7 +449,7 @@ function Projects({ section, setSection, loaded }: { section: DashSection; setSe
     return () => window.removeEventListener('keydown', h);
   }, [selected]);
 
-  const title = section.startsWith('tag:') ? `#${section.slice(4)}` : sectionMeta[section as keyof typeof sectionMeta].label;
+  const title = section.startsWith('tag:') ? `#${section.slice(4)}` : t(`dashboard.section.${section}`);
 
   return (
     <div className="flex min-h-0 flex-1">
@@ -462,25 +466,25 @@ function Projects({ section, setSection, loaded }: { section: DashSection; setSe
             <div className="flex min-w-0 items-baseline gap-2.5">
               <h1 className="truncate text-[22px] font-semibold tracking-[-0.025em] text-fg">{title}</h1>
               <span className="text-[13px] tabular-nums text-fg-subtle">
-                {query ? `${items.length} of ${section === 'trash' ? counts.trash : items.length}` : items.length}
+                {query ? t('dashboard.countOf', { shown: items.length, total: section === 'trash' ? counts.trash : items.length }) : items.length}
               </span>
             </div>
             <div className="ml-auto flex items-center gap-2">
               {section === 'trash' && counts.trash > 0 && (
                 <Button size="sm" variant="ghost" icon={<Trash2 />} className="text-danger hover:bg-danger-soft hover:text-danger" onClick={() => void actions.emptyTrash()}>
-                  Empty trash
+                  {t('dashboard.emptyTrash')}
                 </Button>
               )}
               {section !== 'recent' && (
                 <DropdownMenu
                   align="end"
                   items={[
-                    { type: 'label', label: 'Sort by' },
-                    ...(Object.keys(sortLabels) as SortKey[]).map((k) => ({ label: sortLabels[k], checked: sort === k, onSelect: () => setSort(k) })),
+                    { type: 'label', label: t('dashboard.sortBy') },
+                    ...sortKeys.map((k) => ({ label: t(`dashboard.sort.${k}`), checked: sort === k, onSelect: () => setSort(k) })),
                   ]}
                   trigger={
                     <Button size="sm" variant="ghost" icon={<ArrowDownUp />} className="text-fg-muted">
-                      <span className="hidden sm:inline">{sortLabels[sort]}</span>
+                      <span className="hidden sm:inline">{t(`dashboard.sort.${sort}`)}</span>
                     </Button>
                   }
                 />
@@ -490,15 +494,15 @@ function Projects({ section, setSection, loaded }: { section: DashSection; setSe
                 value={view}
                 onChange={setView}
                 options={[
-                  { value: 'grid', label: '', icon: <LayoutGrid />, title: 'Grid' },
-                  { value: 'list', label: '', icon: <List />, title: 'List' },
+                  { value: 'grid', label: '', icon: <LayoutGrid />, title: t('dashboard.view.grid') },
+                  { value: 'list', label: '', icon: <List />, title: t('dashboard.view.list') },
                 ]}
               />
             </div>
           </div>
 
           {section === 'trash' && counts.trash > 0 && (
-            <p className="-mt-2 mb-5 text-[12px] text-fg-subtle">Projects in the trash stay on this device until you delete them forever.</p>
+            <p className="-mt-2 mb-5 text-[12px] text-fg-subtle">{t('dashboard.trashNote')}</p>
           )}
 
           {!loaded ? (
@@ -580,6 +584,7 @@ function Projects({ section, setSection, loaded }: { section: DashSection; setSe
 }
 
 function ListHeader({ sort, setSort }: { sort: SortKey; setSort: (s: SortKey) => void }) {
+  const t = useT();
   const H = ({ k, children, className }: { k?: SortKey; children: ReactNode; className?: string }) =>
     k ? (
       <button type="button" onClick={() => setSort(k)} className={cn('flex items-center gap-1 text-left uppercase tracking-wider hover:text-fg', sort === k && 'text-fg', className)}>
@@ -593,10 +598,10 @@ function ListHeader({ sort, setSort }: { sort: SortKey; setSort: (s: SortKey) =>
     <div className="mb-1 grid h-8 grid-cols-[18px_34px_minmax(0,1fr)_auto] items-center gap-3 border-b border-border px-3 text-[11px] font-medium uppercase tracking-wider text-fg-subtle md:grid-cols-[18px_34px_minmax(0,1fr)_100px_150px_auto]">
       <span />
       <span />
-      <H k="name">Name</H>
-      <H className="hidden md:flex">Engine</H>
+      <H k="name">{t('dashboard.column.name')}</H>
+      <H className="hidden md:flex">{t('dashboard.column.engine')}</H>
       <H k={sort === 'created' ? 'created' : sort === 'modified' ? 'modified' : 'opened'} className="hidden md:flex">
-        {sortLabels[sort === 'name' ? 'opened' : sort]}
+        {t(`dashboard.sort.${sort === 'name' ? 'opened' : sort}`)}
       </H>
       <span className="w-[60px]" />
     </div>
@@ -626,39 +631,40 @@ function NavItem({ active, icon, label, count, onClick, tone }: { active: boolea
 }
 
 function Sidebar({ section, setSection, counts, tags }: { section: DashSection; setSection: (s: DashSection) => void; counts: Counts; tags: [string, number][] }) {
+  const t = useT();
   return (
     <aside className="hidden w-[232px] shrink-0 flex-col border-r border-border bg-surface/40 md:flex">
-      <nav className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto p-3" aria-label="Library">
+      <nav className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto p-3" aria-label={t('dashboard.library')}>
         {(Object.keys(sectionMeta) as (keyof typeof sectionMeta)[]).map((k) => {
           const M = sectionMeta[k];
           return (
             <div key={k} className={cn(k === 'trash' && 'mt-2 border-t border-border pt-2')}>
-              <NavItem active={section === k} icon={<M.icon />} label={M.label} count={counts[k]} onClick={() => setSection(k)} />
+              <NavItem active={section === k} icon={<M.icon />} label={t(`dashboard.section.${k}`)} count={counts[k]} onClick={() => setSection(k)} />
             </div>
           );
         })}
         {tags.length > 0 && (
           <>
-            <div className="px-2.5 pb-1 pt-5 text-[10.5px] font-semibold uppercase tracking-wider text-fg-subtle">Tags</div>
-            {tags.map(([t, n]) => (
-              <NavItem key={t} active={section === `tag:${t}`} icon={<Hash />} label={t} count={n} onClick={() => setSection(`tag:${t}`)} />
+            <div className="px-2.5 pb-1 pt-5 text-[10.5px] font-semibold uppercase tracking-wider text-fg-subtle">{t('dashboard.tags')}</div>
+            {tags.map(([tag, n]) => (
+              <NavItem key={tag} active={section === `tag:${tag}`} icon={<Hash />} label={tag} count={n} onClick={() => setSection(`tag:${tag}`)} />
             ))}
           </>
         )}
       </nav>
       <div className="m-3 rounded-xl border border-border bg-surface p-3 shadow-xs">
         <div className="flex items-center gap-2 text-[12px] font-medium text-fg">
-          <HardDrive className="size-3.5 text-success" /> Stored on this device
+          <HardDrive className="size-3.5 text-success" /> {t('dashboard.storedTitle')}
         </div>
         <p className="mt-1 text-[11.5px] leading-snug text-fg-subtle">
-          {isDesktop ? 'Projects are saved locally and can be mirrored to folders on disk.' : 'Private by design. Download a .zip anytime to back up or move projects.'}
+          {isDesktop ? t('dashboard.storedDesktop') : t('dashboard.storedWeb')}
         </p>
         <button
           type="button"
           onClick={() => void executeCommand('help.shortcuts')}
           className="mt-2 flex items-center gap-1.5 text-[11.5px] text-fg-subtle transition-colors hover:text-fg"
         >
-          Keyboard shortcuts <Kbd keys="Mod-/" />
+          {t('dashboard.keyboardShortcuts')} <Kbd keys="Mod-/" />
         </button>
       </div>
     </aside>
@@ -666,6 +672,7 @@ function Sidebar({ section, setSection, counts, tags }: { section: DashSection; 
 }
 
 function MobileSections({ section, setSection, counts, tags }: { section: DashSection; setSection: (s: DashSection) => void; counts: Counts; tags: [string, number][] }) {
+  const t = useT();
   const chip = (id: DashSection, label: ReactNode, count?: number) => (
     <button
       key={id}
@@ -682,8 +689,8 @@ function MobileSections({ section, setSection, counts, tags }: { section: DashSe
   );
   return (
     <div className="-mx-4 flex gap-1.5 overflow-x-auto px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-      {(Object.keys(sectionMeta) as (keyof typeof sectionMeta)[]).map((k) => chip(k, sectionMeta[k].label, k === 'all' ? undefined : counts[k]))}
-      {tags.map(([t, n]) => chip(`tag:${t}`, `#${t}`, n))}
+      {(Object.keys(sectionMeta) as (keyof typeof sectionMeta)[]).map((k) => chip(k, t(`dashboard.section.${k}`), k === 'all' ? undefined : counts[k]))}
+      {tags.map(([tag, n]) => chip(`tag:${tag}`, `#${tag}`, n))}
     </div>
   );
 }
@@ -719,16 +726,17 @@ function Skeleton({ view }: { view: 'grid' | 'list' }) {
 
 function Empty({ section, query }: { section: DashSection; query: string }) {
   const setQuery = useSearch((s) => s.setQuery);
+  const t = useT();
   if (query.trim())
     return (
       <EmptyState
         className="py-24"
         icon={<Search />}
-        title={`No projects match “${query.trim()}”`}
-        description="Try another name, a #tag or an engine like xelatex."
+        title={t('dashboard.empty.searchTitle', { query: query.trim() })}
+        description={t('dashboard.empty.searchText')}
         action={
           <Button size="sm" variant="secondary" onClick={() => setQuery('')}>
-            Clear search
+            {t('dashboard.clearSearch')}
           </Button>
         }
       />
@@ -736,33 +744,34 @@ function Empty({ section, query }: { section: DashSection; query: string }) {
   const map: Record<string, { icon: ReactNode; title: string; description: string; action?: ReactNode }> = {
     all: {
       icon: <Library />,
-      title: 'No projects yet',
-      description: 'Create one from a template, or drop an Overleaf .zip anywhere on this page.',
+      title: t('dashboard.empty.allTitle'),
+      description: t('dashboard.empty.allText'),
       action: (
         <Button variant="primary" icon={<Plus />} onClick={() => useDashboardUi.getState().openNewProject()}>
-          New project
+          {t('dashboard.newProject')}
         </Button>
       ),
     },
-    recent: { icon: <Clock />, title: 'Nothing opened yet', description: 'Projects you open show up here for quick access.' },
-    starred: { icon: <Star />, title: 'No starred projects', description: 'Star the projects you work on most — press S on a focused card.' },
+    recent: { icon: <Clock />, title: t('dashboard.empty.recentTitle'), description: t('dashboard.empty.recentText') },
+    starred: { icon: <Star />, title: t('dashboard.empty.starredTitle'), description: t('dashboard.empty.starredText') },
     shared: {
       icon: <Users />,
-      title: 'No shared projects',
-      description: 'Share a project from the editor, or join one with an invite link.',
+      title: t('dashboard.empty.sharedTitle'),
+      description: t('dashboard.empty.sharedText'),
       action: (
         <Button variant="secondary" icon={<Link2 />} onClick={() => useDashboardUi.getState().setJoinOpen(true)}>
-          Join with a link
+          {t('dashboard.empty.joinWithLink')}
         </Button>
       ),
     },
-    trash: { icon: <Trash2 />, title: 'Trash is empty', description: 'Deleted projects stay here until you remove them forever.' },
+    trash: { icon: <Trash2 />, title: t('dashboard.empty.trashTitle'), description: t('dashboard.empty.trashText') },
   };
-  const m = map[section] ?? { icon: <Hash />, title: 'No projects with this tag', description: 'Add tags from a project’s menu.' };
+  const m = map[section] ?? { icon: <Hash />, title: t('dashboard.empty.tagTitle'), description: t('dashboard.empty.tagText') };
   return <EmptyState className="py-24" icon={m.icon} title={m.title} description={m.description} action={m.action} />;
 }
 
 function BulkBar({ ids, trash, onClear, onSelectAll, total }: { ids: string[]; trash: boolean; onClear: () => void; onSelectAll: () => void; total: number }) {
+  const t = useT();
   const btn = 'flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-[12.5px] font-medium transition-colors hover:bg-white/10 [&_svg]:size-4';
   return (
     <AnimatePresence>
@@ -774,38 +783,38 @@ function BulkBar({ ids, trash, onClear, onSelectAll, total }: { ids: string[]; t
           transition={{ type: 'spring', stiffness: 500, damping: 34 }}
           className="fixed bottom-6 left-1/2 z-40 flex items-center gap-1 rounded-2xl border border-white/10 bg-[#18181b]/95 p-1.5 pl-3.5 text-white shadow-[0_20px_50px_-12px_rgb(0_0_0/0.5)] backdrop-blur-xl dark:bg-[#26262e]/95"
           role="toolbar"
-          aria-label="Selection actions"
+          aria-label={t('dashboard.bulk.label')}
         >
-          <span className="mr-1.5 text-[12.5px] tabular-nums text-white/70">{ids.length} selected</span>
+          <span className="mr-1.5 text-[12.5px] tabular-nums text-white/70">{t('dashboard.bulk.selected', { count: ids.length })}</span>
           {ids.length < total && (
             <button type="button" className={cn(btn, 'text-white/70')} onClick={onSelectAll}>
-              Select all
+              {t('dashboard.bulk.selectAll')}
             </button>
           )}
           <span className="mx-1 h-5 w-px bg-white/15" />
           {trash ? (
             <>
               <button type="button" className={btn} onClick={() => void actions.restore(ids).then(onClear)}>
-                <ArchiveRestore /> Restore
+                <ArchiveRestore /> {t('dashboard.bulk.restore')}
               </button>
               <button type="button" className={cn(btn, 'text-[#ff8a8f]')} onClick={() => void actions.deleteForever(ids).then((ok) => ok && onClear())}>
-                <Trash2 /> Delete forever
+                <Trash2 /> {t('dashboard.bulk.deleteForever')}
               </button>
             </>
           ) : (
             <>
               <button type="button" className={btn} onClick={() => void actions.setStarred(ids, true)}>
-                <Star /> <span className="hidden sm:inline">Star</span>
+                <Star /> <span className="hidden sm:inline">{t('dashboard.bulk.star')}</span>
               </button>
               <button type="button" className={btn} onClick={() => ids.forEach((id) => void actions.downloadProjectZip(id))}>
-                <Download /> <span className="hidden sm:inline">Download</span>
+                <Download /> <span className="hidden sm:inline">{t('common.download')}</span>
               </button>
               <button type="button" className={cn(btn, 'text-[#ff8a8f]')} onClick={() => void actions.moveToTrash(ids).then(onClear)}>
-                <Trash2 /> <span className="hidden sm:inline">Trash</span>
+                <Trash2 /> <span className="hidden sm:inline">{t('dashboard.bulk.trash')}</span>
               </button>
             </>
           )}
-          <button type="button" aria-label="Clear selection" className={cn(btn, 'px-2 text-white/60')} onClick={onClear}>
+          <button type="button" aria-label={t('dashboard.bulk.clear')} className={cn(btn, 'px-2 text-white/60')} onClick={onClear}>
             <X />
           </button>
         </motion.div>
@@ -819,6 +828,7 @@ function BulkBar({ ids, trash, onClear, onSelectAll, total }: { ids: string[]; t
 function DropOverlay() {
   const [active, setActive] = useState(false);
   const depth = useRef(0);
+  const t = useT();
   const hasFiles = (e: DragEvent) => !!e.dataTransfer && Array.from(e.dataTransfer.types).includes('Files');
 
   const reset = useCallback(() => {
@@ -888,8 +898,8 @@ function DropOverlay() {
             >
               <FolderInput className="size-7" />
             </motion.div>
-            <div className="relative text-[18px] font-semibold tracking-tight text-fg">Drop to import</div>
-            <p className="relative mt-1.5 max-w-xs text-[13px] leading-relaxed text-fg-muted">Overleaf .zip archives, project folders or loose .tex files become new projects.</p>
+            <div className="relative text-[18px] font-semibold tracking-tight text-fg">{t('dashboard.drop.title')}</div>
+            <p className="relative mt-1.5 max-w-xs text-[13px] leading-relaxed text-fg-muted">{t('dashboard.drop.text')}</p>
           </motion.div>
         </motion.div>
       )}

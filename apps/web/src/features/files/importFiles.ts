@@ -4,6 +4,7 @@
  */
 import { basename, importZip, joinPath, uniquePath, type ProjectDoc } from '@texit/core';
 import { confirmDialog, toast } from '@/ui';
+import { t } from '@/lib/i18n';
 
 export interface PendingFile {
   /** Path relative to the drop target. */
@@ -64,20 +65,20 @@ export async function importIntoProject(project: ProjectDoc, folderPath: string,
   if (files.length === 1 && /\.zip$/i.test(files[0].path)) {
     const zip = files[0];
     const extract = await confirmDialog({
-      title: `Extract “${basename(zip.path)}”?`,
-      message: `Unpack the archive into ${folderPath ? `“${folderPath}”` : 'the project root'}, or keep it as a .zip file.`,
-      confirmLabel: 'Extract into project',
-      cancelLabel: 'Keep as .zip',
+      title: t('files.extractTitle', { name: basename(zip.path) }),
+      message: folderPath ? t('files.extractMessageFolder', { folder: folderPath }) : t('files.extractMessageRoot'),
+      confirmLabel: t('files.extractConfirm'),
+      cancelLabel: t('files.keepZip'),
     });
     if (extract) {
       try {
         const data = new Uint8Array(await zip.file.arrayBuffer());
         const res = importZip(data, zip.file.name);
         const ids = project.importFiles(res.files, { into: folderPath });
-        toast.success(`Extracted ${res.files.length} file${res.files.length === 1 ? '' : 's'}`);
+        toast.success(t('files.extracted', { count: res.files.length }));
         return ids;
       } catch (err) {
-        toast.error('Could not extract the archive', { description: String((err as Error)?.message ?? err) });
+        toast.error(t('files.couldNotExtract'), { description: String((err as Error)?.message ?? err) });
         return [];
       }
     }
@@ -87,10 +88,10 @@ export async function importIntoProject(project: ProjectDoc, folderPath: string,
   let replace = true;
   if (clashes.length) {
     replace = await confirmDialog({
-      title: clashes.length === 1 ? `Replace “${basename(clashes[0].target)}”?` : `Replace ${clashes.length} existing files?`,
-      message: 'Files with the same name already exist in this folder.',
-      confirmLabel: 'Replace',
-      cancelLabel: 'Keep both',
+      title: clashes.length === 1 ? t('files.replaceOneTitle', { name: basename(clashes[0].target) }) : t('files.replaceManyTitle', { count: clashes.length }),
+      message: t('files.replaceMessage'),
+      confirmLabel: t('files.replace'),
+      cancelLabel: t('files.keepBoth'),
       danger: true,
     });
   }
@@ -102,6 +103,6 @@ export async function importIntoProject(project: ProjectDoc, folderPath: string,
       ids.push(project.createFile(path, contents[i]));
     });
   });
-  toast.success(`Added ${ids.length} file${ids.length === 1 ? '' : 's'}`, folderPath ? { description: `to ${folderPath}` } : undefined);
+  toast.success(t('files.added', { count: ids.length }), folderPath ? { description: t('files.toFolder', { path: folderPath }) } : undefined);
   return ids;
 }

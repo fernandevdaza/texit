@@ -6,6 +6,7 @@
 import type { ProjectDoc } from '@texit/core';
 import * as Y from 'yjs';
 import { useSettings } from '@/state/settings';
+import { t } from '@/lib/i18n';
 import { useCollabSettings } from './settings';
 
 export interface ChatMessage {
@@ -31,7 +32,7 @@ export function sendChatMessage(project: ProjectDoc, text: string): ChatMessage 
   const msg: ChatMessage = {
     id: `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
     uid: useCollabSettings.getState().localUserId,
-    name: userName || 'Anonymous',
+    name: userName || t('collab.anonymous'),
     color: userColor,
     text: body,
     ts: Date.now(),

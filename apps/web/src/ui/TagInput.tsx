@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { Hash, X } from 'lucide-react';
 import { cn } from '@/lib/cn';
+import { useT } from '@/lib/i18n';
 
 /** Normalise a free-form tag ("  Thesis 2025 " → "thesis-2025"). */
 export function normalizeTag(t: string): string {
@@ -18,7 +19,7 @@ export function TagInput({
   value,
   onChange,
   suggestions = [],
-  placeholder = 'Add a tag…',
+  placeholder,
   autoFocus,
   className,
 }: {
@@ -29,6 +30,7 @@ export function TagInput({
   autoFocus?: boolean;
   className?: string;
 }) {
+  const tr = useT();
   const [draft, setDraft] = useState('');
   const [hl, setHl] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -76,7 +78,7 @@ export function TagInput({
             {t}
             <button
               type="button"
-              aria-label={`Remove ${t}`}
+              aria-label={tr('ui.removeTag', { tag: t })}
               onClick={(e) => {
                 e.stopPropagation();
                 onChange(value.filter((x) => x !== t));
@@ -98,13 +100,13 @@ export function TagInput({
           }}
           onKeyDown={onKeyDown}
           onBlur={() => draft.trim() && add(draft)}
-          placeholder={value.length ? '' : placeholder}
+          placeholder={value.length ? '' : (placeholder ?? tr('ui.addTag'))}
           className="h-[22px] min-w-[80px] flex-1 bg-transparent px-1 text-[12.5px] text-fg outline-none placeholder:text-fg-subtle"
         />
       </div>
       {matches.length > 0 && (
         <div className="flex flex-wrap items-center gap-1">
-          <span className="mr-0.5 text-[11px] text-fg-subtle">Suggestions</span>
+          <span className="mr-0.5 text-[11px] text-fg-subtle">{tr('ui.suggestions')}</span>
           {matches.map((s, i) => (
             <button
               key={s}

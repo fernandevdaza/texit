@@ -8,6 +8,7 @@ import { Prec, StateEffect, StateField, type Extension } from '@codemirror/state
 import { Decoration, EditorView, ViewPlugin, WidgetType, keymap, type ViewUpdate } from '@codemirror/view';
 import type { ModelRef } from '@texit/ai';
 import { getEditorBridge } from '@/services/editor';
+import { t } from '@/lib/i18n';
 import { loadAi } from '../sdk';
 import { completionModelRef, providerReady, resolveModel, type ResolvedModel } from '../runtime';
 import { findProvider, useAiSettings } from '../store';
@@ -67,6 +68,7 @@ class GhostWidget extends WidgetType {
     const hint = document.createElement('span');
     hint.className = 'cm-ai-ghost-hint';
     hint.textContent = 'Tab';
+    hint.title = t('ai.ghost.hint');
     span.appendChild(hint);
     return span;
   }

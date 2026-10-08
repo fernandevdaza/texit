@@ -293,3 +293,46 @@ describe('loader', () => {
     expect(() => extractPlugin({ default: { ...p, permissions: ['root'] } })).toThrow(/Unknown permission/);
   });
 });
+
+describe('plugin host localization (API 1.2)', () => {
+  it('exposes the UI locale, notifies changes and stops after dispose', async () => {
+    const { useSettings } = await import('@/state/settings');
+    const prev = useSettings.getState().locale;
+    useSettings.setState({ locale: 'en' });
+    const { host, api } = makeHost();
+    expect(api.ui.getLocale()).toBe('en');
+    const seen: string[] = [];
+    api.ui.onLocaleChange((l) => seen.push(l));
+    useSettings.setState({ locale: 'es' });
+    expect(api.ui.getLocale()).toBe('es');
+    expect(seen).toEqual(['es']);
+    host.dispose();
+    useSettings.setState({ locale: 'en' });
+    expect(seen).toEqual(['es']);
+    useSettings.setState({ locale: prev });
+  });
+
+  it('registers translated command/panel titles from manifest locales', async () => {
+    const { translate } = await import('@/lib/i18n');
+    const { host } = makeHost({ locales: { es: { commands: { hello: 'Hola' }, panels: { panel: 'Panel ES' } } } });
+    expect(translate('es', 'cmd.com.test.plugin.hello')).toBe('Hola');
+    expect(translate('es', 'panel.com.test.plugin.panel')).toBe('Panel ES');
+    host.dispose();
+  });
+
+  it('localizes manifests for display', async () => {
+    const { localizeManifest } = await import('./localize');
+    const m: PluginManifest = {
+      id: 'x.y',
+      name: 'Name',
+      version: '1.0.0',
+      settings: [{ key: 'k', title: 'Title', type: 'select', options: [{ value: 'a', label: 'A' }] }],
+      locales: { es: { name: 'Nombre', settings: { k: { title: 'Título', options: { a: 'Á' } } } } },
+    };
+    const es = localizeManifest(m, 'es-MX');
+    expect(es.name).toBe('Nombre');
+    expect(es.settings?.[0].title).toBe('Título');
+    expect(es.settings?.[0].options?.[0].label).toBe('Á');
+    expect(localizeManifest(m, 'en')).toBe(m);
+  });
+});

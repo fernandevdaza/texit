@@ -6,7 +6,9 @@
 import type { AgentEvent, ChatAttachment, ChatMessage } from '@texit/ai';
 import { host } from '@/lib/platform';
 import { useLayout, useWorkspace } from '@/state/workspace';
+import { t } from '@/lib/i18n';
 import { loadAi } from '../sdk';
+import { NEW_CHAT_TITLE, withLanguageInstruction } from '../i18n';
 import {
   chatModelRef,
   getMcpInstructions,
@@ -173,7 +175,7 @@ export interface SendOptions {
 
 export async function sendMessage(text: string, opts: SendOptions = {}): Promise<void> {
   const thread = opts.threadId ? useChat.getState().threads[opts.threadId] : getOrCreateThread();
-  if (!thread) throw new Error('Open a project to chat with the AI assistant.');
+  if (!thread) throw new Error(t('ai.err.openProject'));
   if (useChat.getState().running[thread.id]) return;
   const ai = await loadAi();
   const now = Date.now();
@@ -185,11 +187,11 @@ export async function sendMessage(text: string, opts: SendOptions = {}): Promise
     createdAt: now,
     context: ai.buildProjectContext(buildProjectState()),
   };
-  updateThread(thread.id, (t) => ({
-    ...t,
-    title: t.title === 'New chat' ? text.replace(/\s+/g, ' ').slice(0, 60) || 'New chat' : t.title,
+  updateThread(thread.id, (th) => ({
+    ...th,
+    title: th.title === NEW_CHAT_TITLE ? text.replace(/\s+/g, ' ').slice(0, 60) || NEW_CHAT_TITLE : th.title,
     updatedAt: now,
-    messages: [...t.messages, user],
+    messages: [...th.messages, user],
   }));
   await runTurn(thread.id);
 }
@@ -256,7 +258,7 @@ async function runTurn(threadId: string): Promise<void> {
     const meta = useWorkspace.getState().meta;
     const system = ai.buildSystemPrompt({
       projectName: meta?.name,
-      customInstructions: settings.customInstructions,
+      customInstructions: withLanguageInstruction(settings.customInstructions),
       extraToolNotes: [ask ? 'Ask mode: you can only read the project. Explain or suggest changes as code blocks; do not claim to have edited files.' : '', getMcpInstructions()]
         .filter(Boolean)
         .join('\n'),
@@ -294,9 +296,9 @@ async function runCliTurn(
 ) {
   const ai = await loadAi();
   const ws = useWorkspace.getState();
-  if (!host || !ws.project || !ws.session) throw new Error('CLI agents need the desktop app and an open project.');
+  if (!host || !ws.project || !ws.session) throw new Error(t('ai.err.cliNeedsProject'));
   const lastUser = [...history].reverse().find((m) => m.role === 'user');
-  if (!lastUser) throw new Error('Nothing to send.');
+  if (!lastUser) throw new Error(t('ai.err.nothingToSend'));
   const settings = useAiSettings.getState();
   const mirror = await prepareMirror(ws.session.id, ws.project);
 
@@ -318,7 +320,7 @@ async function runCliTurn(
     activeFile: state.activeFile,
     diagnostics: state.diagnostics,
     attachments: lastUser.attachments,
-    customInstructions: settings.customInstructions,
+    customInstructions: withLanguageInstruction(settings.customInstructions),
     texitMcpServerName: mcpServers ? 'texit' : undefined,
     includeGuidelines: !sessionId,
   });

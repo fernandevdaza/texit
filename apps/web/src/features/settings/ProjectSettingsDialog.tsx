@@ -5,21 +5,22 @@ import { useWorkspace } from '@/state/workspace';
 import { useProjects } from '@/services/projects';
 import { isDesktop } from '@/lib/platform';
 import { cn } from '@/lib/cn';
+import { useT, type TFunction } from '@/lib/i18n';
 import { Badge, Dialog, Input, Select } from '@/ui';
 import { TagInput } from '@/ui/TagInput';
 import { useSettingsUi } from './store';
 
-const engines: { value: TexEngine; label: string; description: string }[] = [
-  { value: 'pdflatex', label: 'pdfLaTeX', description: 'Fastest and most compatible. Ideal for classic documents.' },
-  { value: 'xelatex', label: 'XeLaTeX', description: 'Unicode input and system / OpenType fonts via fontspec.' },
-  { value: 'lualatex', label: 'LuaLaTeX', description: 'Modern engine with OpenType fonts and Lua scripting.' },
+const engines: { value: TexEngine; label: string }[] = [
+  { value: 'pdflatex', label: 'pdfLaTeX' },
+  { value: 'xelatex', label: 'XeLaTeX' },
+  { value: 'lualatex', label: 'LuaLaTeX' },
 ];
 
-const bibTools: { value: BibTool; label: string; description: string }[] = [
-  { value: 'auto', label: 'Automatic', description: 'Detect from biblatex / \\bibliography' },
-  { value: 'bibtex', label: 'BibTeX', description: 'Classic \\bibliography + .bst styles' },
-  { value: 'biber', label: 'Biber', description: 'For biblatex (Unicode, modern styles)' },
-  { value: 'none', label: 'None', description: 'Never run a bibliography tool' },
+const bibTools = (t: TFunction): { value: BibTool; label: string; description: string }[] => [
+  { value: 'auto', label: t('settings.project.bib.auto'), description: t('settings.project.bib.autoHint') },
+  { value: 'bibtex', label: 'BibTeX', description: t('settings.project.bib.bibtexHint') },
+  { value: 'biber', label: 'Biber', description: t('settings.project.bib.biberHint') },
+  { value: 'none', label: t('common.none'), description: t('settings.project.bib.noneHint') },
 ];
 
 const languages: { value: string; label: string }[] = [
@@ -59,6 +60,7 @@ export function ProjectSettingsDialog() {
   const setOpen = useSettingsUi((s) => s.setProjectOpen);
   const meta = useWorkspace((s) => s.meta);
   const hasProject = useWorkspace((s) => !!s.project);
+  const t = useT();
 
   useEffect(() => {
     if (open && !hasProject) setOpen(false);
@@ -68,8 +70,8 @@ export function ProjectSettingsDialog() {
     <Dialog
       open={open && hasProject}
       onOpenChange={setOpen}
-      title="Project settings"
-      description={meta ? <>Applies to “{meta.name}” for everyone collaborating on it.</> : undefined}
+      title={t('settings.project.title')}
+      description={meta ? t('settings.project.description', { name: meta.name }) : undefined}
       icon={<Settings2 />}
       width="max-w-[600px]"
       bodyClassName="px-5 pb-5 pt-3"
@@ -84,6 +86,7 @@ function Body({ meta }: { meta: ProjectMeta }) {
   const files = useWorkspace((s) => s.files);
   const projects = useProjects((s) => s.projects);
   const [name, setName] = useState(meta.name);
+  const t = useT();
   useEffect(() => setName(meta.name), [meta.name]);
 
   const patch = (p: Partial<ProjectMeta>) => project?.setMeta(p);
@@ -106,23 +109,23 @@ function Body({ meta }: { meta: ProjectMeta }) {
 
   return (
     <div className="space-y-5">
-      <FieldBlock label="Name">
+      <FieldBlock label={t('settings.project.name')}>
         <Input value={name} onChange={(e) => setName(e.target.value)} onBlur={commitName} onKeyDown={(e) => e.key === 'Enter' && commitName()} />
       </FieldBlock>
 
-      <FieldBlock label="Main document" hint="The file passed to the TeX engine">
+      <FieldBlock label={t('settings.project.main')} hint={t('settings.project.mainHint')}>
         <Select
           value={meta.mainFileId && texFiles.some((f) => f.id === meta.mainFileId) ? meta.mainFileId : AUTO}
           onValueChange={(v) => patch({ mainFileId: v === AUTO ? '' : v })}
           options={[
-            { value: AUTO, label: detectedMain ? `Auto-detect (${detectedMain})` : 'Auto-detect' },
+            { value: AUTO, label: detectedMain ? t('settings.project.autoDetectFile', { file: detectedMain }) : t('settings.project.autoDetect') },
             ...texFiles.map((f) => ({ value: f.id, label: <span className="font-mono text-[12px]">{f.path}</span> })),
           ]}
         />
       </FieldBlock>
 
-      <FieldBlock label="TeX engine">
-        <div role="radiogroup" aria-label="TeX engine" className="grid gap-2 sm:grid-cols-3">
+      <FieldBlock label={t('settings.project.engine')}>
+        <div role="radiogroup" aria-label={t('settings.project.engine')} className="grid gap-2 sm:grid-cols-3">
           {engines.map((e) => {
             const active = meta.engine === e.value;
             return (
@@ -145,7 +148,7 @@ function Body({ meta }: { meta: ProjectMeta }) {
                     </span>
                   )}
                 </div>
-                <p className="mt-1 text-[11.5px] leading-snug text-fg-subtle">{e.description}</p>
+                <p className="mt-1 text-[11.5px] leading-snug text-fg-subtle">{t(`settings.project.engine.${e.value}`)}</p>
               </button>
             );
           })}
@@ -153,27 +156,37 @@ function Body({ meta }: { meta: ProjectMeta }) {
       </FieldBlock>
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <FieldBlock label="Bibliography">
-          <Select value={meta.bibTool ?? 'auto'} onValueChange={(v) => patch({ bibTool: v as BibTool })} options={bibTools} />
+        <FieldBlock label={t('settings.project.bibliography')}>
+          <Select value={meta.bibTool ?? 'auto'} onValueChange={(v) => patch({ bibTool: v as BibTool })} options={bibTools(t)} />
         </FieldBlock>
-        <FieldBlock label="Compiler">
+        <FieldBlock label={t('settings.project.compiler')}>
           <Select
             value={meta.compilerBackend || AUTO}
             onValueChange={(v) => patch({ compilerBackend: v === AUTO ? '' : v })}
             options={[
-              { value: AUTO, label: 'App default', description: 'From Settings → Compiler' },
-              { value: 'busytex', label: 'In-browser (WASM)' },
-              { value: 'native', label: isDesktop ? 'Native TeX' : <span className="flex items-center gap-2">Native TeX <Badge>Desktop</Badge></span>, disabled: !isDesktop },
-              { value: 'remote', label: 'Remote server' },
+              { value: AUTO, label: t('settings.project.appDefault'), description: t('settings.project.appDefaultHint') },
+              { value: 'busytex', label: t('settings.compiler.busytex') },
+              {
+                value: 'native',
+                label: isDesktop ? (
+                  t('settings.compiler.native')
+                ) : (
+                  <span className="flex items-center gap-2">
+                    {t('settings.compiler.native')} <Badge>{t('settings.desktopBadge')}</Badge>
+                  </span>
+                ),
+                disabled: !isDesktop,
+              },
+              { value: 'remote', label: t('settings.compiler.remote') },
             ]}
           />
         </FieldBlock>
-        <FieldBlock label="Spell-check language">
+        <FieldBlock label={t('settings.project.spellLanguage')}>
           <Select value={meta.language || 'en-US'} onValueChange={(v) => patch({ language: v })} options={languages} />
         </FieldBlock>
       </div>
 
-      <FieldBlock label="Tags" hint="Organize projects on the dashboard">
+      <FieldBlock label={t('settings.project.tags')} hint={t('settings.project.tagsHint')}>
         <TagInput value={meta.tags ?? []} onChange={(tags) => patch({ tags })} suggestions={allTags} />
       </FieldBlock>
     </div>

@@ -4,6 +4,7 @@ import { basename } from '@texit/core';
 import { useWorkspace } from '@/state/workspace';
 import { getEditorBridge } from '@/services/editor';
 import { cn } from '@/lib/cn';
+import { useT } from '@/lib/i18n';
 import { EmptyState, IconButton, PanelHeader, Segmented } from '@/ui';
 import { getProjectIndex } from '@/features/editor/projectIndex';
 import { useIndexVersion } from '@/features/editor/presence';
@@ -54,6 +55,7 @@ export function OutlinePanel() {
   const [query, setQuery] = useState('');
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const listRef = useRef<HTMLDivElement>(null);
+  const t = useT();
 
   const structure = useMemo(() => {
     const idx = getProjectIndex();
@@ -133,7 +135,7 @@ export function OutlinePanel() {
               if (node.children.length) toggle(k);
             }}
             className={cn('flex size-4 shrink-0 items-center justify-center rounded text-fg-subtle', node.children.length ? 'hover:bg-active' : 'invisible')}
-            aria-label={isCollapsed ? 'Expand' : 'Collapse'}
+            aria-label={isCollapsed ? t('outline.expand') : t('outline.collapse')}
           >
             <ChevronRight className={cn('size-3 transition-transform', !isCollapsed && 'rotate-90')} />
           </button>
@@ -162,14 +164,14 @@ export function OutlinePanel() {
   return (
     <div className="flex h-full min-h-0 flex-col" data-keep-focus>
       <PanelHeader
-        title="Outline"
+        title={t('panel.outline')}
         actions={
           tab === 'sections' ? (
             <>
-              <IconButton size="xs" label="Expand all" onClick={() => setCollapsed(new Set())}>
+              <IconButton size="xs" label={t('outline.expandAll')} onClick={() => setCollapsed(new Set())}>
                 <ChevronsUpDown />
               </IconButton>
-              <IconButton size="xs" label="Collapse all" onClick={() => setCollapsed(new Set(allKeys()))}>
+              <IconButton size="xs" label={t('outline.collapseAll')} onClick={() => setCollapsed(new Set(allKeys()))}>
                 <ChevronsDownUp />
               </IconButton>
             </>
@@ -183,9 +185,9 @@ export function OutlinePanel() {
           value={tab}
           onChange={setTab}
           options={[
-            { value: 'sections', label: <TabLabel text="Sections" count={counts.sections} /> },
-            { value: 'labels', label: <TabLabel text="Labels" count={counts.labels} /> },
-            { value: 'floats', label: <TabLabel text="Floats" count={counts.floats} /> },
+            { value: 'sections', label: <TabLabel text={t('outline.sections')} count={counts.sections} /> },
+            { value: 'labels', label: <TabLabel text={t('outline.labels')} count={counts.labels} /> },
+            { value: 'floats', label: <TabLabel text={t('outline.floats')} count={counts.floats} /> },
           ]}
         />
         <div className="flex h-7 items-center gap-1.5 rounded-md border border-border bg-surface-2/60 px-2 focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/15">
@@ -194,12 +196,12 @@ export function OutlinePanel() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={(e) => e.key === 'Escape' && setQuery('')}
-            placeholder={tab === 'sections' ? 'Filter sections' : tab === 'labels' ? 'Filter labels' : 'Filter figures & tables'}
+            placeholder={tab === 'sections' ? t('outline.filterSections') : tab === 'labels' ? t('outline.filterLabels') : t('outline.filterFloats')}
             spellCheck={false}
             className="h-full min-w-0 flex-1 bg-transparent text-[12px] text-fg outline-none placeholder:text-fg-subtle"
           />
           {query && (
-            <button onClick={() => setQuery('')} className="text-fg-subtle hover:text-fg" aria-label="Clear">
+            <button onClick={() => setQuery('')} className="text-fg-subtle hover:text-fg" aria-label={t('outline.clear')}>
               <X className="size-3.5" />
             </button>
           )}
@@ -207,12 +209,12 @@ export function OutlinePanel() {
       </div>
       <div ref={listRef} role="tree" className="min-h-0 flex-1 overflow-y-auto pb-3">
         {!structure?.rootId ? (
-          <EmptyState icon={<ListTree />} title="No main file" description="Create a .tex file with \documentclass, or set a main file from the file tree." />
+          <EmptyState icon={<ListTree />} title={t('outline.noMainFile')} description={t('outline.noMainFileHint')} />
         ) : tab === 'sections' ? (
           tree.length ? (
             tree.map((n) => renderNode(n, 0))
           ) : (
-            <EmptyState icon={<ListTree />} title="No sections yet" description="Add \section{…} commands and they’ll appear here." />
+            <EmptyState icon={<ListTree />} title={t('outline.noSections')} description={t('outline.noSectionsHint')} />
           )
         ) : tab === 'labels' ? (
           labels.length ? (
@@ -230,7 +232,7 @@ export function OutlinePanel() {
               </button>
             ))
           ) : (
-            <EmptyState icon={<Tag />} title="No labels" description="Use \label{…} to make things referenceable." />
+            <EmptyState icon={<Tag />} title={t('outline.noLabels')} description={t('outline.noLabelsHint')} />
           )
         ) : floats.length ? (
           floats.map((f, i) => (
@@ -241,7 +243,7 @@ export function OutlinePanel() {
             >
               {f.kind === 'table' ? <Table2 className="mt-0.5 size-3.5 shrink-0 text-fg-subtle" /> : <Image className="mt-0.5 size-3.5 shrink-0 text-fg-subtle" />}
               <span className="min-w-0 flex-1">
-                <span className="line-clamp-2 leading-snug text-fg">{f.caption || <span className="italic text-fg-subtle">No caption</span>}</span>
+                <span className="line-clamp-2 leading-snug text-fg">{f.caption || <span className="italic text-fg-subtle">{t('outline.noCaption')}</span>}</span>
                 <span className="mt-0.5 block truncate text-[10.5px] text-fg-subtle">
                   {f.label ? <span className="font-mono">{f.label}</span> : f.kind} · {basename(f.path)}:{f.line}
                 </span>
@@ -249,14 +251,14 @@ export function OutlinePanel() {
             </button>
           ))
         ) : (
-          <EmptyState icon={<Image />} title="No figures or tables" description="Figures and tables with captions show up here." />
+          <EmptyState icon={<Image />} title={t('outline.noFloats')} description={t('outline.noFloatsHint')} />
         )}
       </div>
       {structure && (
         <div className="flex h-7 shrink-0 items-center gap-1.5 border-t border-border px-3 text-[11px] text-fg-subtle">
           <BookMarked className="size-3.5" />
-          {structure.bibCount} bibliography entr{structure.bibCount === 1 ? 'y' : 'ies'}
-          <span className="ml-auto truncate">{structure.files.length > 1 ? `${structure.files.length} files` : ''}</span>
+          {t('outline.bibEntries', { count: structure.bibCount })}
+          <span className="ml-auto truncate">{structure.files.length > 1 ? t('outline.fileCount', { count: structure.files.length }) : ''}</span>
         </div>
       )}
     </div>

@@ -14,6 +14,8 @@ import { useWorkspace } from '@/state/workspace';
 import { useSettings } from '@/state/settings';
 import type { ProjectSession } from '@/services/projects';
 import { downloadBlob } from '@/lib/format';
+import { intlLocale, t } from '@/lib/i18n';
+import './i18n';
 import { pruneVersions, type VersionKind } from './prune';
 import { applyMinimalTextDiff, bytesEqual, compareFiles, summarize } from './textDiff';
 import { deleteUpdates, readIndex, readUpdate, useHistory, useHistoryPrefs, withLock, writeIndex, writeUpdate, type VersionMeta } from './store';
@@ -121,7 +123,7 @@ export async function loadVersionContent(versionId: string): Promise<VersionCont
     return hit;
   }
   const update = await readUpdate(versionId);
-  if (!update) throw new Error('This version’s data is missing.');
+  if (!update) throw new Error(t('history.err.missingData'));
   const p = decodeProject(update);
   try {
     const mainId = p.getMainFileId();
@@ -200,7 +202,7 @@ export async function deleteVersion(versionId: string): Promise<void> {
 /** Apply a set of files to the live project with minimal Y.Text edits. */
 function applyFiles(target: ProjectFile[], opts: { deleteExtra: boolean; folders?: string[]; only?: string }) {
   const p = useWorkspace.getState().project;
-  if (!p) throw new Error('No project is open.');
+  if (!p) throw new Error(t('history.err.noProject'));
   p.doc.transact(() => {
     for (const f of target) {
       if (opts.only && f.path !== opts.only) continue;
@@ -235,30 +237,30 @@ function applyFiles(target: ProjectFile[], opts: { deleteExtra: boolean; folders
 }
 
 function versionTitle(v: VersionMeta) {
-  return v.label ?? new Date(v.createdAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+  return v.label ?? new Date(v.createdAt).toLocaleString(intlLocale(), { dateStyle: 'medium', timeStyle: 'short' });
 }
 
 /** Restore the whole project to a version (a safety snapshot is taken first). */
 export async function restoreVersion(versionId: string): Promise<void> {
   const v = useHistory.getState().versions.find((x) => x.id === versionId);
-  if (!v || !live) throw new Error('Version not found.');
+  if (!v || !live) throw new Error(t('history.err.notFound'));
   const content = await loadVersionContent(versionId);
-  await createSnapshot({ kind: 'safety', label: `Before restoring “${versionTitle(v)}”`, force: true });
+  await createSnapshot({ kind: 'safety', label: t('history.beforeRestoring', { title: versionTitle(v) }), force: true });
   applyFiles(content.files, { deleteExtra: true, folders: content.folders });
   const p = useWorkspace.getState().project;
   if (p && content.mainPath) {
     const mainId = p.findByPath(content.mainPath);
     if (mainId && p.getMeta().mainFileId !== mainId) p.setMeta({ mainFileId: mainId });
   }
-  await createSnapshot({ kind: 'checkpoint', label: `Restored “${versionTitle(v)}”`, force: true });
+  await createSnapshot({ kind: 'checkpoint', label: t('history.restoredLabel', { title: versionTitle(v) }), force: true });
 }
 
 /** Restore a single file (re-creates it if it was deleted, deletes it if it didn't exist then). */
 export async function restoreFile(versionId: string, path: string): Promise<void> {
   const v = useHistory.getState().versions.find((x) => x.id === versionId);
-  if (!v || !live) throw new Error('Version not found.');
+  if (!v || !live) throw new Error(t('history.err.notFound'));
   const content = await loadVersionContent(versionId);
-  await createSnapshot({ kind: 'safety', label: `Before restoring ${path}`, force: true });
+  await createSnapshot({ kind: 'safety', label: t('history.beforeRestoringFile', { path }), force: true });
   applyFiles(content.files, { deleteExtra: false, only: normalizePath(path) });
 }
 

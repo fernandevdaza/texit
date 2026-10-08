@@ -4,6 +4,8 @@ import { Dialog as D } from 'radix-ui';
 import { Download, FileMinus2, FilePen, FilePlus2, FileX2, History, RotateCcw, X } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { formatBytes } from '@/lib/format';
+import { intlLocale, t as tr, useT } from '@/lib/i18n';
+import './i18n';
 import { Avatar, Badge, Button, EmptyState, IconButton, Segmented, Spinner, Switch, confirmDialog, toast } from '@/ui';
 import type { ProjectFile } from '@texit/core';
 import { MergeDiff } from './MergeDiff';
@@ -13,10 +15,10 @@ import { useHistory, type VersionMeta } from './store';
 
 export function versionTitle(v: VersionMeta): string {
   if (v.label) return v.label;
-  if (v.kind === 'open') return 'Opened project';
-  if (v.kind === 'safety') return 'Safety copy';
-  if (v.kind === 'checkpoint') return 'Checkpoint';
-  return 'Auto-save';
+  if (v.kind === 'open') return tr('history.kind.open');
+  if (v.kind === 'safety') return tr('history.kind.safety');
+  if (v.kind === 'checkpoint') return tr('history.kind.checkpoint');
+  return tr('history.kind.auto');
 }
 
 const KIND_ICON = { added: FilePlus2, deleted: FileX2, modified: FilePen, unchanged: FileMinus2 };
@@ -38,6 +40,7 @@ function asText(c: string | Uint8Array | null): string {
 
 export function VersionDialog({ versionId, onClose }: { versionId: string; onClose: () => void }) {
   const version = useHistory((s) => s.versions.find((v) => v.id === versionId));
+  const t = useT();
   const [compare, setCompare] = useState<'current' | 'previous'>('current');
   const [mode, setMode] = useState<'split' | 'unified'>(() => (window.innerWidth < 1000 ? 'unified' : 'split'));
   const [showUnchanged, setShowUnchanged] = useState(false);
@@ -70,7 +73,7 @@ export function VersionDialog({ versionId, onClose }: { versionId: string; onClo
   const current = changes.find((c) => c.path === selected) ?? changes.find((c) => c.kind !== 'unchanged') ?? changes[0] ?? null;
 
   if (!version) return null;
-  const labels = compare === 'current' ? ['This version', 'Current'] : ['Previous version', 'This version'];
+  const labels = compare === 'current' ? [t('history.thisVersion'), t('history.current')] : [t('history.previousVersion'), t('history.thisVersion')];
 
   const doRestoreAll = async () => {
     const vsCurrent = compareFiles((await loadVersionContent(versionId)).files, currentFiles());
@@ -80,30 +83,30 @@ export function VersionDialog({ versionId, onClose }: { versionId: string; onClo
       else if (c.kind === 'deleted') s.recreated++;
       else if (c.kind === 'added') s.removed++;
     }
-    if (!vsCurrent.length) return toast.info('The project already matches this version.');
+    if (!vsCurrent.length) return toast.info(t('history.alreadyMatches'));
     const ok = await confirmDialog({
-      title: 'Restore this version?',
+      title: t('history.restoreTitle'),
       message: (
         <div className="space-y-2">
-          <p>The project files will be changed to match “{versionTitle(version)}”:</p>
+          <p>{t('history.restoreIntro', { title: versionTitle(version) })}</p>
           <ul className="list-inside list-disc text-fg-muted">
-            {s.modified > 0 && <li>{s.modified} file(s) reverted</li>}
-            {s.recreated > 0 && <li>{s.recreated} deleted file(s) re-created</li>}
-            {s.removed > 0 && <li>{s.removed} newer file(s) removed</li>}
+            {s.modified > 0 && <li>{t('history.reverted', { count: s.modified })}</li>}
+            {s.recreated > 0 && <li>{t('history.recreated', { count: s.recreated })}</li>}
+            {s.removed > 0 && <li>{t('history.removed', { count: s.removed })}</li>}
           </ul>
-          <p>A safety copy of the current state is saved first, so you can undo this. Collaborators receive the changes as regular edits.</p>
+          <p>{t('history.restoreSafety')}</p>
         </div>
       ),
-      confirmLabel: 'Restore version',
+      confirmLabel: t('history.restoreVersion'),
     });
     if (!ok) return;
     setBusy('all');
     try {
       await restoreVersion(versionId);
-      toast.success('Version restored', { description: 'A safety copy of the previous state was saved in History.' });
+      toast.success(t('history.restored'), { description: t('history.restoredDesc') });
       onClose();
     } catch (err) {
-      toast.error('Restore failed', { description: err instanceof Error ? err.message : String(err) });
+      toast.error(t('history.restoreFailed'), { description: err instanceof Error ? err.message : String(err) });
     } finally {
       setBusy(null);
     }
@@ -111,18 +114,18 @@ export function VersionDialog({ versionId, onClose }: { versionId: string; onClo
 
   const doRestoreFile = async (c: FileChange) => {
     const ok = await confirmDialog({
-      title: `Restore ${c.path}?`,
-      message: 'The file will be set to its content in this version (a safety copy is saved first).',
-      confirmLabel: 'Restore file',
+      title: t('history.restoreFileTitle', { path: c.path }),
+      message: t('history.restoreFileMessage'),
+      confirmLabel: t('history.restoreFile'),
     });
     if (!ok) return;
     setBusy(c.path);
     try {
       await restoreFile(versionId, c.path);
-      toast.success(`Restored ${c.path}`);
+      toast.success(t('history.restoredFile', { path: c.path }));
       setRefresh((x) => x + 1);
     } catch (err) {
-      toast.error('Restore failed', { description: err instanceof Error ? err.message : String(err) });
+      toast.error(t('history.restoreFailed'), { description: err instanceof Error ? err.message : String(err) });
     } finally {
       setBusy(null);
     }
@@ -146,11 +149,11 @@ export function VersionDialog({ versionId, onClose }: { versionId: string; onClo
             <div className="min-w-0 flex-1">
               <D.Title className="truncate text-[15px] font-semibold tracking-tight text-fg">{versionTitle(version)}</D.Title>
               <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[12px] text-fg-subtle">
-                <span>{date.toLocaleString(undefined, { dateStyle: 'full', timeStyle: 'short' })}</span>
+                <span>{date.toLocaleString(intlLocale(), { dateStyle: 'full', timeStyle: 'short' })}</span>
                 <span className="flex items-center gap-1">
                   <Avatar name={version.author.name} color={version.author.color} size={14} /> {version.author.name}
                 </span>
-                <span>{version.fileCount} files</span>
+                <span>{t('history.files', { count: version.fileCount })}</span>
                 <span>{formatBytes(version.size)}</span>
               </div>
             </div>
@@ -159,18 +162,18 @@ export function VersionDialog({ versionId, onClose }: { versionId: string; onClo
               value={compare}
               onChange={setCompare}
               options={[
-                { value: 'current', label: 'Compare with current', title: 'What changed since this version' },
-                { value: 'previous', label: 'Changes in this version', title: 'What changed compared with the previous version' },
+                { value: 'current', label: t('history.compareCurrent'), title: t('history.compareCurrentTitle') },
+                { value: 'previous', label: t('history.compareChanges'), title: t('history.compareChangesTitle') },
               ]}
             />
             <Button size="sm" icon={<Download />} onClick={() => void downloadVersionZip(versionId).catch((e) => toast.error(String(e?.message ?? e)))}>
               .zip
             </Button>
             <Button size="sm" variant="primary" icon={<RotateCcw />} loading={busy === 'all'} onClick={() => void doRestoreAll()}>
-              Restore this version
+              {t('history.restoreThis')}
             </Button>
             <D.Close asChild>
-              <IconButton label="Close" size="sm">
+              <IconButton label={t('common.close')} size="sm">
                 <X />
               </IconButton>
             </D.Close>
@@ -181,7 +184,7 @@ export function VersionDialog({ versionId, onClose }: { versionId: string; onClo
             <aside className="flex w-64 shrink-0 flex-col border-r border-border bg-surface">
               <div className="flex items-center justify-between px-3 pb-1.5 pt-2.5">
                 <span className="text-[11px] font-semibold uppercase tracking-wider text-fg-subtle">
-                  {summary.files} changed file{summary.files === 1 ? '' : 's'}
+                  {t('history.changedFiles', { count: summary.files })}
                 </span>
                 <ChangeCounts added={summary.added} removed={summary.removed} />
               </div>
@@ -191,7 +194,7 @@ export function VersionDialog({ versionId, onClose }: { versionId: string; onClo
                     <Spinner />
                   </div>
                 )}
-                {sides && !changes.length && <p className="px-2 py-6 text-center text-[12px] text-fg-subtle">No differences.</p>}
+                {sides && !changes.length && <p className="px-2 py-6 text-center text-[12px] text-fg-subtle">{t('history.noDifferences')}</p>}
                 {changes.map((c) => {
                   const Icon = KIND_ICON[c.kind];
                   const active = current?.path === c.path;
@@ -217,23 +220,23 @@ export function VersionDialog({ versionId, onClose }: { versionId: string; onClo
                 })}
               </div>
               <label className="flex items-center gap-2 border-t border-border px-3 py-2 text-[11.5px] text-fg-muted">
-                <Switch size="sm" checked={showUnchanged} onCheckedChange={setShowUnchanged} /> Show unchanged files
+                <Switch size="sm" checked={showUnchanged} onCheckedChange={setShowUnchanged} /> {t('history.showUnchanged')}
               </label>
             </aside>
 
             <section className="flex min-w-0 flex-1 flex-col bg-surface">
               {error ? (
-                <EmptyState title="Could not load this version" description={error} />
+                <EmptyState title={t('history.loadFailed')} description={error} />
               ) : !current ? (
-                sides ? <EmptyState icon={<History />} title="Identical" description={compare === 'current' ? 'The project is identical to this version.' : 'No file changed in this version.'} /> : null
+                sides ? <EmptyState icon={<History />} title={t('history.identical')} description={compare === 'current' ? t('history.identicalCurrent') : t('history.identicalPrevious')} /> : null
               ) : (
                 <>
                   <div className="flex items-center gap-2 border-b border-border px-3 py-2">
                     <span className="truncate font-mono text-[12px] text-fg">{current.path}</span>
                     <Badge tone={current.kind === 'added' ? 'success' : current.kind === 'deleted' ? 'danger' : current.kind === 'modified' ? 'warning' : 'neutral'}>
                       {compare === 'current'
-                        ? { added: 'new since', deleted: 'deleted since', modified: 'changed since', unchanged: 'unchanged' }[current.kind]
-                        : current.kind}
+                        ? t(`history.since.${current.kind}`)
+                        : t(`history.kindBadge.${current.kind}`)}
                     </Badge>
                     <div className="flex-1" />
                     <span className="hidden text-[11px] text-fg-subtle md:inline">
@@ -245,14 +248,14 @@ export function VersionDialog({ versionId, onClose }: { versionId: string; onClo
                         value={mode}
                         onChange={setMode}
                         options={[
-                          { value: 'split', label: 'Split' },
-                          { value: 'unified', label: 'Unified' },
+                          { value: 'split', label: t('history.split') },
+                          { value: 'unified', label: t('history.unified') },
                         ]}
                       />
                     )}
                     {(compare === 'current' ? current.kind !== 'unchanged' : true) && (
                       <Button size="sm" icon={<RotateCcw />} loading={busy === current.path} onClick={() => void doRestoreFile(current)}>
-                        Restore file
+                        {t('history.restoreFile')}
                       </Button>
                     )}
                   </div>
@@ -265,7 +268,7 @@ export function VersionDialog({ versionId, onClose }: { versionId: string; onClo
                   <div className="min-h-0 flex-1">
                     {current.binary ? (
                       <EmptyState
-                        title="Binary file"
+                        title={t('history.binary')}
                         description={`${current.before ? formatBytes((current.before as Uint8Array).byteLength ?? 0) : '—'} → ${
                           current.after ? formatBytes((current.after as Uint8Array).byteLength ?? 0) : '—'
                         }`}

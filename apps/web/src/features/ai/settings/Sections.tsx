@@ -3,6 +3,7 @@ import { Check, Copy, Download, Plug, Plus, RefreshCw, Server, Terminal, Trash2 
 import { CLI_AGENT_PRESETS } from '@texit/ai';
 import type { CliAgentInfo, McpClientConfigSnippet, McpServerInfo } from '@texit/core';
 import { host } from '@/lib/platform';
+import { t as tr, useT } from '@/lib/i18n';
 import { Badge, Button, confirmDialog, IconButton, Input, openModal, Segmented, Spinner, Switch, Textarea, toast } from '@/ui';
 import { Card, Row } from '@/features/settings/parts';
 import { reconnectMcp, syncMcpServers, useMcpStatus } from '../runtime';
@@ -32,6 +33,7 @@ function splitArgs(s: string): string[] {
 }
 
 function McpForm({ initial, close }: { initial?: McpEntry; close: () => void }) {
+  const t = useT();
   const [name, setName] = useState(initial?.name ?? '');
   const [transport, setTransport] = useState<McpEntry['transport']>(initial?.transport ?? 'http');
   const [url, setUrl] = useState(initial?.url ?? '');
@@ -39,7 +41,8 @@ function McpForm({ initial, close }: { initial?: McpEntry; close: () => void }) 
   const [command, setCommand] = useState(initial?.command ?? '');
   const [args, setArgs] = useState(initial?.args?.join(' ') ?? '');
   const [env, setEnv] = useState(() => formatPairs(initial ? getSecretJson(secretKeys.mcpEnv(initial.id)) : undefined, '='));
-  const valid = name.trim() && (transport === 'stdio' ? command.trim() : /^https?:\/\//.test(url.trim()));
+  const urlOk = /^https?:\/\//.test(url.trim());
+  const valid = name.trim() && (transport === 'stdio' ? command.trim() : urlOk);
 
   const save = async () => {
     const id = initial?.id ?? newId('mcp');
@@ -72,11 +75,11 @@ function McpForm({ initial, close }: { initial?: McpEntry; close: () => void }) 
       }}
     >
       <div className="space-y-1.5">
-        <label className="text-[12px] font-medium">Name</label>
-        <Input autoFocus value={name} placeholder="e.g. Zotero, GitHub, arXiv" onChange={(e) => setName(e.target.value)} />
+        <label className="text-[12px] font-medium">{t('ai.mcp.name')}</label>
+        <Input autoFocus value={name} placeholder={t('ai.mcp.namePlaceholder')} onChange={(e) => setName(e.target.value)} />
       </div>
       <div className="space-y-1.5">
-        <label className="text-[12px] font-medium">Transport</label>
+        <label className="text-[12px] font-medium">{t('ai.mcp.transport')}</label>
         <div>
           <Segmented
             size="sm"
@@ -85,7 +88,7 @@ function McpForm({ initial, close }: { initial?: McpEntry; close: () => void }) 
             options={[
               { value: 'http', label: 'Streamable HTTP' },
               { value: 'sse', label: 'SSE' },
-              ...(host ? [{ value: 'stdio' as const, label: 'stdio (local command)' }] : []),
+              ...(host ? [{ value: 'stdio' as const, label: t('ai.mcp.stdio') }] : []),
             ]}
           />
         </div>
@@ -93,38 +96,39 @@ function McpForm({ initial, close }: { initial?: McpEntry; close: () => void }) 
       {transport === 'stdio' ? (
         <>
           <div className="space-y-1.5">
-            <label className="text-[12px] font-medium">Command</label>
+            <label className="text-[12px] font-medium">{t('ai.mcp.command')}</label>
             <Input value={command} placeholder="npx" onChange={(e) => setCommand(e.target.value)} className="font-mono" />
           </div>
           <div className="space-y-1.5">
-            <label className="text-[12px] font-medium">Arguments</label>
+            <label className="text-[12px] font-medium">{t('ai.mcp.arguments')}</label>
             <Input value={args} placeholder="-y @modelcontextprotocol/server-filesystem ~/papers" onChange={(e) => setArgs(e.target.value)} className="font-mono" />
           </div>
           <div className="space-y-1.5">
-            <label className="text-[12px] font-medium">Environment</label>
+            <label className="text-[12px] font-medium">{t('ai.mcp.environment')}</label>
             <Textarea value={env} placeholder={'API_TOKEN=…'} onChange={(e) => setEnv(e.target.value)} className="min-h-16 font-mono text-[12px]" />
           </div>
         </>
       ) : (
         <>
           <div className="space-y-1.5">
-            <label className="text-[12px] font-medium">URL</label>
+            <label className="text-[12px] font-medium">{t('ai.mcp.url')}</label>
             <Input value={url} placeholder="https://example.com/mcp" onChange={(e) => setUrl(e.target.value)} className="font-mono" />
-            {!host && <p className="text-[11px] text-fg-subtle">The server must allow cross-origin requests from this site (CORS).</p>}
+            {url.trim() && !urlOk && <p className="text-[11px] text-danger">{t('ai.mcp.invalidUrl')}</p>}
+            {!host && <p className="text-[11px] text-fg-subtle">{t('ai.mcp.cors')}</p>}
           </div>
           <div className="space-y-1.5">
-            <label className="text-[12px] font-medium">Headers</label>
+            <label className="text-[12px] font-medium">{t('ai.mcp.headers')}</label>
             <Textarea value={headers} placeholder={'Authorization: Bearer …'} onChange={(e) => setHeaders(e.target.value)} className="min-h-16 font-mono text-[12px]" />
           </div>
         </>
       )}
-      <p className="text-[11px] text-fg-subtle">Headers and environment variables are stored with your API keys (never synced).</p>
+      <p className="text-[11px] text-fg-subtle">{t('ai.mcp.secretsNote')}</p>
       <div className="flex justify-end gap-2 pt-1">
         <Button variant="ghost" onClick={close}>
-          Cancel
+          {t('common.cancel')}
         </Button>
         <Button type="submit" variant="primary" disabled={!valid}>
-          {initial ? 'Save' : 'Add server'}
+          {initial ? t('common.save') : t('ai.mcp.addServer')}
         </Button>
       </div>
     </form>
@@ -132,10 +136,11 @@ function McpForm({ initial, close }: { initial?: McpEntry; close: () => void }) 
 }
 
 export function editMcpServer(initial?: McpEntry) {
-  void openModal({ title: initial ? `Edit ${initial.name}` : 'Add MCP server', width: 'max-w-lg', render: (close) => <McpForm initial={initial} close={close} /> });
+  void openModal({ title: initial ? tr('ai.mcp.editTitle', { name: initial.name }) : tr('ai.mcp.addTitle'), width: 'max-w-lg', render: (close) => <McpForm initial={initial} close={close} /> });
 }
 
 export function McpSection() {
+  const t = useT();
   const servers = useAiSettings((s) => s.mcpServers);
   const statuses = useMcpStatus((s) => s.statuses);
   useEffect(() => {
@@ -143,17 +148,17 @@ export function McpSection() {
   }, [servers]);
   return (
     <Card
-      title="MCP servers"
-      description="Tools from Model Context Protocol servers are offered to the agent as mcp__<server>__<tool>."
+      title={t('ai.mcp.title')}
+      description={t('ai.mcp.desc')}
       action={
         <Button size="xs" variant="ghost" icon={<Plus />} onClick={() => editMcpServer()}>
-          Add server
+          {t('ai.mcp.addServer')}
         </Button>
       }
     >
       {servers.length === 0 && (
         <div className="flex items-center gap-3 px-4 py-4 text-[12px] text-fg-subtle">
-          <Plug className="size-4" /> No MCP servers yet. Connect search, reference managers, databases and more.
+          <Plug className="size-4" /> {t('ai.mcp.empty')}
         </div>
       )}
       {servers.map((s) => {
@@ -171,25 +176,25 @@ export function McpSection() {
                 <StatusDot tone={tone} />
                 <span className="truncate" title={st?.error}>
                   {!s.enabled
-                    ? 'Disabled'
+                    ? t('common.disabled')
                     : st?.state === 'connected'
-                      ? `Connected · ${st.toolCount} tool${st.toolCount === 1 ? '' : 's'}`
+                      ? t('ai.mcp.connected', { count: st.toolCount })
                       : st?.state === 'error'
                         ? st.error
                         : st?.state === 'connecting'
-                          ? 'Connecting…'
+                          ? t('ai.mcp.connecting')
                           : (s.url ?? [s.command, ...(s.args ?? [])].join(' '))}
                 </span>
               </div>
             </button>
-            <IconButton label="Reconnect" onClick={() => void reconnectMcp(s.id)} disabled={!s.enabled}>
+            <IconButton label={t('ai.mcp.reconnect')} onClick={() => void reconnectMcp(s.id)} disabled={!s.enabled}>
               <RefreshCw />
             </IconButton>
             <Switch size="sm" checked={s.enabled} onCheckedChange={(v) => useAiSettings.getState().updateMcpServer(s.id, { enabled: v })} />
             <IconButton
-              label="Remove"
+              label={t('common.remove')}
               onClick={async () => {
-                if (!(await confirmDialog({ title: `Remove ${s.name}?`, confirmLabel: 'Remove', danger: true }))) return;
+                if (!(await confirmDialog({ title: t('ai.mcp.removeTitle', { name: s.name }), confirmLabel: t('common.remove'), danger: true }))) return;
                 await setSecret(secretKeys.mcpHeaders(s.id), null);
                 await setSecret(secretKeys.mcpEnv(s.id), null);
                 useAiSettings.getState().removeMcpServer(s.id);
@@ -235,6 +240,7 @@ export function buildSnippets(info: McpServerInfo): McpClientConfigSnippet[] {
 }
 
 function Snippet({ s }: { s: McpClientConfigSnippet }) {
+  const t = useT();
   const [copied, setCopied] = useState(false);
   return (
     <div className="overflow-hidden rounded-lg border border-border bg-surface-2">
@@ -244,7 +250,7 @@ function Snippet({ s }: { s: McpClientConfigSnippet }) {
         </span>
         <IconButton
           size="xs"
-          label="Copy"
+          label={copied ? t('common.copied') : t('common.copy')}
           onClick={() =>
             void navigator.clipboard.writeText(s.snippet).then(() => {
               setCopied(true);
@@ -261,6 +267,7 @@ function Snippet({ s }: { s: McpClientConfigSnippet }) {
 }
 
 export function ExposeSection() {
+  const t = useT();
   const expose = useAiSettings((s) => s.exposeMcpServer);
   const autoApply = useAiSettings((s) => s.autoApplyEdits);
   const [info, setInfo] = useState<McpServerInfo | null>(null);
@@ -284,25 +291,25 @@ export function ExposeSection() {
       }
     };
     void poll();
-    const t = setInterval(poll, 2500);
+    const timer = setInterval(poll, 2500);
     return () => {
       alive = false;
-      clearInterval(t);
+      clearInterval(timer);
     };
   }, [expose]);
 
   if (!host) {
     return (
-      <Card title="TexIt as an MCP server" description="Let external agents (Claude Code, Codex, Cursor…) read, edit and compile the open project.">
-        <Row title="Available in the desktop app" description="The browser cannot host a local server." />
+      <Card title={t('ai.expose.title')} description={t('ai.expose.descWeb')}>
+        <Row title={t('ai.expose.desktopOnly')} description={t('ai.expose.noLocalServer')} />
       </Card>
     );
   }
   return (
-    <Card title="TexIt as an MCP server" description="External agents connect over Streamable HTTP on localhost with a bearer token. Their edits follow your auto-apply setting.">
+    <Card title={t('ai.expose.title')} description={t('ai.expose.desc')}>
       <Row
-        title="Expose the open project"
-        description={autoApply ? 'Edits from external agents are applied immediately.' : 'Edits from external agents appear in the AI panel for review.'}
+        title={t('ai.expose.toggle')}
+        description={autoApply ? t('ai.expose.autoApplied') : t('ai.expose.reviewed')}
       >
         <Switch checked={expose} onCheckedChange={(v) => useAiSettings.getState().set({ exposeMcpServer: v })} />
       </Row>
@@ -310,13 +317,13 @@ export function ExposeSection() {
         <div className="space-y-2.5 px-4 py-3.5">
           {!info?.running ? (
             <div className="flex items-center gap-2 text-[12px] text-fg-subtle">
-              <Spinner className="size-3.5" /> Starting server… (open a project)
+              <Spinner className="size-3.5" /> {t('ai.expose.starting')}
             </div>
           ) : (
             <>
               <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px]">
                 <span className="flex items-center gap-1.5">
-                  <StatusDot tone="ok" /> Running
+                  <StatusDot tone="ok" /> {t('ai.expose.running')}
                 </span>
                 <span className="font-mono text-fg-muted">{info.url}</span>
                 {info.token && (
@@ -339,6 +346,7 @@ export function ExposeSection() {
 // ─────────────────────────── CLI agents ───────────────────────────
 
 export function CliSection() {
+  const t = useT();
   const [agents, setAgents] = useState<CliAgentInfo[] | null>(null);
   const providers = useAiSettings((s) => s.providers);
   const detect = async () => {
@@ -346,7 +354,7 @@ export function CliSection() {
     try {
       setAgents((await host?.agents.detect()) ?? []);
     } catch (e) {
-      toast.error('Could not detect CLI agents', { description: (e as Error).message });
+      toast.error(tr('ai.cli.detectFailed'), { description: (e as Error).message });
       setAgents([]);
     }
   };
@@ -355,45 +363,47 @@ export function CliSection() {
   }, []);
   if (!host) {
     return (
-      <Card title="Use your subscription (CLI agents)" description="Codex CLI (ChatGPT), Claude Code (Claude) and Gemini CLI run locally through the desktop app.">
-        <Row title="Available in the desktop app" description="Download TexIt for macOS, Windows or Linux to use your existing subscription instead of an API key." />
+      <Card title={t('ai.cli.title')} description={t('ai.cli.descWeb')}>
+        <Row title={t('ai.expose.desktopOnly')} description={t('ai.cli.downloadDesktop')} />
       </Card>
     );
   }
   return (
     <Card
-      title="Use your subscription (CLI agents)"
-      description="The project is mirrored to a local folder; the agent edits it there and changes sync back into TexIt."
+      title={t('ai.cli.title')}
+      description={t('ai.cli.desc')}
       action={
         <Button size="xs" variant="ghost" icon={<RefreshCw />} onClick={() => void detect()}>
-          Detect
+          {t('ai.cli.detect')}
         </Button>
       }
     >
       {!agents && (
         <div className="flex items-center gap-2 px-4 py-4 text-[12px] text-fg-subtle">
-          <Spinner className="size-3.5" /> Looking for installed agents…
+          <Spinner className="size-3.5" /> {t('ai.cli.looking')}
         </div>
       )}
       {agents &&
         CLI_AGENT_PRESETS.map((preset) => {
           const a = agents.find((x) => x.id === preset.id);
           const added = providers.find((p) => p.kind === 'cli' && p.cliAgent === preset.id);
+          const installHint = a?.hint ?? t(`ai.cli.${preset.id}.installHint`, undefined, preset.installHint);
+          const description = t(`ai.cli.${preset.id}.description`, undefined, preset.description);
           return (
             <div key={preset.id} className="flex items-center gap-3 px-4 py-2.5">
               <ProviderLogo kind="cli" cliAgent={preset.id} size={28} />
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2 text-[13px] font-medium">
                   {preset.label}
-                  {a?.installed ? <Badge tone="success">{a.version ?? 'installed'}</Badge> : <Badge tone="neutral">not found</Badge>}
+                  {a?.installed ? <Badge tone="success">{a.version ?? t('ai.cli.installed')}</Badge> : <Badge tone="neutral">{t('ai.cli.notFound')}</Badge>}
                 </div>
-                <div className="mt-0.5 truncate text-[11.5px] text-fg-subtle" title={a?.installed ? a.path : (a?.hint ?? preset.installHint)}>
-                  {a?.installed ? preset.description : (a?.hint ?? preset.installHint)}
+                <div className="mt-0.5 truncate text-[11.5px] text-fg-subtle" title={a?.installed ? a.path : installHint}>
+                  {a?.installed ? description : installHint}
                 </div>
               </div>
               {added ? (
                 <Badge tone="accent">
-                  <Check /> Added
+                  <Check /> {t('ai.cli.added')}
                 </Badge>
               ) : (
                 <Button
@@ -413,7 +423,7 @@ export function CliSection() {
                     })
                   }
                 >
-                  Use
+                  {t('ai.cli.use')}
                 </Button>
               )}
             </div>

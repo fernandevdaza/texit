@@ -3,6 +3,7 @@
  * Trystero/WebRTC, end-to-end encrypted), presence, follow mode, chat and
  * review comments.
  */
+import './i18n';
 import { Link2, MessageCircle, MessageSquarePlus, MessageSquareText, Pause, RefreshCw, Users, UserX } from 'lucide-react';
 import type { Disposable, ProjectDoc } from '@texit/core';
 import { registerCommands } from '@/services/commands';
@@ -20,6 +21,7 @@ import { listThreads, lineCol } from './comments';
 import { useCollabSettings } from './settings';
 import { copyInviteLink } from './ShareDialog';
 import { stopFollowing } from './follow';
+import { t } from '@/lib/i18n';
 
 export { getProvider, useCollab, startSharing, stopSharing, inviteLink } from './session';
 export { TrysteroProvider } from './provider';
@@ -72,7 +74,7 @@ function watchProjectActivity(): () => void {
             if (isValidMessage(m) && m.uid !== me && Date.now() - m.ts < 60_000) {
               toast(m.name, {
                 description: m.text.length > 140 ? `${m.text.slice(0, 140)}…` : m.text,
-                action: { label: 'Reply', onClick: () => useLayout.getState().showSidebarPanel('chat') },
+                action: { label: t('collab.reply'), onClick: () => useLayout.getState().showSidebarPanel('chat') },
               });
             }
           }
@@ -126,12 +128,12 @@ function addCommentFromSelection() {
   const project = ws.project;
   const sel = getEditorBridge()?.getSelection();
   if (!project || !sel) {
-    toast.message('Open a file and select some text to comment on');
+    toast.message(t('collab.selectTextToComment'));
     return;
   }
   const yt = project.getYText(sel.fileId);
   if (!yt) {
-    toast.message('Comments can only be added to text files');
+    toast.message(t('collab.commentsTextOnly'));
     return;
   }
   const text = yt.toString();
@@ -166,7 +168,7 @@ export function activate() {
   offs.push(() => status.dispose(), () => ext.dispose(), watchProjectActivity(), watchViewOnly());
 
   const cmds = registerCommands([
-    { id: 'collab.share', title: 'Share project…', category: 'Collaboration', icon: Users, when: inProject, keywords: ['collaborate', 'invite', 'p2p'], run: () => openShareDialog() },
+    { id: 'collab.share', title: 'Share project…', category: 'Collaboration', icon: Users, when: inProject, keywords: ['collaborate', 'invite', 'p2p', 'compartir', 'colaborar', 'invitar'], run: () => openShareDialog() },
     {
       id: 'collab.copyInvite',
       title: 'Copy invite link',

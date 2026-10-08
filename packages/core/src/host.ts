@@ -255,6 +255,8 @@ export interface HostApp {
   onDeepLink?(cb: (url: string) => void): () => void;
   /** Windows/Linux: recolor the window-controls overlay to match the app theme (additive, no-op on macOS). */
   setTitleBarOverlay?(opts: { color?: string; symbolColor?: string; height?: number }): Promise<void>;
+  /** UI language of the renderer, so the native menu can be localized (additive). */
+  setLocale?(locale: 'en' | 'es'): void;
 }
 
 /**

@@ -2,6 +2,7 @@
  * Dashboard feature: project library, first-run hero, new-project gallery,
  * imports (zip / folder / drag & drop) and joining shared projects.
  */
+import './i18n';
 import { FileArchive, FilePlus2, FolderOpen, LayoutGrid, Link2, Search } from 'lucide-react';
 import { registerCommands } from '@/services/commands';
 import { useWorkspace } from '@/state/workspace';

@@ -4,10 +4,13 @@ import './index.css';
 import 'katex/dist/katex.min.css';
 import { App } from './App';
 import { initThemeSync } from './state/settings';
+import { initI18n } from './lib/i18n';
+import './lib/i18n-common';
 import { installGlobalKeybindings } from './services/commands';
 import { activateFeatures } from './features/activate';
 
 initThemeSync();
+initI18n();
 installGlobalKeybindings();
 activateFeatures();
 

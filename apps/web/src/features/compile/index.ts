@@ -2,12 +2,14 @@
  * Compile feature: controller (CompileService + backends + auto-compile),
  * top-bar button, Problems / Raw log panels, commands and status-bar items.
  */
+import './i18n';
 import { ArrowDown, ArrowUp, Eraser, Play, Repeat, Square, Zap } from 'lucide-react';
 import type { TexEngine } from '@texit/core';
 import { registerCommands } from '@/services/commands';
 import { registerStatusItem } from '@/services/panels';
 import { useSettings } from '@/state/settings';
 import { useLayout, useWorkspace } from '@/state/workspace';
+import { t } from '@/lib/i18n';
 import { toast } from '@/ui';
 import { ENGINE_LABELS, getController, startCompileController } from './controller';
 import { setProjectEngine } from './actions';
@@ -61,7 +63,7 @@ export function activate(): () => void {
         run: () => {
           const s = useSettings.getState();
           s.setCompile({ auto: !s.compile.auto });
-          toast(`Auto-compile ${!s.compile.auto ? 'on' : 'off'}`, { id: 'compile-auto', duration: 1500 });
+          toast(t(!s.compile.auto ? 'compile.autoOn' : 'compile.autoOff'), { id: 'compile-auto', duration: 1500 });
         },
       },
       {
@@ -72,7 +74,7 @@ export function activate(): () => void {
         run: () => {
           const s = useSettings.getState();
           s.setCompile({ draftWhileTyping: !s.compile.draftWhileTyping });
-          toast(`Draft passes while typing ${!s.compile.draftWhileTyping ? 'on' : 'off'}`, { id: 'compile-draft', duration: 1500 });
+          toast(t(!s.compile.draftWhileTyping ? 'compile.draftOn' : 'compile.draftOff'), { id: 'compile-draft', duration: 1500 });
         },
       },
       {

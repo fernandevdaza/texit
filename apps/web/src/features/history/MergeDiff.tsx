@@ -7,6 +7,8 @@ import { HighlightStyle, syntaxHighlighting } from '@codemirror/language';
 import { tags as t } from '@lezer/highlight';
 import { latex } from 'codemirror-lang-latex';
 import { extname } from '@texit/core';
+import { t as tr, useLocale } from '@/lib/i18n';
+import './i18n';
 
 const theme = EditorView.theme({
   '&': { fontSize: '12.5px', backgroundColor: 'var(--tx-surface)', color: 'var(--tx-fg)', height: '100%' },
@@ -60,6 +62,13 @@ function language(path: string): Extension[] {
 
 function base(path: string): Extension[] {
   return [
+    // @codemirror/merge UI strings ("$ unchanged lines", …) in the UI language.
+    EditorState.phrases.of({
+      '$ unchanged lines': tr('history.unchangedLines'),
+      'Revert this chunk': tr('history.revertChunk'),
+      Accept: tr('history.accept'),
+      Reject: tr('history.reject'),
+    }),
     lineNumbers(),
     EditorView.lineWrapping,
     EditorState.readOnly.of(true),
@@ -72,6 +81,7 @@ function base(path: string): Extension[] {
 
 export function MergeDiff({ path, before, after, mode }: { path: string; before: string; after: string; mode: 'split' | 'unified' }) {
   const ref = useRef<HTMLDivElement>(null);
+  const locale = useLocale();
   useEffect(() => {
     const parent = ref.current;
     if (!parent) return;
@@ -96,6 +106,6 @@ export function MergeDiff({ path, before, after, mode }: { path: string; before:
       }),
     });
     return () => view.destroy();
-  }, [path, before, after, mode]);
+  }, [path, before, after, mode, locale]);
   return <div ref={ref} className="h-full min-h-0 overflow-auto [&_.cm-mergeView]:h-full [&_.cm-mergeViewEditors]:min-h-full" />;
 }

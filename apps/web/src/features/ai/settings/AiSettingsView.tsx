@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { ChevronDown, FlaskConical, KeyRound, ShieldCheck, Sparkles } from 'lucide-react';
 import { PROVIDER_PRESETS, getProviderPreset, type ProviderKind } from '@texit/ai';
 import { host } from '@/lib/platform';
+import { t as tr, useLocale, useT } from '@/lib/i18n';
 import { Button, confirmDialog, DropdownMenu, Select, Switch, Textarea, type MenuEntry, type SelectOption } from '@/ui';
 import { Card, Row, ToggleRow } from '@/features/settings/parts';
 import { DEV, providerReady } from '../runtime';
@@ -44,13 +45,13 @@ function addPreset(kind: ProviderKind | typeof DEV_MOCK_KIND) {
 }
 
 function addMenu(): MenuEntry[] {
-  const items: MenuEntry[] = [{ type: 'label', label: 'API providers' }];
+  const items: MenuEntry[] = [{ type: 'label', label: tr('ai.settings.apiProviders') }];
   for (const p of PROVIDER_PRESETS) {
     if (p.kind === 'cli') continue;
-    if (p.kind === 'ollama') items.push({ type: 'separator' }, { type: 'label', label: 'Local & custom' });
-    items.push({ label: p.label, icon: <ProviderLogo kind={p.kind} size={16} />, hint: p.kind === 'ollama' || p.kind === 'lmstudio' ? 'local' : undefined, onSelect: () => addPreset(p.kind) });
+    if (p.kind === 'ollama') items.push({ type: 'separator' }, { type: 'label', label: tr('ai.settings.localCustom') });
+    items.push({ label: p.label, icon: <ProviderLogo kind={p.kind} size={16} />, hint: p.kind === 'ollama' || p.kind === 'lmstudio' ? tr('ai.settings.local') : undefined, onSelect: () => addPreset(p.kind) });
   }
-  if (DEV) items.push({ type: 'separator' }, { label: 'Dev mock (no network)', icon: <FlaskConical />, onSelect: () => addPreset(DEV_MOCK_KIND) });
+  if (DEV) items.push({ type: 'separator' }, { label: tr('ai.settings.devMock'), icon: <FlaskConical />, onSelect: () => addPreset(DEV_MOCK_KIND) });
   return items;
 }
 
@@ -62,7 +63,7 @@ function modelOptions(providers: ProviderEntry[], allowCli: boolean): SelectOpti
       out.push({
         value: `${p.id}::${m}`,
         label: m,
-        description: `${p.name}${providerReady(p) ? '' : ' · needs setup'}`,
+        description: `${p.name}${providerReady(p) ? '' : ` · ${tr('ai.needsSetup')}`}`,
         icon: <ProviderLogo kind={p.kind} cliAgent={p.cliAgent} size={14} />,
       });
     }
@@ -77,34 +78,34 @@ const decode = (v: string) => {
 };
 
 function KeyStorageCard() {
+  const t = useT();
   const persist = useSecrets((s) => s.webPersist);
   if (host) {
     return (
       <div className="mb-6 flex items-center gap-2.5 rounded-xl border border-border bg-success-soft/50 px-3.5 py-2.5 text-[12px] text-fg-muted">
         <ShieldCheck className="size-4 shrink-0 text-success" />
-        API keys are stored in your operating system's keychain and never synced to collaborators.
+        {t('ai.settings.keychainNote')}
       </div>
     );
   }
   return (
-    <Card title="API keys" description="Keys are sent only to the provider you configure. They are never stored in the project or shared with collaborators.">
+    <Card title={t('ai.settings.apiKeys')} description={t('ai.settings.apiKeysDesc')}>
       <Row
         title={
           <span className="flex items-center gap-1.5">
-            <KeyRound className="size-3.5 text-fg-subtle" /> Remember API keys in this browser
+            <KeyRound className="size-3.5 text-fg-subtle" /> {t('ai.settings.rememberKeys')}
           </span>
         }
-        description={persist ? 'Stored only in this browser (localStorage). Anyone with access to this browser profile can read them.' : 'Off: keys are kept in memory and forgotten when you reload.'}
+        description={persist ? t('ai.settings.rememberOn') : t('ai.settings.rememberOff')}
       >
         <Switch
           checked={persist}
           onCheckedChange={async (v) => {
             if (v) {
               const ok = await confirmDialog({
-                title: 'Remember API keys in this browser?',
-                message:
-                  'Keys will be saved in this browser’s localStorage, readable by code running on this site and by anyone using this browser profile. They are never synced to collaborators or included in projects. Use the desktop app to store keys in your OS keychain instead.',
-                confirmLabel: 'Remember keys',
+                title: t('ai.settings.rememberConfirmTitle'),
+                message: t('ai.settings.rememberConfirmMessage'),
+                confirmLabel: t('ai.settings.rememberConfirmLabel'),
               });
               if (!ok) return;
             }
@@ -117,10 +118,12 @@ function KeyStorageCard() {
 }
 
 export default function AiSettingsView() {
+  const t = useT();
+  const locale = useLocale();
   const s = useAiSettings();
   useSecrets((x) => x.values);
-  const chatOptions = useMemo(() => modelOptions(s.providers, true), [s.providers]);
-  const fastOptions = useMemo(() => modelOptions(s.providers, false), [s.providers]);
+  const chatOptions = useMemo(() => modelOptions(s.providers, true), [s.providers, locale]);
+  const fastOptions = useMemo(() => modelOptions(s.providers, false), [s.providers, locale]);
   const providers = s.providers.filter((p) => p.kind !== DEV_MOCK_KIND || DEV);
 
   return (
@@ -128,7 +131,7 @@ export default function AiSettingsView() {
       <KeyStorageCard />
 
       <Card
-        title="Model providers"
+        title={t('ai.settings.providers')}
         action={
           providers.length > 0 && (
             <DropdownMenu
@@ -136,7 +139,7 @@ export default function AiSettingsView() {
               items={addMenu()}
               trigger={
                 <Button size="xs" variant="ghost" iconRight={<ChevronDown />}>
-                  Add provider
+                  {t('ai.settings.addProvider')}
                 </Button>
               }
             />
@@ -148,9 +151,9 @@ export default function AiSettingsView() {
             <div className="mx-auto mb-3 flex size-10 items-center justify-center rounded-xl bg-[linear-gradient(135deg,var(--tx-accent),#b06cff)] text-white shadow-md shadow-accent/25">
               <Sparkles className="size-5" />
             </div>
-            <div className="text-[13.5px] font-semibold">Add your first model provider</div>
+            <div className="text-[13.5px] font-semibold">{t('ai.settings.firstProvider')}</div>
             <p className="mx-auto mt-1 max-w-sm text-[12px] leading-relaxed text-fg-subtle">
-              Bring your own API key, run a local model, or {host ? 'use your ChatGPT / Claude / Gemini subscription below.' : 'use the desktop app with your subscription.'}
+              {t(host ? 'ai.settings.firstProviderDesktop' : 'ai.settings.firstProviderWeb')}
             </p>
             <div className="mx-auto mt-4 grid max-w-md grid-cols-3 gap-2">
               {QUICK.map((q) => (
@@ -169,7 +172,7 @@ export default function AiSettingsView() {
                 items={addMenu()}
                 trigger={
                   <Button size="sm" variant="ghost" iconRight={<ChevronDown />}>
-                    More providers
+                    {t('ai.settings.moreProviders')}
                   </Button>
                 }
               />
@@ -184,46 +187,46 @@ export default function AiSettingsView() {
         )}
       </Card>
 
-      <Card title="Models & behaviour">
-        <Row title="Chat model" description="Used by the assistant panel and Cmd-K edits.">
+      <Card title={t('ai.settings.models')}>
+        <Row title={t('ai.settings.chatModel')} description={t('ai.settings.chatModelDesc')}>
           <Select
             className="w-60"
             size="sm"
             align="end"
-            placeholder="Choose a model"
+            placeholder={t('ai.settings.chooseModel')}
             value={encode(s.chatModel)}
             onValueChange={(v) => s.set({ chatModel: decode(v) })}
             options={chatOptions}
           />
         </Row>
-        <Row title="Fast model" description="Used for ghost-text completions. Pick a small, fast model.">
+        <Row title={t('ai.settings.fastModel')} description={t('ai.settings.fastModelDesc')}>
           <Select
             className="w-60"
             size="sm"
             align="end"
-            placeholder="Same as chat model"
+            placeholder={t('ai.settings.sameAsChat')}
             value={encode(s.completionModel)}
             onValueChange={(v) => s.set({ completionModel: decode(v) })}
             options={fastOptions}
           />
         </Row>
         <ToggleRow
-          title="Inline completions"
-          description="Suggest the rest of the sentence as ghost text while you type (Tab to accept). Each suggestion is a request to the fast model."
+          title={t('ai.settings.inlineCompletions')}
+          description={t('ai.settings.inlineCompletionsDesc')}
           checked={s.inlineCompletions}
           onChange={(v) => s.set({ inlineCompletions: v })}
         />
         <ToggleRow
-          title="Apply edits automatically"
-          description="Off: every change the assistant (or an external agent) makes is shown as a diff for you to accept or reject."
+          title={t('ai.settings.autoApply')}
+          description={t('ai.settings.autoApplyDesc')}
           checked={s.autoApplyEdits}
           onChange={(v) => s.set({ autoApplyEdits: v })}
         />
-        <Row title="Custom instructions" description="Added to every conversation, e.g. “Use British spelling”, “Our journal requires \\cref”." stack>
+        <Row title={t('ai.settings.customInstructions')} description={t('ai.settings.customInstructionsDesc')} stack>
           <Textarea
             value={s.customInstructions}
             onChange={(e) => s.set({ customInstructions: e.target.value })}
-            placeholder="Write in a formal academic tone. Prefer \\cref over \\ref."
+            placeholder={t('ai.settings.customInstructionsPlaceholder')}
             className="min-h-20 text-[12.5px]"
           />
         </Row>

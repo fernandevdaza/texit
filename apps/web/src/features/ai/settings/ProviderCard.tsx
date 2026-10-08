@@ -3,11 +3,13 @@ import { Check, ChevronRight, ExternalLink, Eye, EyeOff, Info, RefreshCw, Search
 import { getProviderPreset, testConnection, listModels, type ListedModel, type ProviderPreset } from '@texit/ai';
 import { cn } from '@/lib/cn';
 import { host } from '@/lib/platform';
+import { t as tr, useT } from '@/lib/i18n';
 import { Badge, Button, confirmDialog, IconButton, Input, Select, Switch, toast } from '@/ui';
 import { DEV, hasKey, needsKey, providerReady, toProviderConfig } from '../runtime';
 import { secretKeys, setSecret, useSecrets } from '../secrets';
 import { DEV_MOCK_KIND, useAiSettings, type ProviderEntry } from '../store';
 import { ProviderLogo } from '../components/ProviderLogo';
+import { browserNote, localizeProviderText } from './localizeResult';
 
 export function presetFor(p: ProviderEntry): ProviderPreset | null {
   if (p.kind === DEV_MOCK_KIND) return null;
@@ -39,6 +41,7 @@ export function StatusDot({ tone }: { tone: 'ok' | 'warn' | 'off' | 'error' | 'b
 }
 
 function ApiKeyField({ p }: { p: ProviderEntry }) {
+  const t = useT();
   const stored = useSecrets((s) => s.values[secretKeys.apiKey(p.id)] ?? '');
   const webPersist = useSecrets((s) => s.webPersist);
   const [value, setValue] = useState('');
@@ -49,16 +52,16 @@ function ApiKeyField({ p }: { p: ProviderEntry }) {
     if (!v) return;
     await setSecret(secretKeys.apiKey(p.id), v);
     setValue('');
-    if (!host && !webPersist) toast.info('Key saved for this session only', { description: 'Enable “Remember API keys in this browser” above to keep it after reloading.' });
-    else toast.success('API key saved');
+    if (!host && !webPersist) toast.info(tr('ai.provider.keySessionOnly'), { description: tr('ai.provider.keySessionOnlyDesc') });
+    else toast.success(tr('ai.provider.keySaved'));
   };
   return (
     <div className="space-y-1.5">
       <div className="flex items-center justify-between">
-        <label className="text-[12px] font-medium">API key</label>
+        <label className="text-[12px] font-medium">{t('ai.provider.apiKey')}</label>
         {preset?.apiKeyUrl && (
           <button onClick={() => openLink(preset.apiKeyUrl!)} className="inline-flex items-center gap-1 text-[11.5px] text-accent hover:underline">
-            Get a key <ExternalLink className="size-3" />
+            {t('ai.provider.getKey')} <ExternalLink className="size-3" />
           </button>
         )}
       </div>
@@ -68,11 +71,11 @@ function ApiKeyField({ p }: { p: ProviderEntry }) {
             <Check className="size-3.5 text-success" />
             {show ? stored : `${stored.slice(0, 5)}${'•'.repeat(12)}${stored.slice(-4)}`}
           </div>
-          <IconButton label={show ? 'Hide' : 'Show'} onClick={() => setShow(!show)}>
+          <IconButton label={show ? t('ai.provider.hide') : t('ai.provider.show')} onClick={() => setShow(!show)}>
             {show ? <EyeOff /> : <Eye />}
           </IconButton>
           <Button size="sm" variant="ghost" onClick={() => void setSecret(secretKeys.apiKey(p.id), null)}>
-            Remove
+            {t('common.remove')}
           </Button>
         </div>
       ) : (
@@ -83,20 +86,21 @@ function ApiKeyField({ p }: { p: ProviderEntry }) {
             void save();
           }}
         >
-          <Input type="password" autoComplete="off" placeholder={p.kind === 'anthropic' ? 'sk-ant-…' : 'Paste your API key'} value={value} onChange={(e) => setValue(e.target.value)} />
+          <Input type="password" autoComplete="off" placeholder={p.kind === 'anthropic' ? 'sk-ant-…' : t('ai.provider.pasteKey')} value={value} onChange={(e) => setValue(e.target.value)} />
           <Button type="submit" variant="primary" disabled={!value.trim()}>
-            Save
+            {t('common.save')}
           </Button>
         </form>
       )}
       <p className="text-[11px] text-fg-subtle">
-        {host ? 'Stored in your OS keychain.' : webPersist ? 'Stored only in this browser (localStorage).' : 'Kept in memory for this session only.'} Never synced to collaborators.
+        {host ? t('ai.provider.storedKeychain') : webPersist ? t('ai.provider.storedBrowser') : t('ai.provider.storedMemory')} {t('ai.provider.neverSynced')}
       </p>
     </div>
   );
 }
 
 function ModelManager({ p }: { p: ProviderEntry }) {
+  const t = useT();
   const update = useAiSettings((s) => s.updateProvider);
   const [listed, setListed] = useState<ListedModel[] | null>(null);
   const [loading, setLoading] = useState(false);
@@ -110,10 +114,10 @@ function ModelManager({ p }: { p: ProviderEntry }) {
     try {
       const models = await listModels(toProviderConfig(p));
       setListed(models);
-      if (!models.length) toast.info('The provider returned no models.');
+      if (!models.length) toast.info(tr('ai.provider.noModels'));
     } catch (e) {
       const err = e as { message?: string; hint?: string };
-      toast.error('Could not list models', { description: [err.message, err.hint].filter(Boolean).join(' — ') });
+      toast.error(tr('ai.provider.listFailed'), { description: [localizeProviderText(err.message, tr), localizeProviderText(err.hint, tr)].filter(Boolean).join(' — ') });
     } finally {
       setLoading(false);
     }
@@ -130,20 +134,20 @@ function ModelManager({ p }: { p: ProviderEntry }) {
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <label className="text-[12px] font-medium">Models</label>
+        <label className="text-[12px] font-medium">{t('ai.provider.models')}</label>
         {canList && (
           <Button size="xs" variant="ghost" icon={<RefreshCw className={cn(loading && 'animate-spin')} />} onClick={() => void fetchModels()} disabled={loading}>
-            Fetch available models
+            {t('ai.provider.fetchModels')}
           </Button>
         )}
       </div>
       <div className="flex flex-wrap gap-1">
         {p.models.map((m) => (
           <span key={m} className={cn('inline-flex h-6 items-center gap-1 rounded-md border pl-2 pr-0.5 font-mono text-[11px]', m === p.defaultModel ? 'border-accent/40 bg-accent-soft text-accent' : 'border-border bg-surface-2 text-fg-muted')}>
-            <button onClick={() => update(p.id, { defaultModel: m })} title="Make default">
+            <button onClick={() => update(p.id, { defaultModel: m })} title={t('ai.provider.makeDefault')}>
               {m}
             </button>
-            <button onClick={() => toggle(m)} className="flex size-4 items-center justify-center rounded hover:bg-hover" aria-label={`Remove ${m}`}>
+            <button onClick={() => toggle(m)} className="flex size-4 items-center justify-center rounded hover:bg-hover" aria-label={t('ai.provider.removeModel', { model: m })}>
               <X className="size-3" />
             </button>
           </span>
@@ -160,7 +164,7 @@ function ModelManager({ p }: { p: ProviderEntry }) {
           <input
             value={custom}
             onChange={(e) => setCustom(e.target.value)}
-            placeholder="+ add model id"
+            placeholder={t('ai.provider.addModelId')}
             className="h-6 w-32 rounded-md border border-dashed border-border-strong bg-transparent px-2 font-mono text-[11px] outline-none placeholder:text-fg-subtle focus:border-accent"
           />
         </form>
@@ -168,7 +172,7 @@ function ModelManager({ p }: { p: ProviderEntry }) {
       {listed && (
         <div className="rounded-lg border border-border">
           <div className="border-b border-border p-1.5">
-            <Input inputSize="sm" icon={<Search />} placeholder={`Filter ${listed.length} models`} value={filter} onChange={(e) => setFilter(e.target.value)} />
+            <Input inputSize="sm" icon={<Search />} placeholder={t('ai.provider.filterModels', { count: listed.length })} value={filter} onChange={(e) => setFilter(e.target.value)} />
           </div>
           <div className="max-h-52 overflow-y-auto p-1">
             {shown.map((m) => (
@@ -179,7 +183,7 @@ function ModelManager({ p }: { p: ProviderEntry }) {
                 {m.contextWindow && <span className="ml-auto shrink-0 text-[10.5px] text-fg-subtle">{Math.round(m.contextWindow / 1000)}k ctx</span>}
               </label>
             ))}
-            {!shown.length && <div className="px-2 py-3 text-center text-[11.5px] text-fg-subtle">No matching models</div>}
+            {!shown.length && <div className="px-2 py-3 text-center text-[11.5px] text-fg-subtle">{t('ai.provider.noMatches')}</div>}
           </div>
         </div>
       )}
@@ -188,6 +192,7 @@ function ModelManager({ p }: { p: ProviderEntry }) {
 }
 
 export function ProviderCard({ p, defaultOpen }: { p: ProviderEntry; defaultOpen?: boolean }) {
+  const t = useT();
   const [open, setOpen] = useState(!!defaultOpen);
   const [testing, setTesting] = useState(false);
   const update = useAiSettings((s) => s.updateProvider);
@@ -197,16 +202,17 @@ export function ProviderCard({ p, defaultOpen }: { p: ProviderEntry; defaultOpen
   const ready = providerReady(p);
   const tone = !p.enabled ? 'off' : p.lastTest && !p.lastTest.ok ? 'error' : ready ? 'ok' : 'warn';
   const statusText = !p.enabled
-    ? 'Disabled'
+    ? t('common.disabled')
     : needsKey(p) && !hasKey(p)
-      ? 'API key required'
+      ? t('ai.provider.keyRequired')
       : p.lastTest
         ? p.lastTest.ok
-          ? `Connected · ${p.lastTest.latencyMs} ms`
-          : 'Connection failed'
+          ? t('ai.provider.connected', { ms: p.lastTest.latencyMs })
+          : t('ai.provider.connectionFailed')
         : p.kind === DEV_MOCK_KIND
-          ? 'Scripted responses, no network'
-          : 'Ready';
+          ? t('ai.provider.scripted')
+          : t('ai.provider.ready');
+  const lastTestMessage = localizeProviderText(p.lastTest?.message, t);
 
   const runTest = async () => {
     setTesting(true);
@@ -217,11 +223,12 @@ export function ProviderCard({ p, defaultOpen }: { p: ProviderEntry; defaultOpen
         const t0 = Date.now();
         const agents = host ? await host.agents.detect() : [];
         const a = agents.find((x) => x.id === p.cliAgent);
-        res = { ok: !!a?.installed, message: a?.installed ? `${a.name} ${a.version ?? ''} found` : (a?.hint ?? 'Not installed'), latencyMs: Date.now() - t0 };
+        res = { ok: !!a?.installed, message: a?.installed ? `${[a.name, a.version].filter(Boolean).join(' ')} found` : (a?.hint ?? 'Not installed'), latencyMs: Date.now() - t0 };
       } else res = await testConnection(toProviderConfig(p), { modelId: p.defaultModel });
       update(p.id, { lastTest: { ok: res.ok, message: res.message, latencyMs: res.latencyMs, at: Date.now() } });
-      if (res.ok) toast.success(res.message);
-      else toast.error(res.message, { description: res.hint });
+      // Stored in English (persisted); localized for display.
+      if (res.ok) toast.success(localizeProviderText(res.message, tr)!);
+      else toast.error(localizeProviderText(res.message, tr)!, { description: localizeProviderText(res.hint, tr) });
     } finally {
       setTesting(false);
     }
@@ -235,8 +242,8 @@ export function ProviderCard({ p, defaultOpen }: { p: ProviderEntry; defaultOpen
           <div className="min-w-0">
             <div className="flex items-center gap-2 text-[13px] font-medium">
               <span className="truncate">{p.name}</span>
-              {(p.kind === 'ollama' || p.kind === 'lmstudio') && <Badge tone="neutral">local</Badge>}
-              {p.kind === DEV_MOCK_KIND && <Badge tone="accent">dev</Badge>}
+              {(p.kind === 'ollama' || p.kind === 'lmstudio') && <Badge tone="neutral">{t('ai.settings.local')}</Badge>}
+              {p.kind === DEV_MOCK_KIND && <Badge tone="accent">{t('ai.provider.dev')}</Badge>}
             </div>
             <div className="mt-0.5 flex items-center gap-1.5 text-[11.5px] text-fg-subtle">
               <StatusDot tone={tone} />
@@ -246,7 +253,7 @@ export function ProviderCard({ p, defaultOpen }: { p: ProviderEntry; defaultOpen
           </div>
         </button>
         <Switch size="sm" checked={p.enabled} onCheckedChange={(v) => update(p.id, { enabled: v })} />
-        <IconButton label={open ? 'Collapse' : 'Configure'} onClick={() => setOpen(!open)}>
+        <IconButton label={open ? t('ai.provider.collapse') : t('ai.provider.configure')} onClick={() => setOpen(!open)}>
           <ChevronRight className={cn('transition-transform', open && 'rotate-90')} />
         </IconButton>
       </div>
@@ -255,17 +262,17 @@ export function ProviderCard({ p, defaultOpen }: { p: ProviderEntry; defaultOpen
           {preset?.browserNote && (
             <div className="flex gap-2 rounded-lg bg-info-soft px-2.5 py-2 text-[11.5px] leading-relaxed text-fg-muted">
               <Info className="mt-px size-3.5 shrink-0 text-info" />
-              {preset.browserNote}
+              {browserNote(preset.kind, preset.browserNote, t)}
             </div>
           )}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <label className="text-[12px] font-medium">Display name</label>
+              <label className="text-[12px] font-medium">{t('ai.provider.displayName')}</label>
               <Input value={p.name} onChange={(e) => update(p.id, { name: e.target.value })} />
             </div>
             {p.kind !== 'cli' && p.kind !== DEV_MOCK_KIND && (
               <div className="space-y-1.5">
-                <label className="text-[12px] font-medium">Base URL</label>
+                <label className="text-[12px] font-medium">{t('ai.provider.baseUrl')}</label>
                 <Input
                   value={p.baseURL ?? ''}
                   placeholder={preset?.defaultBaseURL ?? 'https://…/v1'}
@@ -277,7 +284,7 @@ export function ProviderCard({ p, defaultOpen }: { p: ProviderEntry; defaultOpen
           {needsKey(p) && <ApiKeyField p={p} />}
           {(p.kind === 'openai-compatible' || p.kind === 'ollama' || p.kind === 'lmstudio') && !needsKey(p) && (
             <details className="text-[12px]">
-              <summary className="cursor-default text-fg-muted">Optional API key</summary>
+              <summary className="cursor-default text-fg-muted">{t('ai.provider.optionalKey')}</summary>
               <div className="mt-2">
                 <ApiKeyField p={p} />
               </div>
@@ -286,23 +293,23 @@ export function ProviderCard({ p, defaultOpen }: { p: ProviderEntry; defaultOpen
           <ModelManager p={p} />
           {p.models.length > 0 && (
             <div className="flex items-center gap-3">
-              <label className="shrink-0 text-[12px] font-medium">Default model</label>
+              <label className="shrink-0 text-[12px] font-medium">{t('ai.provider.defaultModel')}</label>
               <Select size="sm" className="max-w-xs" value={p.defaultModel} onValueChange={(v) => update(p.id, { defaultModel: v })} options={p.models.map((m) => ({ value: m, label: m }))} />
             </div>
           )}
           <div className="flex items-center gap-2 border-t border-border pt-3">
             <Button size="sm" icon={<Zap />} loading={testing} onClick={() => void runTest()}>
-              Test connection
+              {t('ai.provider.testConnection')}
             </Button>
             {p.lastTest && (
-              <span className={cn('min-w-0 truncate text-[11.5px]', p.lastTest.ok ? 'text-success' : 'text-danger')} title={p.lastTest.message}>
-                {p.lastTest.message}
+              <span className={cn('min-w-0 truncate text-[11.5px]', p.lastTest.ok ? 'text-success' : 'text-danger')} title={lastTestMessage}>
+                {lastTestMessage}
               </span>
             )}
             <span className="flex-1" />
             {preset?.docsUrl && (
               <Button size="sm" variant="ghost" icon={<ExternalLink />} onClick={() => openLink(preset.docsUrl!)}>
-                Docs
+                {t('ai.provider.docs')}
               </Button>
             )}
             <Button
@@ -311,13 +318,13 @@ export function ProviderCard({ p, defaultOpen }: { p: ProviderEntry; defaultOpen
               className="text-danger hover:text-danger"
               icon={<Trash2 />}
               onClick={async () => {
-                if (await confirmDialog({ title: `Remove ${p.name}?`, message: 'Its API key is deleted too.', confirmLabel: 'Remove', danger: true })) {
+                if (await confirmDialog({ title: t('ai.provider.removeTitle', { name: p.name }), message: t('ai.provider.removeMessage'), confirmLabel: t('common.remove'), danger: true })) {
                   await setSecret(secretKeys.apiKey(p.id), null);
                   remove(p.id);
                 }
               }}
             >
-              Remove
+              {t('common.remove')}
             </Button>
           </div>
         </div>

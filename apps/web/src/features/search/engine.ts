@@ -40,6 +40,8 @@ export interface SearchResult {
 }
 
 export const MAX_MATCHES = 5000;
+/** Error returned by `buildRegex` when the pattern matches the empty string (translated by the UI). */
+export const EMPTY_MATCH_ERROR = 'Pattern matches empty text';
 const MAX_PER_FILE = 1000;
 
 export function buildRegex(o: Pick<SearchOptions, 'query' | 'caseSensitive' | 'wholeWord' | 'regex'>): RegExp | string {
@@ -48,7 +50,7 @@ export function buildRegex(o: Pick<SearchOptions, 'query' | 'caseSensitive' | 'w
   if (o.wholeWord) src = `(?<![\\p{L}\\p{N}_])(?:${src})(?![\\p{L}\\p{N}_])`;
   try {
     const re = new RegExp(src, `g${o.caseSensitive ? '' : 'i'}m${o.wholeWord ? 'u' : ''}`);
-    if (re.test('')) return 'Pattern matches empty text';
+    if (re.test('')) return EMPTY_MATCH_ERROR;
     return re;
   } catch (err) {
     return String((err as Error).message ?? err).replace(/^Invalid regular expression: /, '');

@@ -20,6 +20,7 @@ import { updateSummary } from '@/services/projects';
 import { setAwareness, type PeerUser } from '@/services/collab';
 import { useWorkspace } from '@/state/workspace';
 import { useSettings } from '@/state/settings';
+import { t } from '@/lib/i18n';
 import { TrysteroProvider, type ProviderStatus } from './provider';
 import { fromBase64Url, generateRoomId, generateSecret, toBase64Url } from './crypto';
 import { trysteroTransport, type SignalingState, type SignalingStrategy } from './transport';
@@ -150,7 +151,7 @@ export function createRoomProvider(
 function localUser(prev?: Partial<PeerUser>): PeerUser {
   const { userName, userColor } = useSettings.getState();
   const fileId = useWorkspace.getState().activeFileId ?? undefined;
-  return { ...prev, name: userName || 'Anonymous', color: userColor, colorLight: lightColor(userColor), fileId };
+  return { ...prev, name: userName || t('collab.anonymous'), color: userColor, colorLight: lightColor(userColor), fileId };
 }
 
 function publishLocalUser(aw: Awareness, record: RoomRecord) {
@@ -410,7 +411,7 @@ export function inviteLink(viewOnly = false): string | null {
   if (!rec) return null;
   // View-only guests can only pass on view-only links (best-effort).
   const vo = viewOnly || rec.viewOnly;
-  const name = useWorkspace.getState().meta?.name ?? 'Shared project';
+  const name = useWorkspace.getState().meta?.name ?? t('collab.sharedProject');
   return buildInviteLink({ room: rec.room, secret: rec.secret, name, viewOnly: vo, strategy: rec.strategy }, useCollabSettings.getState().inviteBaseUrl);
 }
 

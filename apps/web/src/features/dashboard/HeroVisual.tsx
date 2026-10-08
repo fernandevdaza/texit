@@ -1,6 +1,7 @@
 import { useMemo, type ReactNode } from 'react';
 import katex from 'katex';
 import { CheckCircle2, Sparkles } from 'lucide-react';
+import { useT } from '@/lib/i18n';
 import './hero.css';
 
 const L = ({ n, children, active }: { n: number; children?: ReactNode; active?: boolean }) => (
@@ -23,6 +24,7 @@ function tex(src: string, display = false) {
 
 /** Animated editor + PDF composition (pure CSS animation, no images). */
 export function HeroVisual() {
+  const t = useT();
   const eq = useMemo(() => tex('\\int_{-\\infty}^{\\infty} e^{-x^2}\\,dx = \\sqrt{\\pi}', true), []);
   const euler = useMemo(() => tex('e^{i\\pi} + 1 = 0'), []);
 
@@ -117,8 +119,8 @@ export function HeroVisual() {
 
       {/* Floating chips */}
       <div className="hx-chip" style={{ left: '4%', top: '84%', animationDelay: '0.5s, 0s' }}>
-        <CheckCircle2 style={{ color: 'var(--tx-success)' }} /> Compiled in 0.42 s
-        <span style={{ color: 'var(--tx-fg-subtle)', fontWeight: 450 }}>· in your browser</span>
+        <CheckCircle2 style={{ color: 'var(--tx-success)' }} /> {t('dashboard.hero.chipCompiled')}
+        <span style={{ color: 'var(--tx-fg-subtle)', fontWeight: 450 }}>{t('dashboard.hero.chipInBrowser')}</span>
       </div>
       <div className="hx-chip" style={{ left: '33%', top: '1.5%', animationDelay: '0.8s, 1.5s' }}>
         <span style={{ display: 'flex' }}>
@@ -144,12 +146,12 @@ export function HeroVisual() {
             </span>
           ))}
         </span>
-        3 editing · peer-to-peer
+        {t('dashboard.hero.chipEditing', { count: 3 })}
       </div>
       <div className="hx-chip hx-bubble" style={{ left: '58%', top: '74%', animationDelay: '1.2s, 0.7s' }}>
         <Sparkles style={{ color: 'var(--tx-accent)', flexShrink: 0, marginTop: '0.2cqw' }} />
         <span>
-          <span style={{ fontWeight: 600 }}>Agent</span> drafted a proof sketch for eq. (1)
+          <span style={{ fontWeight: 600 }}>{t('dashboard.hero.chipAgent')}</span> {t('dashboard.hero.chipAgentText')}
           <span className="hx-dots" style={{ display: 'block', marginTop: '0.8cqw' }}>
             <span />
             <span />

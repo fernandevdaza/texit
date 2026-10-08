@@ -1,6 +1,7 @@
 /**
  * PDF preview feature: commands, SyncTeX wiring, detached window lifecycle.
  */
+import './i18n';
 import {
   ArrowLeftToLine,
   ArrowRightToLine,

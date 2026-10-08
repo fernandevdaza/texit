@@ -1,5 +1,7 @@
 /** Friendly, actionable hints for common LaTeX diagnostics. */
 import type { Diagnostic, TexEngine } from '@texit/core';
+import { t as tr, type TFunction } from '@/lib/i18n';
+import './i18n';
 
 export interface HintContext {
   backendId?: string;
@@ -37,78 +39,75 @@ function missingName(d: Diagnostic): string | undefined {
   return /[`'"]([^'"`]+)['"`]/.exec(d.message)?.[1];
 }
 
-export function hintFor(d: Diagnostic, ctx: HintContext = {}): string | undefined {
+export function hintFor(d: Diagnostic, ctx: HintContext = {}, t: TFunction = tr): string | undefined {
   const wasm = ctx.backendId === 'busytex';
   switch (d.code) {
     case 'missing-package': {
-      const name = missingName(d) ?? 'This package';
-      const base = `${name} isn't available`;
-      if (wasm)
-        return `${base} in the in-browser TeX Live (it bundles the basic, recommended and latexextra collections). Upload the .sty/.cls into the project, set a TeX Live package endpoint or a remote compile server in Settings → Compiler, or use the desktop app with a full TeX installation.`;
-      return `${base} in your TeX installation. Install it (e.g. \`tlmgr install ${name.replace(/\.(sty|cls)$/, '')}\`) or upload the file into the project.`;
+      const name = missingName(d) ?? t('compile.hint.thisPackage');
+      if (wasm) return t('compile.hint.missingPackageWasm', { name });
+      return t('compile.hint.missingPackage', { name, pkg: name.replace(/\.(sty|cls)$/, '') });
     }
     case 'missing-file': {
       const name = missingName(d);
-      return `${name ? `"${name}"` : 'A file'} could not be found. Paths are relative to the main file's folder — check the spelling, the folder and the extension (paths are case-sensitive).`;
+      return name ? t('compile.hint.missingFileNamed', { name }) : t('compile.hint.missingFile');
     }
     case 'undefined-control-sequence': {
       const cmd = undefinedCommand(d);
       const pkg = cmd ? COMMAND_PACKAGES[cmd] : undefined;
-      if (cmd && pkg) return pkg === 'core LaTeX' ? `\\${cmd} is used incorrectly here (check its arguments).` : `\\${cmd} is defined by the ${pkg} package — add \\usepackage{${pkg.split(' ')[0]}} to the preamble.`;
-      return cmd ? `\\${cmd} is not defined. Check for a typo or a missing \\usepackage.` : 'A command is not defined: check for a typo or a missing \\usepackage.';
+      if (cmd && pkg) {
+        if (pkg === 'core LaTeX') return t('compile.hint.coreMisuse', { cmd });
+        const pkgName = pkg.split(' ')[0];
+        const pkgLabel = pkg === 'xcolor (with the table option)' ? t('compile.hint.withTableOption', { pkg: 'xcolor' }) : pkg;
+        return t('compile.hint.needsPackage', { cmd, pkg: pkgLabel, pkgName });
+      }
+      return cmd ? t('compile.hint.undefinedCmd', { cmd }) : t('compile.hint.undefinedAny');
     }
     case 'undefined-environment':
-      return 'This environment is not defined: check its name or load the package that provides it (e.g. amsmath for align, tikz for tikzpicture).';
+      return t('compile.hint.undefinedEnv');
     case 'missing-dollar':
-      return 'Math-only syntax (^, _, \\alpha…) was used outside math mode. Wrap it in $…$ or \\(…\\).';
+      return t('compile.hint.missingDollar');
     case 'missing-brace':
     case 'extra-brace':
     case 'runaway-argument':
-      return 'Braces are unbalanced near this line: every { needs a matching }.';
+      return t('compile.hint.braces');
     case 'environment-mismatch':
-      return 'A \\begin{…} is closed by a different \\end{…}. Check the nesting.';
+      return t('compile.hint.envMismatch');
     case 'missing-begin-document':
-      return 'Text or commands appear before \\begin{document} (or the main file is not a full document).';
+      return t('compile.hint.missingBeginDocument');
     case 'unicode-character':
-      return ctx.engine === 'pdflatex'
-        ? 'pdfLaTeX cannot typeset this Unicode character. Switch the engine to XeLaTeX/LuaLaTeX, or define it with \\newunicodechar.'
-        : 'The current font has no glyph for this character — choose a font that covers it.';
+      return ctx.engine === 'pdflatex' ? t('compile.hint.unicodePdflatex') : t('compile.hint.unicodeGlyph');
     case 'font-not-found':
-      return wasm
-        ? 'This font is not part of the in-browser TeX Live. Use a TeX font (e.g. "TeX Gyre Termes", "Latin Modern Roman") or upload the font file into the project.'
-        : 'The font could not be found. Install it or upload the font file into the project.';
+      return wasm ? t('compile.hint.fontWasm') : t('compile.hint.font');
     case 'undefined-reference':
     case 'undefined-references':
-      return 'A \\ref points to a label that does not exist (or needs another compile pass).';
+      return t('compile.hint.undefinedRef');
     case 'undefined-citation':
     case 'missing-bib-entry':
-      return 'The citation key is not in your .bib file — check the key and the \\bibliography / \\addbibresource path.';
+      return t('compile.hint.undefinedCitation');
     case 'multiply-defined-label':
     case 'multiply-defined-labels':
-      return 'The same \\label is used more than once.';
+      return t('compile.hint.multiplyDefined');
     case 'option-clash':
-      return 'The package is loaded twice with different options (possibly by the class). Load it once, or use \\PassOptionsToPackage before \\documentclass.';
+      return t('compile.hint.optionClash');
     case 'capacity-exceeded':
-      return 'TeX ran out of memory — usually an infinite recursion (a macro that calls itself).';
+      return t('compile.hint.capacity');
     case 'unknown-graphics-extension':
-      return ctx.engine === 'pdflatex' ? 'pdfLaTeX supports .pdf, .png and .jpg images. Convert other formats (e.g. .eps, .svg).' : 'Convert the image to .pdf, .png or .jpg.';
+      return ctx.engine === 'pdflatex' ? t('compile.hint.graphicsPdflatex') : t('compile.hint.graphics');
     case 'rerun-needed':
     case 'rerun-bibliography':
-      return 'Compile again to resolve references (draft mode runs a single pass).';
+      return t('compile.hint.rerun');
     case 'overfull-hbox':
-      return 'A line is too wide for the text block. Rephrase, allow hyphenation, or use \\sloppy / microtype.';
+      return t('compile.hint.overfull');
     default:
       return undefined;
   }
 }
 
-/** Prompt text for "Explain" / "Fix with AI". */
-export function aiPrompt(d: Diagnostic, mode: 'fix' | 'explain'): string {
-  const where = d.file ? `${d.file}${d.line ? `:${d.line}` : ''}` : 'the project';
+/** Prompt text for "Explain" / "Fix with AI" (in the UI language, so the answer is too). */
+export function aiPrompt(d: Diagnostic, mode: 'fix' | 'explain', t: TFunction = tr): string {
+  const where = d.file ? `${d.file}${d.line ? `:${d.line}` : ''}` : t('compile.ai.theProject');
   const excerpt = (d.raw ?? d.context ?? '').trim().slice(0, 1500);
-  const intro =
-    mode === 'fix'
-      ? `Fix this LaTeX ${d.severity} in ${where}. Edit the source directly and keep changes minimal.`
-      : `Explain this LaTeX ${d.severity} in ${where} in plain words and suggest how to fix it (don't edit files).`;
-  return `${intro}\n\nMessage: ${d.message}${excerpt ? `\n\nLog excerpt:\n\`\`\`\n${excerpt}\n\`\`\`` : ''}`;
+  const severity = t(`compile.ai.sev.${d.severity}`, undefined, d.severity);
+  const intro = t(mode === 'fix' ? 'compile.ai.fix' : 'compile.ai.explain', { severity, where });
+  return `${intro}\n\n${t('compile.ai.message')}: ${d.message}${excerpt ? `\n\n${t('compile.ai.excerpt')}:\n\`\`\`\n${excerpt}\n\`\`\`` : ''}`;
 }

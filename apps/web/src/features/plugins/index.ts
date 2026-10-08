@@ -2,6 +2,7 @@
  * Plugins feature: exposes `window.TexIt`, registers the management commands
  * and activates enabled plugins once the app's own features are registered.
  */
+import './i18n';
 import { definePlugin, PLUGIN_API_VERSION } from '@texit/plugin-api';
 import { registerCommands } from '@/services/commands';
 import * as manager from './manager';

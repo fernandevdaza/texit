@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { Bot, Check, ChevronDown, History, KeyRound, MessageSquarePlus, Settings2, Sparkles, Trash2, X } from 'lucide-react';
 import { timeAgo } from '@/lib/format';
+import { useT } from '@/lib/i18n';
 import { executeCommand, getCommand } from '@/services/commands';
 import { useLayout, useWorkspace } from '@/state/workspace';
 import { Button, DropdownMenu, IconButton, Segmented, type MenuEntry } from '@/ui';
@@ -11,6 +12,7 @@ import { useAiSettings } from '../store';
 import { deleteThread, newThread, openThread, useChat } from '../chat/store';
 import { sendMessage } from '../chat/runner';
 import { ProviderLogo } from '../components/ProviderLogo';
+import { threadTitle } from '../i18n';
 import { Composer } from './Composer';
 import { MessageList } from './MessageList';
 
@@ -20,6 +22,7 @@ export function openAiSettings() {
 }
 
 function ModelPicker() {
+  const t = useT();
   const providers = useAiSettings((s) => s.providers);
   const chatModel = useAiSettings((s) => s.chatModel);
   useSecrets((s) => s.values);
@@ -30,7 +33,7 @@ function ModelPicker() {
     const ready = providerReady(p);
     const models = [...new Set([...(p.defaultModel ? [p.defaultModel] : []), ...p.models])];
     if (!models.length) continue;
-    items.push({ type: 'label', label: `${p.name}${ready ? '' : ' · needs setup'}` });
+    items.push({ type: 'label', label: `${p.name}${ready ? '' : ` · ${t('ai.needsSetup')}`}` });
     for (const m of models.slice(0, 12)) {
       items.push({
         label: m,
@@ -41,7 +44,7 @@ function ModelPicker() {
     }
   }
   if (items.length) items.push({ type: 'separator' });
-  items.push({ label: 'Manage providers…', icon: <Settings2 />, onSelect: openAiSettings });
+  items.push({ label: t('ai.manageProviders'), icon: <Settings2 />, onSelect: openAiSettings });
   return (
     <DropdownMenu
       align="end"
@@ -49,7 +52,7 @@ function ModelPicker() {
       trigger={
         <button className="flex h-7 min-w-0 max-w-[170px] items-center gap-1.5 rounded-md px-1.5 text-[12px] text-fg-muted hover:bg-hover hover:text-fg">
           {current ? <ProviderLogo kind={current.kind} cliAgent={current.cliAgent} size={16} /> : <Bot className="size-3.5" />}
-          <span className="truncate">{chatModel?.modelId ?? 'Choose model'}</span>
+          <span className="truncate">{chatModel?.modelId ?? t('ai.chooseModel')}</span>
           <ChevronDown className="size-3 shrink-0 opacity-60" />
         </button>
       }
@@ -58,29 +61,30 @@ function ModelPicker() {
 }
 
 function ThreadMenu() {
+  const t = useT();
   const index = useChat((s) => s.index);
   const activeId = useChat((s) => s.activeId);
-  const items: MenuEntry[] = [{ label: 'New chat', icon: <MessageSquarePlus />, onSelect: () => newThread() }];
-  if (index.length) items.push({ type: 'separator' }, { type: 'label', label: 'Recent chats' });
-  for (const t of index.slice(0, 30)) {
+  const items: MenuEntry[] = [{ label: t('ai.newChat'), icon: <MessageSquarePlus />, onSelect: () => newThread() }];
+  if (index.length) items.push({ type: 'separator' }, { type: 'label', label: t('ai.recentChats') });
+  for (const th of index.slice(0, 30)) {
     items.push({
       label: (
         <span className="flex items-center gap-1.5">
-          {t.external && <Bot className="size-3 shrink-0" />}
-          <span className="truncate">{t.title}</span>
+          {th.external && <Bot className="size-3 shrink-0" />}
+          <span className="truncate">{threadTitle(th.title, t)}</span>
         </span>
       ),
-      hint: timeAgo(t.updatedAt),
-      checked: t.id === activeId,
-      onSelect: () => void openThread(t.id),
+      hint: timeAgo(th.updatedAt),
+      checked: th.id === activeId,
+      onSelect: () => void openThread(th.id),
     });
   }
-  if (activeId) items.push({ type: 'separator' }, { label: 'Delete this chat', icon: <Trash2 />, danger: true, onSelect: () => void deleteThread(activeId) });
+  if (activeId) items.push({ type: 'separator' }, { label: t('ai.deleteChat'), icon: <Trash2 />, danger: true, onSelect: () => void deleteThread(activeId) });
   return (
     <DropdownMenu
       items={items}
       trigger={
-        <IconButton label="Chat history" size="sm">
+        <IconButton label={t('ai.chatHistory')} size="sm">
           <History />
         </IconButton>
       }
@@ -88,15 +92,10 @@ function ThreadMenu() {
   );
 }
 
-const EXAMPLES = [
-  'Fix the compile errors in my document',
-  'Make the abstract more concise',
-  'Add a table comparing the three methods in the results section',
-  'Explain what the selected equation means',
-  'Check my bibliography for unused entries',
-];
+const EXAMPLES = ['fixErrors', 'abstract', 'table', 'equation', 'bibliography'];
 
 function Intro({ configured }: { configured: boolean }) {
+  const t = useT();
   const hasProject = useWorkspace((s) => !!s.project);
   return (
     <div className="flex min-h-0 flex-1 flex-col items-center justify-center overflow-y-auto px-6 py-8 text-center">
@@ -104,35 +103,38 @@ function Intro({ configured }: { configured: boolean }) {
         <Sparkles className="size-6" />
       </div>
       <h2 className="text-[16px] font-semibold tracking-tight">
-        Your <span className="text-gradient">LaTeX copilot</span>
+        {t('ai.intro.titlePrefix')} <span className="text-gradient">{t('ai.intro.titleHighlight')}</span>
       </h2>
       <p className="mt-1.5 max-w-[280px] text-[12.5px] leading-relaxed text-fg-subtle">
-        Ask questions, fix compile errors, rewrite passages, generate tables and figures. Edits are shown as diffs for you to review.
+        {t('ai.intro.body')}
       </p>
       {!configured ? (
         <div className="mt-5 w-full max-w-[300px] rounded-xl border border-border bg-surface-2/60 p-4 text-left">
           <div className="flex items-center gap-2 text-[12.5px] font-medium">
-            <KeyRound className="size-4 text-accent" /> Connect a model to get started
+            <KeyRound className="size-4 text-accent" /> {t('ai.intro.connect')}
           </div>
           <p className="mt-1 text-[11.5px] leading-relaxed text-fg-subtle">
-            Use your own API key (OpenAI, Anthropic, Gemini, OpenRouter…), a local model (Ollama, LM Studio){DEV ? ', or the dev mock' : ''}.
+            {t(DEV ? 'ai.intro.connectBodyDev' : 'ai.intro.connectBody')}
           </p>
           <Button className="mt-3 w-full" variant="primary" size="sm" onClick={openAiSettings}>
-            Add a model provider
+            {t('ai.intro.addProvider')}
           </Button>
         </div>
       ) : (
         hasProject && (
           <div className="mt-5 flex w-full max-w-[320px] flex-col gap-1.5">
-            {EXAMPLES.map((e) => (
-              <button
-                key={e}
-                onClick={() => void sendMessage(e)}
-                className="rounded-lg border border-border bg-surface px-3 py-2 text-left text-[12px] text-fg-muted shadow-xs transition-colors hover:border-accent/40 hover:text-fg"
-              >
-                {e}
-              </button>
-            ))}
+            {EXAMPLES.map((id) => {
+              const e = t(`ai.example.${id}`);
+              return (
+                <button
+                  key={id}
+                  onClick={() => void sendMessage(e)}
+                  className="rounded-lg border border-border bg-surface px-3 py-2 text-left text-[12px] text-fg-muted shadow-xs transition-colors hover:border-accent/40 hover:text-fg"
+                >
+                  {e}
+                </button>
+              );
+            })}
           </div>
         )
       )}
@@ -141,6 +143,7 @@ function Intro({ configured }: { configured: boolean }) {
 }
 
 export default function ChatPanel() {
+  const t = useT();
   const activeId = useChat((s) => s.activeId);
   const thread = useChat((s) => (s.activeId ? s.threads[s.activeId] : null));
   const running = useChat((s) => !!(s.activeId && s.running[s.activeId]));
@@ -155,9 +158,9 @@ export default function ChatPanel() {
     <div className="flex h-full min-w-0 flex-col bg-surface">
       <header className="flex h-10 shrink-0 items-center gap-1 border-b border-border pl-2 pr-1">
         <ThreadMenu />
-        <div className="min-w-0 flex-1 truncate text-[12.5px] font-medium text-fg" title={thread?.title}>
+        <div className="min-w-0 flex-1 truncate text-[12.5px] font-medium text-fg" title={thread ? threadTitle(thread.title, t) : undefined}>
           {thread?.external && <Bot className="mr-1 inline size-3.5 text-fg-subtle" />}
-          {thread?.title ?? 'AI assistant'}
+          {thread ? threadTitle(thread.title, t) : t('ai.assistant')}
           {running && <span className="ml-2 inline-block size-1.5 animate-pulse rounded-full bg-accent align-middle" />}
         </div>
         <Segmented
@@ -165,22 +168,22 @@ export default function ChatPanel() {
           value={mode}
           onChange={(v) => useAiSettings.getState().set({ mode: v })}
           options={[
-            { value: 'agent', label: 'Agent', title: 'Agent: can read, edit and compile the project' },
-            { value: 'ask', label: 'Ask', title: 'Ask: read-only, never edits files' },
+            { value: 'agent', label: t('ai.mode.agent'), title: t('ai.mode.agentTitle') },
+            { value: 'ask', label: t('ai.mode.ask'), title: t('ai.mode.askTitle') },
           ]}
         />
         <ModelPicker />
-        <IconButton label="New chat" onClick={() => newThread()} disabled={!hasProject}>
+        <IconButton label={t('ai.newChat')} onClick={() => newThread()} disabled={!hasProject}>
           <MessageSquarePlus />
         </IconButton>
-        <IconButton label="Close" shortcut="Mod-l" onClick={() => useLayout.getState().set({ aiOpen: false })}>
+        <IconButton label={t('common.close')} shortcut="Mod-l" onClick={() => useLayout.getState().set({ aiOpen: false })}>
           <X />
         </IconButton>
       </header>
       {thread && thread.messages.length > 0 ? <MessageList key={activeId} thread={thread} /> : <Intro configured={configured} />}
       {thread?.external ? (
         <div className="shrink-0 border-t border-border px-3 py-2 text-[11.5px] text-fg-subtle">
-          <Check className="mr-1 inline size-3" /> Activity from external agents connected to TexIt's MCP server.
+          <Check className="mr-1 inline size-3" /> {t('ai.externalFooter')}
         </div>
       ) : (
         <Composer threadId={thread?.id ?? null} disabled={!configured || !hasProject} />

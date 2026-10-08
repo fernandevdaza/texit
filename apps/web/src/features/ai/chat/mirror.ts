@@ -7,6 +7,7 @@
  */
 import { decodeUtf8, isTextPath, type ProjectDoc } from '@texit/core';
 import { host } from '@/lib/platform';
+import { t } from '@/lib/i18n';
 
 interface FolderSyncLike {
   start?(): Promise<void> | void;
@@ -45,7 +46,7 @@ function joinAbs(dir: string, rel: string) {
 }
 
 export async function prepareMirror(projectId: string, project: ProjectDoc): Promise<MirrorHandle> {
-  if (!host) throw new Error('CLI agents require the desktop app.');
+  if (!host) throw new Error(t('ai.err.cliDesktopOnly'));
   const dir = await host.fs.projectMirrorDir(projectId);
 
   const Ctor = await findFolderSync();

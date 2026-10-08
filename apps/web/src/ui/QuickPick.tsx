@@ -8,6 +8,7 @@ import { createRoot } from 'react-dom/client';
 import { Command } from 'cmdk';
 import { Dialog as D } from 'radix-ui';
 import { Search } from 'lucide-react';
+import { useT } from '@/lib/i18n';
 
 export interface QuickPickOption<T> {
   label: string;
@@ -46,6 +47,7 @@ export function quickPick<T>(items: QuickPickOption<T>[], opts: QuickPickOptions
 }
 
 function QuickPickView<T>({ items, opts, onDone }: { items: QuickPickOption<T>[]; opts: QuickPickOptions; onDone: (v: T | undefined) => void }) {
+  const t = useT();
   const [open, setOpen] = useState(true);
   const inputRef = useRef<HTMLInputElement>(null);
   const close = (v: T | undefined) => {
@@ -64,7 +66,7 @@ function QuickPickView<T>({ items, opts, onDone }: { items: QuickPickOption<T>[]
             inputRef.current?.focus();
           }}
         >
-          <D.Title className="sr-only">{opts.title ?? opts.placeholder ?? 'Pick an item'}</D.Title>
+          <D.Title className="sr-only">{opts.title ?? opts.placeholder ?? t('ui.pickItem')}</D.Title>
           <Command loop className="flex flex-col">
             {opts.title && (
               <div className="border-b border-border px-3.5 pb-2 pt-2.5 text-[11px] font-semibold uppercase tracking-wider text-fg-subtle">
@@ -76,12 +78,12 @@ function QuickPickView<T>({ items, opts, onDone }: { items: QuickPickOption<T>[]
               <Command.Input
                 ref={inputRef}
                 autoFocus
-                placeholder={opts.placeholder ?? 'Type to filter…'}
+                placeholder={opts.placeholder ?? t('ui.typeToFilter')}
                 className="h-11 flex-1 bg-transparent text-[13.5px] text-fg outline-none placeholder:text-fg-subtle"
               />
             </div>
             <Command.List className="max-h-[min(400px,60vh)] overflow-y-auto overscroll-contain p-1.5">
-              <Command.Empty className="px-3 py-8 text-center text-[12.5px] text-fg-subtle">{opts.emptyText ?? 'No matches'}</Command.Empty>
+              <Command.Empty className="px-3 py-8 text-center text-[12.5px] text-fg-subtle">{opts.emptyText ?? t('ui.noMatches')}</Command.Empty>
               {items.map((it, i) => (
                 <Command.Item
                   key={i}

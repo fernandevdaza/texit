@@ -1,10 +1,12 @@
 /**
  * Desktop feature activation: routes native menu commands to the command
- * registry and keeps the Windows/Linux window-controls overlay in sync with the
- * app theme. No-op in the browser.
+ * registry, keeps the native menu in the UI language and the Windows/Linux
+ * window-controls overlay in sync with the app theme. No-op in the browser.
  */
 import { getHost } from '@texit/core';
+import { getLocale } from '@/lib/i18n';
 import { executeCommand, getCommand } from '@/services/commands';
+import { useSettings } from '@/state/settings';
 
 export function activate(): () => void {
   const host = getHost();
@@ -12,6 +14,17 @@ export function activate(): () => void {
   const disposers: (() => void)[] = [];
 
   disposers.push(host.app.onMenuCommand((id) => void executeCommand(id)));
+
+  // Native menu language: now and whenever the UI language changes.
+  if (host.app.setLocale) {
+    const setLocale = host.app.setLocale.bind(host.app);
+    setLocale(getLocale());
+    disposers.push(
+      useSettings.subscribe((s, p) => {
+        if (s.locale !== p.locale) setLocale(getLocale());
+      }),
+    );
+  }
 
   // Files opened from the OS are surfaced as a DOM event (and a command, if one is registered).
   disposers.push(

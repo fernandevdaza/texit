@@ -8,6 +8,60 @@ import { definePlugin, type PluginAPI } from '@texit/plugin-api';
 import { documentBody, stripComments } from '@/plugins/lib/latexText';
 import { EmptyState, PanelHeader, Segmented, Spinner } from '@/ui';
 import { mountReact } from './mount';
+import { createTr, useTr, type Catalog } from './i18n';
+
+const MESSAGES: Catalog = {
+  en: {
+    title: 'Word count',
+    nothingToCount: 'Nothing to count',
+    openTexProject: 'Open a project with a .tex file.',
+    wholeDocument: 'Whole document',
+    wordsUnit_one: 'word',
+    wordsUnit_other: 'words',
+    filesFrom_one: '{count} file from',
+    filesFrom_other: '{count} files from',
+    readingTime: 'Reading time',
+    characters: 'Characters',
+    inlineMath: 'Inline math',
+    equations: 'Equations',
+    breakdown: 'Breakdown',
+    sections: 'Sections',
+    files: 'Files',
+    beforeFirstHeading: 'Before the first heading',
+    untitled: '(untitled)',
+    footnote: 'Approximate (texcount-style): comments, math and command names are not counted. Reading time at {wpm} words/min.',
+    statusWords_one: '{count} word',
+    statusWords_other: '{count} words',
+    chars_one: '{count} character',
+    chars_other: '{count} characters',
+    statusTooltip: '{path}\n{words} · {characters} · {time} read\nClick for the whole document',
+  },
+  es: {
+    title: 'Recuento de palabras',
+    nothingToCount: 'No hay nada que contar',
+    openTexProject: 'Abre un proyecto con un archivo .tex.',
+    wholeDocument: 'Documento completo',
+    wordsUnit_one: 'palabra',
+    wordsUnit_other: 'palabras',
+    filesFrom_one: '{count} archivo a partir de',
+    filesFrom_other: '{count} archivos a partir de',
+    readingTime: 'Tiempo de lectura',
+    characters: 'Caracteres',
+    inlineMath: 'Matemáticas en línea',
+    equations: 'Ecuaciones',
+    breakdown: 'Desglose',
+    sections: 'Secciones',
+    files: 'Archivos',
+    beforeFirstHeading: 'Antes del primer título',
+    untitled: '(sin título)',
+    footnote: 'Aproximado (al estilo de texcount): no se cuentan comentarios, matemáticas ni nombres de comandos. Tiempo de lectura a {wpm} palabras/min.',
+    statusWords_one: '{count} palabra',
+    statusWords_other: '{count} palabras',
+    chars_one: '{count} carácter',
+    chars_other: '{count} caracteres',
+    statusTooltip: '{path}\n{words} · {characters} · {time} de lectura\nHaz clic para ver el documento completo',
+  },
+};
 
 // ───────────────────────────── analysis ─────────────────────────────
 
@@ -145,7 +199,7 @@ export async function countDocument(api: PluginAPI): Promise<DocumentCount | nul
   return result;
 }
 
-const fmt = (n: number) => n.toLocaleString();
+const fmt = (n: number, locale?: string) => n.toLocaleString(locale);
 function readingTime(words: number, wpm: number) {
   const min = words / Math.max(60, wpm);
   if (min < 1) return '< 1 min';
@@ -165,6 +219,8 @@ function Stat({ label, value }: { label: string; value: string }) {
 }
 
 function WordCountPanel({ api }: { api: PluginAPI }) {
+  const tr = useTr(api, MESSAGES);
+  const locale = api.ui.getLocale();
   const [data, setData] = useState<DocumentCount | null | undefined>(undefined);
   const [view, setView] = useState<'sections' | 'files'>('sections');
   const [wpm, setWpm] = useState(() => api.settings.get<number>('wpm', 230));
@@ -201,47 +257,47 @@ function WordCountPanel({ api }: { api: PluginAPI }) {
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <PanelHeader title="Word count" />
+      <PanelHeader title={tr('title')} />
       {data === undefined ? (
         <div className="flex flex-1 items-center justify-center text-fg-subtle">
           <Spinner />
         </div>
       ) : !data ? (
-        <EmptyState title="Nothing to count" description="Open a project with a .tex file." />
+        <EmptyState title={tr('nothingToCount')} description={tr('openTexProject')} />
       ) : (
         <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-4">
           <div className="rounded-xl bg-gradient-to-br from-accent-soft to-transparent p-3 ring-1 ring-inset ring-border">
-            <div className="text-[11px] font-medium text-fg-muted">Whole document</div>
+            <div className="text-[11px] font-medium text-fg-muted">{tr('wholeDocument')}</div>
             <div className="mt-0.5 flex items-baseline gap-1.5">
-              <span className="text-[26px] font-semibold leading-none tracking-tight tabular-nums text-fg">{fmt(data.words)}</span>
-              <span className="text-[12px] text-fg-muted">words</span>
+              <span className="text-[26px] font-semibold leading-none tracking-tight tabular-nums text-fg">{fmt(data.words, locale)}</span>
+              <span className="text-[12px] text-fg-muted">{tr('wordsUnit', { count: data.words })}</span>
             </div>
             <div className="mt-1 truncate text-[11.5px] text-fg-subtle" title={data.mainPath ?? ''}>
-              {data.files.length} file{data.files.length === 1 ? '' : 's'} from <span className="font-mono">{data.mainPath}</span>
+              {tr('filesFrom', { count: data.files.length })} <span className="font-mono">{data.mainPath}</span>
             </div>
           </div>
           <div className="mt-2 grid grid-cols-2 gap-1.5">
-            <Stat label="Reading time" value={readingTime(data.words, wpm)} />
-            <Stat label="Characters" value={fmt(data.characters)} />
-            <Stat label="Inline math" value={fmt(data.mathInline)} />
-            <Stat label="Equations" value={fmt(data.mathDisplay)} />
+            <Stat label={tr('readingTime')} value={readingTime(data.words, wpm)} />
+            <Stat label={tr('characters')} value={fmt(data.characters, locale)} />
+            <Stat label={tr('inlineMath')} value={fmt(data.mathInline, locale)} />
+            <Stat label={tr('equations')} value={fmt(data.mathDisplay, locale)} />
           </div>
 
           <div className="mb-1.5 mt-4 flex items-center justify-between">
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-fg-subtle">Breakdown</span>
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-fg-subtle">{tr('breakdown')}</span>
             <Segmented
               size="sm"
               value={view}
               onChange={setView}
               options={[
-                { value: 'sections', label: 'Sections' },
-                { value: 'files', label: 'Files' },
+                { value: 'sections', label: tr('sections') },
+                { value: 'files', label: tr('files') },
               ]}
             />
           </div>
           <ul className="space-y-0.5">
             {(view === 'sections'
-              ? data.sections.map((s) => ({ key: `${s.path}:${s.line}:${s.title}`, label: s.title, indent: Math.max(0, s.level - 1), words: s.words, path: s.path, line: s.line, muted: s.kind === 'front' }))
+              ? data.sections.map((s) => ({ key: `${s.path}:${s.line}:${s.title}`, label: s.kind === 'front' ? tr('beforeFirstHeading') : s.title === '(untitled)' ? tr('untitled') : s.title, indent: Math.max(0, s.level - 1), words: s.words, path: s.path, line: s.line, muted: s.kind === 'front' }))
               : data.files.map((f) => ({ key: f.path, label: f.path, indent: 0, words: f.words, path: f.path, line: 1, muted: false }))
             ).map((row) => (
               <li key={row.key}>
@@ -258,13 +314,13 @@ function WordCountPanel({ api }: { api: PluginAPI }) {
                   <span className={`relative min-w-0 flex-1 truncate ${row.muted ? 'italic text-fg-subtle' : 'text-fg'} ${view === 'files' ? 'font-mono text-[11.5px]' : ''}`}>
                     {row.label}
                   </span>
-                  <span className="relative shrink-0 tabular-nums text-fg-muted">{fmt(row.words)}</span>
+                  <span className="relative shrink-0 tabular-nums text-fg-muted">{fmt(row.words, locale)}</span>
                 </button>
               </li>
             ))}
           </ul>
           <p className="mt-4 text-[11px] leading-relaxed text-fg-subtle">
-            Approximate (texcount-style): comments, math and command names are not counted. Reading time at {wpm} words/min.
+            {tr('footnote', { wpm })}
           </p>
         </div>
       )}
@@ -283,11 +339,24 @@ export default definePlugin({
   description: 'Live word count in the status bar, plus a per-section breakdown and reading time for the whole document.',
   permissions: ['project:read', 'ui'],
   tags: ['writing', 'statistics'],
+  locales: {
+    es: {
+      name: 'Recuento de palabras',
+      description: 'Recuento de palabras en vivo en la barra de estado, con desglose por sección y tiempo de lectura de todo el documento.',
+      commands: { show: 'Mostrar recuento de palabras' },
+      panels: { panel: 'Recuento de palabras' },
+      settings: {
+        wpm: { title: 'Velocidad de lectura', description: 'Palabras por minuto para estimar el tiempo de lectura.' },
+        showStatus: { title: 'Mostrar en la barra de estado' },
+      },
+    },
+  },
   settings: [
     { key: 'wpm', title: 'Reading speed', description: 'Words per minute used to estimate reading time.', type: 'number', default: 230, min: 80, max: 800, step: 10 },
     { key: 'showStatus', title: 'Show in status bar', type: 'boolean', default: true },
   ],
   activate(api) {
+    const tr = createTr(api, MESSAGES);
     let current: { path: string; words: number; characters: number } | null = null;
     let seq = 0;
 
@@ -299,8 +368,13 @@ export default definePlugin({
         if (!current || !api.settings.get('showStatus', true)) return null;
         const wpm = api.settings.get<number>('wpm', 230);
         return {
-          text: `${fmt(current.words)} words`,
-          tooltip: `${current.path}\n${fmt(current.words)} words · ${fmt(current.characters)} characters · ${readingTime(current.words, wpm)} read\nClick for the whole document`,
+          text: tr('statusWords', { count: current.words }),
+          tooltip: tr('statusTooltip', {
+            path: current.path,
+            words: tr('statusWords', { count: current.words }),
+            characters: tr('chars', { count: current.characters }),
+            time: readingTime(current.words, wpm),
+          }),
         };
       },
       onClick: () => api.ui.showPanel('panel'),
@@ -327,6 +401,7 @@ export default definePlugin({
     api.editor.onDidChangeActiveFile(() => void recount());
     api.project.onDidChangeFiles(() => void recount());
     api.settings.onDidChange(() => status.refresh());
+    api.ui.onLocaleChange(() => status.refresh());
 
     api.ui.registerPanel({
       id: 'panel',

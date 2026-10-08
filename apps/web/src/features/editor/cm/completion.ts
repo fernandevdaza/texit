@@ -20,7 +20,8 @@ import {
 import type { EditorState, Text } from '@codemirror/state';
 import type { EditorView } from '@codemirror/view';
 import { basename, dirname, extname, isImagePath, isPdfPath, isTexPath, stripExtension } from '@texit/core';
-import { getCatalog, documentClasses, type CatalogCommand, type CatalogEnvironment } from '../latexCatalog';
+import { getCatalog, documentClasses, packageDetail, type CatalogCommand, type CatalogEnvironment } from '../latexCatalog';
+import { t as tr } from '@/lib/i18n';
 import { getProjectIndex, stripComment, type IndexedBibEntry } from '../projectIndex';
 import { fileInfo } from './fileInfo';
 import { isInMath } from './math';
@@ -139,7 +140,7 @@ function commandCompletions(ctx: CompletionContext): CompletionResult | null {
         const args = Array.from({ length: Math.min(c.args, 9) }, (_, i) => `{\${${i + 1}}}`).join('');
         push({
           label: `\\${c.name}`,
-          detail: `user · ${basename(c.path)}`,
+          detail: tr('editor.complete.user', { file: basename(c.path) }),
           type: 'macro',
           boost: 8 + Math.min(10, usage.get(c.name) ?? 0),
           apply: c.args ? commandApply({ name: c.name, snippet: `\\${c.name}${args}` }) : undefined,
@@ -164,7 +165,7 @@ function commandCompletions(ctx: CompletionContext): CompletionResult | null {
   for (const [name, count] of usage) {
     if (seen.has(`\\${name}`) || name.length < 2) continue;
     if (name === typed && count <= 1) continue; // the command being typed
-    push({ label: `\\${name}`, type: 'cmd', detail: 'in document', boost: Math.min(6, count) - 2 });
+    push({ label: `\\${name}`, type: 'cmd', detail: tr('editor.complete.inDocument'), boost: Math.min(6, count) - 2 });
   }
   return { from: word.from, options, validFor: /^\\[a-zA-Z@]*\*?$/ };
 }
@@ -277,7 +278,7 @@ function environmentCompletions(ctx: CompletionContext, before: string): Complet
   };
   const idx = getProjectIndex();
   try {
-    for (const e of idx?.userEnvironments() ?? []) add(e.name, catalog.environmentIndex.get(e.name), { detail: `user · ${basename(e.path)}`, boost: 6 });
+    for (const e of idx?.userEnvironments() ?? []) add(e.name, catalog.environmentIndex.get(e.name), { detail: tr('editor.complete.user', { file: basename(e.path) }), boost: 6 });
   } catch {
     /* ignore */
   }
@@ -291,7 +292,7 @@ function environmentCompletions(ctx: CompletionContext, before: string): Complet
   const typedAt = from - '\\begin{'.length;
   for (const mm of text.matchAll(/\\begin\{([^}\s]+)\}/g)) {
     if (mm.index === typedAt) continue; // the environment being typed
-    add(mm[1], catalog.environmentIndex.get(mm[1]), { detail: 'in document', boost: 2 });
+    add(mm[1], catalog.environmentIndex.get(mm[1]), { detail: tr('editor.complete.inDocument'), boost: 2 });
   }
   return { from, options, validFor: /^[\w*@:-]*$/ };
 }
@@ -317,7 +318,7 @@ function endCompletions(ctx: CompletionContext, before: string): CompletionResul
     .forEach((name, i) => {
       if (seen.has(name)) return;
       seen.add(name);
-      options.push({ label: name, type: 'env', detail: i === 0 ? 'close current' : 'open', boost: 99 - i * 5, apply: apply(name) });
+      options.push({ label: name, type: 'env', detail: i === 0 ? tr('editor.complete.closeCurrent') : tr('editor.complete.open'), boost: 99 - i * 5, apply: apply(name) });
     });
   for (const env of getCatalog().environments) {
     if (seen.has(env.name)) continue;
@@ -373,7 +374,7 @@ function labelDefinitionCompletions(ctx: CompletionContext, before: string): Com
   const options: Completion[] = labelSuggestions(ctx.state, ctx.pos).map((s, i) => ({
     label: s,
     type: 'label',
-    detail: 'suggested',
+    detail: tr('editor.complete.suggested'),
     boost: 10 - i,
   }));
   return options.length ? { from, options, validFor: /^[^}\s]*$/ } : null;
@@ -562,9 +563,9 @@ function packageCompletions(ctx: CompletionContext, before: string): CompletionR
   const idx = getProjectIndex();
   const local = (idx?.files() ?? []).filter((f) => extname(f.path) === (isClass ? 'cls' : 'sty')).map((f) => stripExtension(basename(f.path)));
   const options: Completion[] = [];
-  for (const name of local) options.push({ label: name, type: 'package', detail: 'project', boost: 10 });
+  for (const name of local) options.push({ label: name, type: 'package', detail: tr('editor.complete.project'), boost: 10 });
   if (isClass) for (const c of documentClasses) options.push({ label: c, type: 'package' });
-  else for (const p of getCatalog().packages) options.push({ label: p.name, type: 'package', detail: p.detail });
+  else for (const p of getCatalog().packages) options.push({ label: p.name, type: 'package', detail: packageDetail(p) });
   return { from, options, validFor: /^[\w@.-]*$/ };
 }
 

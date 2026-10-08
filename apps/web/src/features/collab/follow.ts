@@ -9,6 +9,7 @@ import { getAwareness, type PeerUser } from '@/services/collab';
 import { getEditorBridge, selectionChanged } from '@/services/editor';
 import { useWorkspace } from '@/state/workspace';
 import { toast } from '@/ui';
+import { t } from '@/lib/i18n';
 import { useCollab } from './session';
 import { fileIdForView, fileIdForYText } from './editorExtensions';
 
@@ -45,7 +46,7 @@ export function startFollowing(clientId: number) {
   const aw = getAwareness();
   if (!aw || clientId === aw.clientID) return;
   const state = aw.getStates().get(clientId);
-  const name = (state?.user as PeerUser | undefined)?.name ?? 'collaborator';
+  const name = (state?.user as PeerUser | undefined)?.name ?? t('collab.collaborator');
   const f: FollowState = { clientId, name, offs: [], lastJump: 0, raf: 0 };
   follow = f;
   useCollab.setState({ following: clientId });
@@ -106,7 +107,7 @@ function sync(f: FollowState) {
   if (!aw || !project) return stopFollowing();
   const state = aw.getStates().get(f.clientId);
   if (!state) {
-    toast.message(`${f.name} left — stopped following`);
+    toast.message(t('collab.followLeft', { name: f.name }));
     return stopFollowing();
   }
   const user = state.user as PeerUser | undefined;

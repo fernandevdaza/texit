@@ -1,5 +1,6 @@
 import type { TexEngine } from '@texit/core';
 import { useWorkspace } from '@/state/workspace';
+import { t } from '@/lib/i18n';
 import { toast } from '@/ui';
 import { ENGINE_LABELS, getController } from './controller';
 
@@ -9,7 +10,7 @@ export function setProjectEngine(engine: TexEngine) {
   if (!p) return;
   p.setMeta({ engine });
   useWorkspace.getState().refreshTree();
-  toast(`Engine: ${ENGINE_LABELS[engine]}`, { id: 'compile-engine', duration: 1500 });
+  toast(t('compile.engineToast', { engine: ENGINE_LABELS[engine] }), { id: 'compile-engine', duration: 1500 });
   void getController()?.compile({ reason: 'manual' });
 }
 

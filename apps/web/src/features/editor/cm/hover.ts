@@ -6,6 +6,7 @@
 import { StateField, type EditorState, type Extension } from '@codemirror/state';
 import { EditorView, hoverTooltip, showTooltip, type Tooltip, type TooltipView } from '@codemirror/view';
 import { basename, extname, isImagePath } from '@texit/core';
+import { t } from '@/lib/i18n';
 import { getCatalog } from '../latexCatalog';
 import { getProjectIndex, stripComment, type IndexedLabel } from '../projectIndex';
 import { bibCard } from './completion';
@@ -74,9 +75,11 @@ function mathDom(state: EditorState, region: MathRegion): HTMLElement {
 
 function labelKind(name: string): string {
   const p = name.split(':')[0].toLowerCase();
-  return (
-    { fig: 'Figure', tab: 'Table', eq: 'Equation', sec: 'Section', ch: 'Chapter', chap: 'Chapter', lst: 'Listing', thm: 'Theorem', lem: 'Lemma', def: 'Definition', app: 'Appendix' } as Record<string, string>
-  )[p] ?? 'Label';
+  const kind =
+    (
+      { fig: 'figure', tab: 'table', eq: 'equation', sec: 'section', ch: 'chapter', chap: 'chapter', lst: 'listing', thm: 'theorem', lem: 'lemma', def: 'definition', app: 'appendix' } as Record<string, string>
+    )[p] ?? 'label';
+  return t(`editor.labelKind.${kind}`);
 }
 
 function refDom(label: IndexedLabel, text: string): HTMLElement {
@@ -153,7 +156,7 @@ function imageDom(fileId: string, path: string): TooltipView {
     frame.append(img);
     box.append(frame, meta);
   } else {
-    box.append(el('div', 'text-[12px] font-medium', basename(path)), el('div', 'text-[11px] text-fg-subtle', `${extname(path).toUpperCase()} figure · preview not available`));
+    box.append(el('div', 'text-[12px] font-medium', basename(path)), el('div', 'text-[11px] text-fg-subtle', t('editor.hover.figureNoPreview', { ext: extname(path).toUpperCase() })));
   }
   return {
     dom: box,
@@ -179,7 +182,7 @@ function hoverAt(view: EditorView, pos: number, side: -1 | 1): Tooltip | null {
       pos: cite.from,
       end: cite.to,
       above: true,
-      create: () => ({ dom: entry ? card([bibCard(entry)]) : card([el('div', 'text-[12px] text-fg-muted', `No bibliography entry for “${cite.item}”`)]) }),
+      create: () => ({ dom: entry ? card([bibCard(entry)]) : card([el('div', 'text-[12px] text-fg-muted', t('editor.hover.noBibEntry', { key: cite.item }))]) }),
     };
   }
   const ref = argItemAt(state, pos, REF_RE);
@@ -190,14 +193,14 @@ function hoverAt(view: EditorView, pos: number, side: -1 | 1): Tooltip | null {
       end: ref.to,
       above: true,
       create: () => ({
-        dom: label ? refDom(label, idx.project.readText(label.fileId)) : card([el('div', 'text-[12px] text-fg-muted', `Undefined label “${ref.item}”`)]),
+        dom: label ? refDom(label, idx.project.readText(label.fileId)) : card([el('div', 'text-[12px] text-fg-muted', t('editor.hover.undefinedLabel', { name: ref.item }))]),
       }),
     };
   }
   const gfx = argItemAt(state, pos, GFX_RE);
   if (gfx && idx && gfx.item) {
     const id = idx.resolveInclude(gfx.item, current?.path, GFX_EXTS);
-    if (!id) return { pos: gfx.from, end: gfx.to, above: true, create: () => ({ dom: card([el('div', 'text-[12px] text-fg-muted', `File not found: ${gfx.item}`)]) }) };
+    if (!id) return { pos: gfx.from, end: gfx.to, above: true, create: () => ({ dom: card([el('div', 'text-[12px] text-fg-muted', t('editor.hover.fileNotFound', { path: gfx.item }))]) }) };
     return { pos: gfx.from, end: gfx.to, above: true, create: () => imageDom(id, idx.project.getPath(id)) };
   }
 
@@ -250,7 +253,7 @@ function hoverAt(view: EditorView, pos: number, side: -1 | 1): Tooltip | null {
         create: () => {
           const head = el('div', 'flex items-center gap-2');
           head.append(el('span', 'font-mono text-[12px] font-semibold', `\\${name}`));
-          head.append(el('span', 'rounded bg-accent-soft px-1.5 py-px text-[10.5px] font-semibold text-accent', m.args ? `macro · ${m.args} arg${m.args > 1 ? 's' : ''}` : 'macro'));
+          head.append(el('span', 'rounded bg-accent-soft px-1.5 py-px text-[10.5px] font-semibold text-accent', m.args ? t('editor.hover.macroArgs', { count: m.args }) : t('editor.hover.macro')));
           const body = el('div', 'mt-1.5 font-mono text-[11.5px] text-fg-muted break-all', m.body.slice(0, 200));
           const preview = el('div', 'cm-tx-math mt-1.5');
           if (!m.args) renderMath(preview, `\\${name}`, false);
@@ -297,7 +300,7 @@ const cursorMathField = StateField.define<CursorMath | null>({
       arrow: false,
       create: () => {
         const dom = el('div', 'cm-tx-math-preview');
-        const label = el('div', 'cm-tx-math-label', 'Preview');
+        const label = el('div', 'cm-tx-math-label', t('editor.hover.preview'));
         dom.append(label, mathDom(state, region));
         return { dom, offset: { x: 0, y: 6 } };
       },

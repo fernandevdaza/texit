@@ -3,6 +3,7 @@ import { useHashLocation } from 'wouter/use-hash-location';
 import { Toaster } from 'sonner';
 import { DialogHost, TooltipProvider } from '@/ui';
 import { useResolvedTheme } from '@/state/settings';
+import { useT } from '@/lib/i18n';
 import { Dashboard } from '@/features/dashboard/Dashboard';
 import { Workspace } from '@/features/workspace/Workspace';
 import { CommandPalette } from '@/features/palette/CommandPalette';
@@ -11,6 +12,7 @@ import { JoinRoute } from '@/features/collab/JoinRoute';
 
 export function App() {
   const theme = useResolvedTheme((s) => s.theme);
+  const t = useT();
   return (
     <TooltipProvider>
       <Router hook={useHashLocation}>
@@ -30,7 +32,8 @@ export function App() {
         position="bottom-right"
         richColors
         closeButton
-        toastOptions={{ className: 'font-sans !text-[13px]', style: { borderRadius: 12 } }}
+        containerAriaLabel={t('ui.notifications')}
+        toastOptions={{ className: 'font-sans !text-[13px]', style: { borderRadius: 12 }, closeButtonAriaLabel: t('ui.closeNotification') }}
       />
     </TooltipProvider>
   );

@@ -6,25 +6,29 @@ import { Avatar, DropdownMenu, Kbd, Tooltip } from '@/ui';
 import { cn } from '@/lib/cn';
 import { useCollab, type CollabPeerView } from './session';
 import { stopFollowing, toggleFollow } from './follow';
+import { useT } from '@/lib/i18n';
+import './i18n';
 
 const MAX_SHOWN = 4;
 
 function PeerTooltip({ p, following }: { p: CollabPeerView; following: boolean }) {
+  const t = useT();
   const path = useWorkspace((s) => (p.fileId ? s.files.find((f) => f.id === p.fileId)?.path : undefined));
   return (
     <div className="flex flex-col gap-0.5 py-0.5">
       <span className="font-semibold">
         {p.name}
-        {p.viewOnly ? ' · view-only' : ''}
+        {p.viewOnly ? ` · ${t('collab.viewOnlyLower')}` : ''}
       </span>
-      <span className="font-normal text-white/70">{path ? `In ${path}` : 'Browsing the project'}</span>
-      <span className="font-normal text-white/50">{following ? 'Click to stop following' : 'Click to follow'}</span>
+      <span className="font-normal text-white/70">{path ? t('collab.inFile', { file: path }) : t('collab.browsing')}</span>
+      <span className="font-normal text-white/50">{following ? t('collab.clickStopFollow') : t('collab.clickFollow')}</span>
     </div>
   );
 }
 
 /** Stacked avatars of the collaborators currently in the project; click to follow one. */
 export function PresenceAvatars() {
+  const t = useT();
   const { peers, following } = useCollab(useShallow((s) => ({ peers: s.peers, following: s.following })));
   if (!peers.length) return null;
   const shown = peers.slice(0, MAX_SHOWN);
@@ -33,14 +37,14 @@ export function PresenceAvatars() {
 
   return (
     <>
-      <div className="mr-1 flex items-center -space-x-1.5" aria-label="Collaborators">
+      <div className="mr-1 flex items-center -space-x-1.5" aria-label={t('collab.collaborators')}>
         {shown.map((p) => {
           const isF = p.clientId === following;
           return (
             <Tooltip key={p.clientId} content={<PeerTooltip p={p} following={isF} />}>
               <button
                 onClick={() => toggleFollow(p.clientId)}
-                aria-label={isF ? `Stop following ${p.name}` : `Follow ${p.name}`}
+                aria-label={isF ? t('collab.stopFollowingName', { name: p.name }) : t('collab.followName', { name: p.name })}
                 aria-pressed={isF}
                 className={cn('relative rounded-full transition-transform duration-150 hover:z-10 hover:-translate-y-0.5', isF && 'z-10')}
                 style={{ boxShadow: isF ? `0 0 0 2px var(--tx-surface), 0 0 0 4px ${p.color}` : undefined }}
@@ -64,7 +68,7 @@ export function PresenceAvatars() {
               </button>
             }
             items={[
-              { type: 'label', label: 'Follow a collaborator' },
+              { type: 'label', label: t('collab.followACollaborator') },
               ...rest.map((p) => ({
                 label: p.name,
                 checked: p.clientId === following,
@@ -83,9 +87,9 @@ export function PresenceAvatars() {
               className="pointer-events-auto absolute left-1/2 top-[52px] flex -translate-x-1/2 animate-slide-up items-center gap-2 rounded-full py-1 pl-3 pr-1 text-[12px] font-medium text-white shadow-lg"
               style={{ background: followed.color }}
             >
-              Following {followed.name}
+              {t('collab.followingName', { name: followed.name })}
               <Kbd keys="Escape" variant="tooltip" />
-              <button onClick={stopFollowing} aria-label="Stop following" className="rounded-full p-0.5 hover:bg-white/20">
+              <button onClick={stopFollowing} aria-label={t('collab.stopFollowing')} className="rounded-full p-0.5 hover:bg-white/20">
                 <X className="size-3.5" />
               </button>
             </div>

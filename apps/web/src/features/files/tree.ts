@@ -1,4 +1,5 @@
 import { ROOT_ID, type FileNode } from '@texit/core';
+import { t } from '@/lib/i18n';
 
 const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
 
@@ -71,11 +72,11 @@ export function isInside(files: FileNode[], id: string, folderId: string): boole
 
 export function validateName(name: string, siblings: FileNode[], selfId?: string): string | null {
   const n = name.trim();
-  if (!n) return 'A name is required';
-  if (/[\\:*?"<>|]/.test(n)) return 'Name contains invalid characters';
-  if (n.startsWith('/') || n.endsWith('/') || n.split('/').some((s) => s === '..' || s === '.' || !s)) return 'Invalid path';
+  if (!n) return t('files.nameRequired');
+  if (/[\\:*?"<>|]/.test(n)) return t('files.invalidChars');
+  if (n.startsWith('/') || n.endsWith('/') || n.split('/').some((s) => s === '..' || s === '.' || !s)) return t('files.invalidPath');
   const first = n.split('/')[0];
   if (siblings.some((s) => s.id !== selfId && s.name === first && (n.includes('/') ? s.kind !== 'folder' : true)))
-    return `“${first}” already exists here`;
+    return t('files.alreadyExists', { name: first });
   return null;
 }

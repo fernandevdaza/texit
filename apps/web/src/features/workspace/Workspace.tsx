@@ -5,6 +5,7 @@ import { AlertTriangle } from 'lucide-react';
 import { openProjectSession } from '@/services/projects';
 import { useLayout, useWorkspace } from '@/state/workspace';
 import { host } from '@/lib/platform';
+import { useT } from '@/lib/i18n';
 import { Button, EmptyState, Spinner } from '@/ui';
 import { EditorArea } from '@/features/editor/EditorArea';
 import { PdfPane } from '@/features/pdf/PdfPane';
@@ -30,6 +31,7 @@ export function Workspace({ projectId }: { projectId: string }) {
   const [error, setError] = useState<string | null>(null);
   const session = useWorkspace((s) => s.session);
   const [, navigate] = useLocation();
+  const t = useT();
 
   // Open / close the project session.
   useEffect(() => {
@@ -90,9 +92,9 @@ export function Workspace({ projectId }: { projectId: string }) {
       <div className="flex h-full items-center justify-center">
         <EmptyState
           icon={<AlertTriangle />}
-          title="Could not open this project"
+          title={t('workspace.couldNotOpen')}
           description={error}
-          action={<Button onClick={() => navigate('/')}>Back to projects</Button>}
+          action={<Button onClick={() => navigate('/')}>{t('workspace.backToProjects')}</Button>}
         />
       </div>
     );
@@ -107,7 +109,7 @@ export function Workspace({ projectId }: { projectId: string }) {
           <MainArea />
         ) : (
           <div className="flex flex-1 items-center justify-center gap-2 text-fg-subtle">
-            <Spinner /> Opening project…
+            <Spinner /> {t('workspace.openingProject')}
           </div>
         )}
       </div>

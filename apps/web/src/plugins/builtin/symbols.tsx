@@ -8,6 +8,52 @@ import { Search, X } from 'lucide-react';
 import { definePlugin, type MathSymbolInfo, type PluginAPI } from '@texit/plugin-api';
 import { EmptyState, Input, PanelHeader, Tooltip } from '@/ui';
 import { mountReact } from './mount';
+import { translate, usePluginLocale, type Catalog, type Tr } from './i18n';
+
+const MESSAGES: Catalog = {
+  en: {
+    title: 'Symbols',
+    search: 'Search symbols (e.g. alpha, ≤, arrow)',
+    clearSearch: 'Clear search',
+    noneFound: 'No symbols found',
+    nothingMatches: 'Nothing matches “{query}”.',
+    'cat.All': 'All',
+    'cat.Recent': 'Recent',
+    'cat.Greek': 'Greek',
+    'cat.Operators': 'Operators',
+    'cat.Relations': 'Relations',
+    'cat.Arrows': 'Arrows',
+    'cat.Big operators': 'Big operators',
+    'cat.Structures': 'Structures',
+    'cat.Accents': 'Accents',
+    'cat.Letters': 'Letters',
+    'cat.Delimiters': 'Delimiters',
+    'cat.Dots': 'Dots',
+    'cat.Functions': 'Functions',
+    'cat.Misc': 'Misc',
+  },
+  es: {
+    title: 'Símbolos',
+    search: 'Buscar símbolos (p. ej., alpha, ≤, arrow)',
+    clearSearch: 'Borrar búsqueda',
+    noneFound: 'No se encontraron símbolos',
+    nothingMatches: 'Nada coincide con “{query}”.',
+    'cat.All': 'Todos',
+    'cat.Recent': 'Recientes',
+    'cat.Greek': 'Griego',
+    'cat.Operators': 'Operadores',
+    'cat.Relations': 'Relaciones',
+    'cat.Arrows': 'Flechas',
+    'cat.Big operators': 'Operadores grandes',
+    'cat.Structures': 'Estructuras',
+    'cat.Accents': 'Acentos',
+    'cat.Letters': 'Letras',
+    'cat.Delimiters': 'Delimitadores',
+    'cat.Dots': 'Puntos',
+    'cat.Functions': 'Funciones',
+    'cat.Misc': 'Varios',
+  },
+};
 
 interface PaletteSymbol extends MathSymbolInfo {
   /** For structures: wrap the selection with before/after instead of inserting `command`. */
@@ -73,6 +119,10 @@ const Glyph = memo(function Glyph({ s }: { s: PaletteSymbol }) {
 });
 
 function SymbolPalette({ api }: { api: PluginAPI }) {
+  const locale = usePluginLocale(api);
+  const tr: Tr = (key, vars) => translate(MESSAGES, locale, key, vars);
+  /** Category ids stay English (they come from `api.latex.symbols()`); only the display is translated. */
+  const catLabel = (c: string) => (MESSAGES.en[`cat.${c}`] ? tr(`cat.${c}`) : c);
   const all = useMemo<PaletteSymbol[]>(() => {
     const seen = new Set<string>();
     return [...api.latex.symbols(), ...STRUCTURES].filter((s) => (seen.has(s.command) ? false : (seen.add(s.command), true)));
@@ -97,7 +147,12 @@ function SymbolPalette({ api }: { api: PluginAPI }) {
   const groups = useMemo(() => {
     const q = query.trim().toLowerCase().replace(/^\\/, '');
     const match = (s: PaletteSymbol) =>
-      !q || s.command.toLowerCase().includes(q) || (s.name ?? '').toLowerCase().includes(q) || s.glyph === query.trim() || s.category.toLowerCase().includes(q);
+      !q ||
+      s.command.toLowerCase().includes(q) ||
+      (s.name ?? '').toLowerCase().includes(q) ||
+      s.glyph === query.trim() ||
+      s.category.toLowerCase().includes(q) ||
+      catLabel(s.category).toLowerCase().includes(q);
     const out: { name: string; items: PaletteSymbol[] }[] = [];
     if (!q && (category === 'All' || category === 'Recent') && recent.length) {
       out.push({ name: 'Recent', items: recent.map((c) => byCommand.get(c)).filter(Boolean) as PaletteSymbol[] });
@@ -109,7 +164,8 @@ function SymbolPalette({ api }: { api: PluginAPI }) {
       if (items.length) out.push({ name: c, items });
     }
     return out;
-  }, [all, byCommand, categories, category, query, recent]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `catLabel` only changes with `locale`
+  }, [all, byCommand, categories, category, query, recent, locale]);
 
   const insert = (s: PaletteSymbol) => {
     const wrap = api.settings.get<boolean>('wrapInMath', false);
@@ -129,19 +185,19 @@ function SymbolPalette({ api }: { api: PluginAPI }) {
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <PanelHeader title="Symbols" />
+      <PanelHeader title={tr('title')} />
       <div className="space-y-2 px-3 pb-2">
         <div className="relative">
           <Input
             inputSize="sm"
             icon={<Search />}
             value={query}
-            placeholder="Search symbols (e.g. alpha, ≤, arrow)"
+            placeholder={tr('search')}
             onChange={(e) => setQuery(e.target.value)}
             className="pr-7"
           />
           {query && (
-            <button className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded p-0.5 text-fg-subtle hover:text-fg" onClick={() => setQuery('')} aria-label="Clear search">
+            <button className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded p-0.5 text-fg-subtle hover:text-fg" onClick={() => setQuery('')} aria-label={tr('clearSearch')}>
               <X className="size-3.5" />
             </button>
           )}
@@ -155,16 +211,16 @@ function SymbolPalette({ api }: { api: PluginAPI }) {
                 category === c ? 'bg-accent text-accent-fg' : 'bg-surface-2 text-fg-muted ring-1 ring-inset ring-border hover:text-fg'
               }`}
             >
-              {c}
+              {catLabel(c)}
             </button>
           ))}
         </div>
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-4">
-        {!groups.length && <EmptyState title="No symbols found" description={`Nothing matches “${query}”.`} />}
+        {!groups.length && <EmptyState title={tr('noneFound')} description={tr('nothingMatches', { query })} />}
         {groups.map((g) => (
           <section key={g.name} className="mb-3">
-            <h3 className="sticky top-0 z-10 bg-surface py-1 text-[10.5px] font-semibold uppercase tracking-wider text-fg-subtle">{g.name}</h3>
+            <h3 className="sticky top-0 z-10 bg-surface py-1 text-[10.5px] font-semibold uppercase tracking-wider text-fg-subtle">{catLabel(g.name)}</h3>
             <div className="grid grid-cols-[repeat(auto-fill,minmax(38px,1fr))] gap-1">
               {g.items.map((s) => (
                 <Tooltip
@@ -203,6 +259,15 @@ export default definePlugin({
   description: 'Searchable palette of math symbols, accents and constructs. Click to insert at the cursor.',
   permissions: ['editor', 'ui', 'storage'],
   tags: ['math', 'symbols'],
+  locales: {
+    es: {
+      name: 'Paleta de símbolos',
+      description: 'Paleta con búsqueda de símbolos matemáticos, acentos y estructuras. Haz clic para insertarlos en el cursor.',
+      commands: { show: 'Mostrar paleta de símbolos' },
+      panels: { panel: 'Símbolos' },
+      settings: { wrapInMath: { title: 'Envolver en $…$', description: 'Inserta los símbolos entre delimitadores de matemáticas en línea.' } },
+    },
+  },
   settings: [{ key: 'wrapInMath', title: 'Wrap in $…$', description: 'Insert symbols wrapped in inline math delimiters.', type: 'boolean', default: false }],
   activate(api) {
     api.ui.registerPanel({

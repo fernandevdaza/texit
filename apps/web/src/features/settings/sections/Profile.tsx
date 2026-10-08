@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Check, Dices, Pipette } from 'lucide-react';
 import { useSettings } from '@/state/settings';
 import { cn } from '@/lib/cn';
+import { useT } from '@/lib/i18n';
 import { Avatar, Button, Input } from '@/ui';
 import { Card, Row } from '../parts';
 
@@ -14,6 +15,7 @@ export function ProfileSection() {
   const userColor = useSettings((s) => s.userColor);
   const set = useSettings((s) => s.set);
   const [draft, setDraft] = useState(userName);
+  const t = useT();
   useEffect(() => setDraft(userName), [userName]);
 
   const commitName = () => {
@@ -37,19 +39,19 @@ export function ProfileSection() {
             </div>
             <div className="min-w-0">
               <div className="truncate text-[17px] font-semibold tracking-tight text-fg">{userName}</div>
-              <div className="text-[12px] text-fg-subtle">How collaborators see you</div>
+              <div className="text-[12px] text-fg-subtle">{t('settings.profile.howOthersSee')}</div>
             </div>
           </div>
           {/* Mock editor line with a remote caret */}
           <div className="ml-auto w-full max-w-[300px] rounded-xl border border-border bg-bg/70 p-3 font-mono text-[11.5px] leading-6 text-fg-muted shadow-xs backdrop-blur sm:w-auto">
             <div>
               <span className="text-accent">\section</span>
-              {'{Results}'}
+              {`{${t('settings.profile.mockSection')}}`}
             </div>
             <div className="relative">
-              We show{' '}
+              {t('settings.profile.mockLead')}{' '}
               <span className="rounded-[3px] px-0.5" style={{ background: `color-mix(in srgb, ${userColor} 22%, transparent)` }}>
-                the bound is tight
+                {t('settings.profile.mockHighlight')}
               </span>
               <span className="relative inline-block h-4 w-[2px] translate-y-[3px] animate-pulse" style={{ background: userColor }}>
                 <span
@@ -64,8 +66,8 @@ export function ProfileSection() {
         </div>
       </div>
 
-      <Card title="Identity" description="Stored only on this device. It's shared with peers only while you collaborate in real time.">
-        <Row title="Display name" description="Shown next to your cursor, in comments and in version history." stack>
+      <Card title={t('settings.profile.identity')} description={t('settings.profile.identityNote')}>
+        <Row title={t('settings.profile.displayName')} description={t('settings.profile.displayNameHint')} stack>
           <div className="flex gap-2">
             <Input
               value={draft}
@@ -73,7 +75,7 @@ export function ProfileSection() {
               onChange={(e) => setDraft(e.target.value)}
               onBlur={commitName}
               onKeyDown={(e) => e.key === 'Enter' && (e.currentTarget.blur(), commitName())}
-              placeholder="Your name"
+              placeholder={t('settings.profile.namePlaceholder')}
               className="max-w-xs"
             />
             <Button
@@ -84,17 +86,17 @@ export function ProfileSection() {
                 set({ userName: n });
               }}
             >
-              Surprise me
+              {t('settings.profile.surprise')}
             </Button>
           </div>
         </Row>
-        <Row title="Presence color" description="Your cursor, selections and avatar color." stack>
+        <Row title={t('settings.profile.color')} description={t('settings.profile.colorHint')} stack>
           <div className="flex flex-wrap items-center gap-2">
             {palette.map((c) => (
               <button
                 key={c}
                 type="button"
-                aria-label={`Use color ${c}`}
+                aria-label={t('settings.profile.useColor', { color: c })}
                 onClick={() => set({ userColor: c })}
                 className={cn(
                   'flex size-7 items-center justify-center rounded-full transition-transform hover:scale-110 focus-visible:outline-offset-2',
@@ -111,10 +113,10 @@ export function ProfileSection() {
                 !palette.includes(userColor.toLowerCase()) && 'ring-2 ring-fg/80 ring-offset-2 ring-offset-surface',
               )}
               style={{ background: 'conic-gradient(#f43f5e,#eab308,#22c55e,#06b6d4,#6366f1,#ec4899,#f43f5e)' }}
-              title="Custom color"
+              title={t('settings.profile.customColor')}
             >
               <Pipette className="size-3.5 text-white drop-shadow" />
-              <input type="color" value={userColor} onChange={(e) => set({ userColor: e.target.value })} className="absolute inset-0 cursor-pointer opacity-0" aria-label="Custom color" />
+              <input type="color" value={userColor} onChange={(e) => set({ userColor: e.target.value })} className="absolute inset-0 cursor-pointer opacity-0" aria-label={t('settings.profile.customColor')} />
             </label>
           </div>
         </Row>

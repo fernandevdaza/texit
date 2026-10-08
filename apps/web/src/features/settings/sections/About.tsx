@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import { ArrowUpRight, BadgeCheck, Bug, Download, Heart, RefreshCw, Scale } from 'lucide-react';
 import { host } from '@/lib/platform';
+import { t as tr, useT } from '@/lib/i18n';
 import { Badge, Button, Logo, Spinner, toast } from '@/ui';
 import pkg from '../../../../package.json';
 
@@ -12,17 +13,18 @@ function GithubMark() {
   );
 }
 
-export const REPO_URL = 'https://github.com/texit-app/texit';
+export const REPO_URL = 'https://github.com/fernandevdaza/texit';
 
+/** `what` is an i18n key. */
 const credits: { name: string; what: string; url: string }[] = [
-  { name: 'TeX Live', what: 'The TeX distribution behind every build', url: 'https://tug.org/texlive/' },
-  { name: 'BusyTeX', what: 'TeX Live compiled to WebAssembly', url: 'https://github.com/busytex/busytex' },
-  { name: 'pdf.js', what: 'PDF rendering', url: 'https://mozilla.github.io/pdf.js/' },
-  { name: 'CodeMirror', what: 'The editor', url: 'https://codemirror.net/' },
-  { name: 'Yjs', what: 'CRDTs for local-first collaboration', url: 'https://yjs.dev/' },
-  { name: 'KaTeX', what: 'Math previews', url: 'https://katex.org/' },
-  { name: 'Trystero', what: 'Serverless peer-to-peer signaling', url: 'https://github.com/dmotz/trystero' },
-  { name: 'Radix UI', what: 'Accessible primitives', url: 'https://www.radix-ui.com/' },
+  { name: 'TeX Live', what: 'settings.about.credit.texlive', url: 'https://tug.org/texlive/' },
+  { name: 'BusyTeX', what: 'settings.about.credit.busytex', url: 'https://github.com/busytex/busytex' },
+  { name: 'pdf.js', what: 'settings.about.credit.pdfjs', url: 'https://mozilla.github.io/pdf.js/' },
+  { name: 'CodeMirror', what: 'settings.about.credit.codemirror', url: 'https://codemirror.net/' },
+  { name: 'Yjs', what: 'settings.about.credit.yjs', url: 'https://yjs.dev/' },
+  { name: 'KaTeX', what: 'settings.about.credit.katex', url: 'https://katex.org/' },
+  { name: 'Trystero', what: 'settings.about.credit.trystero', url: 'https://github.com/dmotz/trystero' },
+  { name: 'Radix UI', what: 'settings.about.credit.radix', url: 'https://www.radix-ui.com/' },
 ];
 
 function ExternalLink({ href, children, className }: { href: string; children: ReactNode; className?: string }) {
@@ -47,16 +49,17 @@ function ExternalLink({ href, children, className }: { href: string; children: R
 export function AboutSection() {
   const version = host?.appVersion ?? (pkg as { version: string }).version;
   const [checking, setChecking] = useState(false);
+  const t = useT();
 
   const check = async () => {
     if (!host) return;
     setChecking(true);
     try {
       const r = await host.app.checkForUpdates();
-      if (r.available) toast.success(`TexIt ${r.version ?? ''} is available`, { description: 'It will be installed the next time you restart.' });
-      else toast.success('You’re up to date', { description: `TexIt ${version} is the latest version.` });
+      if (r.available) toast.success(tr('settings.about.updateAvailable', { version: r.version ?? '' }), { description: tr('settings.about.updateAvailableHint') });
+      else toast.success(tr('settings.about.upToDate'), { description: tr('settings.about.upToDateHint', { version }) });
     } catch (err) {
-      toast.error('Could not check for updates', { description: err instanceof Error ? err.message : String(err) });
+      toast.error(tr('settings.about.updateError'), { description: err instanceof Error ? err.message : String(err) });
     } finally {
       setChecking(false);
     }
@@ -73,32 +76,32 @@ export function AboutSection() {
             <div className="flex flex-wrap items-center gap-2">
               <h3 className="text-[22px] font-semibold tracking-tight text-fg">TexIt</h3>
               <Badge tone="accent">v{version}</Badge>
-              <Badge>{host ? `Desktop · ${host.platform}` : 'Web'}</Badge>
+              <Badge>{host ? t('settings.about.desktopPlatform', { platform: host.platform }) : t('settings.platformWeb')}</Badge>
             </div>
             <p className="mt-1 max-w-md text-[13px] leading-relaxed text-fg-muted">
-              The open-source LaTeX editor that keeps your work on your device — with real-time collaboration, AI agents and plugins.
+              {t('settings.about.tagline')}
             </p>
           </div>
         </div>
         <div className="relative mt-5 flex flex-wrap gap-2">
           <ExternalLink href={REPO_URL}>
             <Button size="sm" variant="secondary" icon={<GithubMark />} iconRight={<ArrowUpRight className="opacity-50" />}>
-              Source code
+              {t('settings.about.source')}
             </Button>
           </ExternalLink>
           <ExternalLink href={`${REPO_URL}/issues/new`}>
             <Button size="sm" variant="ghost" icon={<Bug />}>
-              Report an issue
+              {t('settings.about.report')}
             </Button>
           </ExternalLink>
           {host ? (
             <Button size="sm" variant="primary" icon={checking ? <Spinner /> : <RefreshCw />} onClick={check} disabled={checking}>
-              Check for updates
+              {t('settings.about.checkUpdates')}
             </Button>
           ) : (
             <ExternalLink href={`${REPO_URL}/releases`}>
               <Button size="sm" variant="ghost" icon={<Download />}>
-                Get the desktop app
+                {t('settings.about.getDesktop')}
               </Button>
             </ExternalLink>
           )}
@@ -106,19 +109,20 @@ export function AboutSection() {
       </div>
 
       <section className="mb-7">
-        <h3 className="mb-2 px-0.5 text-[12px] font-semibold text-fg-muted">License</h3>
+        <h3 className="mb-2 px-0.5 text-[12px] font-semibold text-fg-muted">{t('settings.about.license')}</h3>
         <div className="flex items-start gap-3 rounded-xl border border-border bg-surface p-4">
           <Scale className="mt-0.5 size-4 shrink-0 text-fg-subtle" />
           <p className="text-[12.5px] leading-relaxed text-fg-muted">
-            TexIt is free software released under the <span className="font-medium text-fg">GNU Affero General Public License v3.0</span> or later. You can use,
-            study, share and improve it — if you run a modified version as a service, you must share your changes too.
+            {t('settings.about.licenseBefore')}
+            <span className="font-medium text-fg">GNU Affero General Public License v3.0</span>
+            {t('settings.about.licenseAfter')}
           </p>
         </div>
       </section>
 
       <section>
         <h3 className="mb-2 flex items-center gap-1.5 px-0.5 text-[12px] font-semibold text-fg-muted">
-          Built on the shoulders of giants <Heart className="size-3 fill-current text-danger" />
+          {t('settings.about.giants')} <Heart className="size-3 fill-current text-danger" />
         </h3>
         <div className="grid gap-2 sm:grid-cols-2">
           {credits.map((c) => (
@@ -130,7 +134,7 @@ export function AboutSection() {
               <BadgeCheck className="size-4 shrink-0 text-accent" />
               <span className="min-w-0 flex-1">
                 <span className="block text-[12.5px] font-medium text-fg">{c.name}</span>
-                <span className="block truncate text-[11.5px] text-fg-subtle">{c.what}</span>
+                <span className="block truncate text-[11.5px] text-fg-subtle">{t(c.what)}</span>
               </span>
               <ArrowUpRight className="size-3.5 text-fg-subtle opacity-0 transition-opacity group-hover:opacity-100" />
             </ExternalLink>

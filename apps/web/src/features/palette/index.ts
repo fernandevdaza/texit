@@ -2,6 +2,7 @@
  * Command palette feature: ⌘⇧P (commands), ⌘P (quick open), `@` symbols,
  * `:` go to line, `?` help, and the ⌘/ shortcuts cheat sheet.
  */
+import './i18n';
 import { CircleQuestionMark, Hash, Keyboard, ListOrdered, Search, SquareTerminal } from 'lucide-react';
 import { registerCommands } from '@/services/commands';
 import { useWorkspace } from '@/state/workspace';

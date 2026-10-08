@@ -3,7 +3,7 @@
  * Templates use CodeMirror snippet syntax: ${1:placeholder}, ${} for the final
  * cursor. A literal brace right after a backslash must be written as \\{ .
  */
-import { definePlugin, type Snippet } from '@texit/plugin-api';
+import { definePlugin, type Disposable, type Snippet } from '@texit/plugin-api';
 
 const tex = ['tex', 'ltx', 'latex', 'sty', 'cls'];
 
@@ -48,6 +48,48 @@ export const SNIPPETS: Snippet[] = [
   { label: 'article', detail: 'article skeleton', template: '\\documentclass[${1:11pt}]{article}\n\\usepackage[utf8]{inputenc}\n\\usepackage[T1]{fontenc}\n\\usepackage{amsmath, amssymb}\n\\usepackage{graphicx}\n\\usepackage{hyperref}\n\n\\title{${2:Title}}\n\\author{${3:Author}}\n\\date{\\today}\n\n\\begin{document}\n\\maketitle\n\n${4}\n\n\\end{document}\n' },
 ].map((s) => ({ ...s, languages: tex }));
 
+/** Spanish descriptions (`detail`) by snippet label; LaTeX templates are never translated. */
+const DETAIL_ES: Record<string, string> = {
+  fig: 'entorno figure',
+  subfig: 'figura con dos subfiguras (subcaption)',
+  tab: 'entorno table (booktabs)',
+  eq: 'ecuación numerada',
+  'eq*': 'ecuación sin numerar',
+  align: 'entorno align',
+  'align*': 'entorno align*',
+  gather: 'entorno gather',
+  cases: 'definición por casos',
+  matrix: 'pmatrix 2×2',
+  bmatrix: 'bmatrix 2×2',
+  thm: 'teorema',
+  lem: 'lema',
+  defn: 'definición',
+  cor: 'corolario',
+  proof: 'entorno proof',
+  item: 'lista itemize',
+  enum: 'lista enumerate',
+  desc: 'lista description',
+  frame: 'diapositiva (frame) de beamer',
+  cols: 'dos columnas en beamer',
+  tikz: 'tikzpicture',
+  tikzfig: 'figura con tikzpicture',
+  minted: 'código (minted, requiere shell escape)',
+  lst: 'código (listings)',
+  verb: 'bloque verbatim',
+  sec: 'sección con etiqueta',
+  ssec: 'subsección con etiqueta',
+  quote: 'entorno quote',
+  center: 'entorno center',
+  mini: 'minipage',
+  href: 'hipervínculo',
+  article: 'esqueleto de artículo',
+};
+
+export function localizedSnippets(locale: string): Snippet[] {
+  if (locale.split('-')[0] !== 'es') return SNIPPETS;
+  return SNIPPETS.map((s) => ({ ...s, detail: DETAIL_ES[s.label] ?? s.detail }));
+}
+
 export default definePlugin({
   id: 'org.texit.snippets',
   name: 'Snippets pack',
@@ -57,7 +99,19 @@ export default definePlugin({
   description: 'Completion snippets for figures, tables, equations, theorems, lists, beamer frames, TikZ, code listings and more. Type e.g. “fig” and press Enter.',
   permissions: ['editor'],
   tags: ['snippets', 'productivity'],
+  locales: {
+    es: {
+      name: 'Paquete de snippets',
+      description:
+        'Snippets de autocompletado para figuras, tablas, ecuaciones, teoremas, listas, diapositivas de beamer, TikZ, listados de código y más. Escribe p. ej. “fig” y pulsa Enter.',
+    },
+  },
   activate(api) {
-    api.editor.registerSnippets(SNIPPETS);
+    // Re-register on language change so the completion descriptions follow the UI language.
+    let current: Disposable = api.editor.registerSnippets(localizedSnippets(api.ui.getLocale()));
+    api.ui.onLocaleChange((locale) => {
+      current.dispose();
+      current = api.editor.registerSnippets(localizedSnippets(locale));
+    });
   },
 });

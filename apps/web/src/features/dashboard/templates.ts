@@ -1,5 +1,6 @@
 import * as core from '@texit/core';
 import type { ProjectTemplate } from '@texit/core';
+import { t as tr, type Locale, getLocale, translate } from '@/lib/i18n';
 import { parseLatexPreview, type DocPreview } from './preview';
 
 const fallbackLabels: Record<string, string> = {
@@ -43,6 +44,26 @@ export function templateCategoryList(templates: ProjectTemplate[]): CategoryInfo
   const known = new Set(list.map((c) => c.id));
   for (const t of templates) if (!known.has(t.category)) (list.push({ id: t.category, label: fallbackLabels[t.category] ?? t.category }), known.add(t.category));
   return list.filter((c) => used.has(c.id as ProjectTemplate['category']));
+}
+
+/** Localized template name (translated by id; falls back to the template's own English name). */
+export function templateName(t: ProjectTemplate, locale: Locale = getLocale()): string {
+  return translate(locale, `templates.${t.id}.name`, undefined, t.name);
+}
+
+/** Localized template description. */
+export function templateDescription(t: ProjectTemplate, locale: Locale = getLocale()): string {
+  return translate(locale, `templates.${t.id}.description`, undefined, t.description);
+}
+
+/** Localized category label. */
+export function categoryLabel(c: CategoryInfo, locale: Locale = getLocale()): string {
+  return translate(locale, `templates.category.${c.id}`, undefined, c.label);
+}
+
+/** Default project name for a template ("Untitled project" for the blank one). */
+export function defaultProjectName(t?: ProjectTemplate): string {
+  return !t || t.id === 'blank' ? tr('dashboard.untitledProject') : templateName(t);
 }
 
 const cache = new WeakMap<ProjectTemplate, DocPreview>();

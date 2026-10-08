@@ -6,6 +6,7 @@ import { create } from 'zustand';
 import { createStore, del, get, set } from 'idb-keyval';
 import type { ChatAttachment, ChatMessage, ChatPart, FileEditOp, ModelRef } from '@texit/ai';
 import { useWorkspace } from '@/state/workspace';
+import { NEW_CHAT_TITLE } from '../i18n';
 
 export type UiPart = ChatPart & {
   /** file-edit parts */
@@ -159,7 +160,7 @@ export function newThread(opts: { external?: boolean; title?: string; activate?:
   const { projectId } = useChat.getState();
   if (!projectId) return null;
   const now = Date.now();
-  const t: Thread = { id: uid('t'), projectId, title: opts.title ?? 'New chat', createdAt: now, updatedAt: now, messages: [], external: opts.external };
+  const t: Thread = { id: uid('t'), projectId, title: opts.title ?? NEW_CHAT_TITLE, createdAt: now, updatedAt: now, messages: [], external: opts.external };
   useChat.setState((s) => ({
     threads: { ...s.threads, [t.id]: t },
     index: [metaOf(t), ...s.index],

@@ -3,6 +3,7 @@ import { ArrowLeftRight, Copy, FolderSearch, Pin, X, XCircle } from 'lucide-reac
 import { basename, dirname } from '@texit/core';
 import { useWorkspace } from '@/state/workspace';
 import { cn } from '@/lib/cn';
+import { useT } from '@/lib/i18n';
 import { ContextMenu, toast, Tooltip } from '@/ui';
 import { FileIcon } from '@/features/files/FileIcon';
 import { revealInTree } from '@/features/files/api';
@@ -28,6 +29,7 @@ export function TabBar() {
   const peers = usePeersByFile();
   const scroller = useRef<HTMLDivElement>(null);
   const [drag, setDrag] = useState<{ id: string; over: number } | null>(null);
+  const t = useT();
 
   const byId = useMemo(() => new Map(files.map((f) => [f.id, f])), [files]);
   // Disambiguate duplicate names with their folder.
@@ -65,7 +67,7 @@ export function TabBar() {
       <div
         ref={scroller}
         role="tablist"
-        aria-label="Open files"
+        aria-label={t('editor.openFiles')}
         className="flex min-w-0 flex-1 items-stretch overflow-x-auto overflow-y-hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         onWheel={(e) => {
           if (Math.abs(e.deltaY) > Math.abs(e.deltaX) && scroller.current) scroller.current.scrollLeft += e.deltaY;
@@ -90,10 +92,10 @@ export function TabBar() {
             <ContextMenu
               key={id}
               items={() => [
-                { label: 'Close', icon: <X />, shortcut: 'Mod-w', onSelect: () => ws().closeTab(id) },
-                { label: 'Close others', icon: <XCircle />, disabled: openTabs.length < 2, onSelect: () => ws().closeOtherTabs(id) },
+                { label: t('common.close'), icon: <X />, shortcut: 'Mod-w', onSelect: () => ws().closeTab(id) },
+                { label: t('editor.closeOthers'), icon: <XCircle />, disabled: openTabs.length < 2, onSelect: () => ws().closeOtherTabs(id) },
                 {
-                  label: 'Close tabs to the right',
+                  label: t('editor.closeToRight'),
                   icon: <ArrowLeftRight />,
                   disabled: i === openTabs.length - 1,
                   onSelect: () => {
@@ -101,17 +103,17 @@ export function TabBar() {
                     useWorkspace.setState({ openTabs: keep, activeFileId: keep.includes(activeId ?? '') ? activeId : id });
                   },
                 },
-                ...(preview ? [{ label: 'Keep open', icon: <Pin />, onSelect: () => ws().pinTab(id) }] : []),
+                ...(preview ? [{ label: t('editor.keepOpen'), icon: <Pin />, onSelect: () => ws().pinTab(id) }] : []),
                 { type: 'separator' as const },
                 {
-                  label: 'Copy path',
+                  label: t('files.copyPath'),
                   icon: <Copy />,
                   onSelect: () => {
                     void navigator.clipboard?.writeText(f.path);
-                    toast.success('Path copied', { description: f.path });
+                    toast.success(t('files.pathCopied'), { description: f.path });
                   },
                 },
-                { label: 'Reveal in file tree', icon: <FolderSearch />, onSelect: () => revealInTree(id) },
+                { label: t('files.revealInTree'), icon: <FolderSearch />, onSelect: () => revealInTree(id) },
               ]}
             >
               <div
@@ -154,9 +156,9 @@ export function TabBar() {
                 <span className={cn('truncate', preview && 'italic')}>{f.name}</span>
                 {showDir && <span className="truncate text-[11px] text-fg-subtle">{basename(dirname(f.path))}</span>}
                 <PresenceDots peers={peers.get(id)} />
-                <Tooltip content="Close" shortcut="Mod-w">
+                <Tooltip content={t('common.close')} shortcut="Mod-w">
                   <button
-                    aria-label={`Close ${f.name}`}
+                    aria-label={t('editor.closeFile', { name: f.name })}
                     onClick={(e) => {
                       e.stopPropagation();
                       ws().closeTab(id);

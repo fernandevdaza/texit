@@ -9,7 +9,9 @@ import { createRoot, type Root } from 'react-dom/client';
 import { useWorkspace } from '@/state/workspace';
 import { useCommands } from '@/services/commands';
 import { matchesKeybinding } from '@/lib/platform';
+import { t } from '@/lib/i18n';
 import { toast } from '@/ui';
+import './i18n';
 import { usePdfPane } from './controller';
 import { pdfFileName } from './actions';
 
@@ -47,7 +49,7 @@ export function openPdfWindow() {
   }
   const win = window.open('', 'texit-pdf-preview', 'popup=yes,width=900,height=1120');
   if (!win || !win.document) {
-    if (!openBytesInTab()) toast('Could not open a new window', { description: 'Allow pop-ups for TexIt and try again.' });
+    if (!openBytesInTab()) toast(t('pdf.popupBlocked'), { description: t('pdf.popupBlockedDesc') });
     return;
   }
   mountPdfWindow(win);

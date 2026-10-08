@@ -19,6 +19,7 @@ import {
 import { navigate } from '@/lib/router';
 import { downloadBlob } from '@/lib/format';
 import { host } from '@/lib/platform';
+import { t } from '@/lib/i18n';
 import { confirmDialog, toast } from '@/ui';
 
 const errMsg = (err: unknown) => (err instanceof Error ? err.message : String(err));
@@ -42,11 +43,11 @@ function uniqueName(base: string): string {
 
 export async function createBlankProject(open = true): Promise<string | undefined> {
   try {
-    const id = await createProject({ name: uniqueName('Untitled project'), templateId: 'blank' });
+    const id = await createProject({ name: uniqueName(t('dashboard.untitledProject')), templateId: 'blank' });
     if (open) openProject(id);
     return id;
   } catch (err) {
-    toast.error('Could not create the project', { description: errMsg(err) });
+    toast.error(t('dashboard.toast.createError'), { description: errMsg(err) });
   }
 }
 
@@ -76,21 +77,21 @@ function pickLocalFiles(accept: string, multiple = true): Promise<File[]> {
 export async function importZips(files: (File | { name: string; data: Uint8Array })[], opts: { open?: boolean } = {}) {
   if (!files.length) return;
   const ids: string[] = [];
-  const t = toast.loading(files.length === 1 ? `Importing ${files[0]!.name}…` : `Importing ${files.length} archives…`);
+  const loading = toast.loading(files.length === 1 ? t('dashboard.toast.importing', { name: files[0]!.name }) : t('dashboard.toast.importingMany', { count: files.length }));
   for (const f of files) {
     try {
       ids.push(await importZipProject(f));
     } catch (err) {
-      toast.error(`Could not import ${f.name}`, { description: errMsg(err) });
+      toast.error(t('dashboard.toast.importError', { name: f.name }), { description: errMsg(err) });
     }
   }
-  toast.dismiss(t);
+  toast.dismiss(loading);
   if (!ids.length) return;
   if (ids.length === 1 && opts.open !== false) {
     openProject(ids[0]!);
   } else {
-    toast.success(ids.length === 1 ? 'Project imported' : `${ids.length} projects imported`, {
-      action: ids.length === 1 ? { label: 'Open', onClick: () => openProject(ids[0]!) } : undefined,
+    toast.success(t('dashboard.toast.imported', { count: ids.length }), {
+      action: ids.length === 1 ? { label: t('common.open'), onClick: () => openProject(ids[0]!) } : undefined,
     });
   }
 }
@@ -98,7 +99,7 @@ export async function importZips(files: (File | { name: string; data: Uint8Array
 /** `project.importZip`: native picker on desktop, file input on the web. */
 export async function pickAndImportZip() {
   if (host) {
-    const picked = await host.fs.pickFiles({ title: 'Import project', filters: [{ name: 'Zip archives', extensions: ['zip'] }], multiple: true });
+    const picked = await host.fs.pickFiles({ title: t('dashboard.toast.pickTitle'), filters: [{ name: t('dashboard.toast.zipFilter'), extensions: ['zip'] }], multiple: true });
     if (picked?.length) await importZips(picked.map((p) => ({ name: p.name, data: p.content })));
     return;
   }
@@ -139,20 +140,20 @@ function nameFromFiles(files: ProjectFile[], fallback: string): string {
 export async function openFolderDesktop() {
   if (!host) return;
   try {
-    const dir = await host.fs.pickDirectory({ title: 'Open a LaTeX project folder' });
+    const dir = await host.fs.pickDirectory({ title: t('dashboard.toast.pickFolder') });
     if (!dir) return;
     const entries = await host.fs.readTree(dir);
     const files = entries.filter((e) => keepPath(e.path)).map((e) => toProjectFile(e.path, e.content));
     if (!files.length) {
-      toast.error('This folder is empty', { description: dir });
+      toast.error(t('dashboard.toast.folderEmpty'), { description: dir });
       return;
     }
-    const name = basename(dir.replace(/\\/g, '/')) || nameFromFiles(files, 'Imported project');
+    const name = basename(dir.replace(/\\/g, '/')) || nameFromFiles(files, t('dashboard.importedProject'));
     const id = await importFilesProject(name, files);
     await updateSummary(id, { folderPath: dir });
     openProject(id);
   } catch (err) {
-    toast.error('Could not open the folder', { description: errMsg(err) });
+    toast.error(t('dashboard.toast.folderError'), { description: errMsg(err) });
   }
 }
 
@@ -231,7 +232,7 @@ async function importDropped(entries: FileSystemEntry[], plain: File[]) {
       loose.push(toProjectFile(f.name, new Uint8Array(await f.arrayBuffer())));
     }
   } catch (err) {
-    toast.error('Could not read the dropped files', { description: errMsg(err) });
+    toast.error(t('dashboard.toast.dropReadError'), { description: errMsg(err) });
     return;
   }
 
@@ -240,23 +241,23 @@ async function importDropped(entries: FileSystemEntry[], plain: File[]) {
     try {
       created.push(await importFilesProject(folder.name, folder.files));
     } catch (err) {
-      toast.error(`Could not import ${folder.name}`, { description: errMsg(err) });
+      toast.error(t('dashboard.toast.importError', { name: folder.name }), { description: errMsg(err) });
     }
   }
   if (loose.length) {
     if (!loose.some((f) => isTexPath(f.path))) {
-      toast.error('Nothing to import', { description: 'Drop a .zip, a folder, or .tex files.' });
+      toast.error(t('dashboard.toast.nothingToImport'), { description: t('dashboard.toast.nothingToImportText') });
     } else {
       try {
-        created.push(await importFilesProject(nameFromFiles(loose, 'Imported project'), loose));
+        created.push(await importFilesProject(nameFromFiles(loose, t('dashboard.importedProject')), loose));
       } catch (err) {
-        toast.error('Could not import the files', { description: errMsg(err) });
+        toast.error(t('dashboard.toast.filesImportError'), { description: errMsg(err) });
       }
     }
   }
   if (created.length) {
-    toast.success(created.length === 1 ? 'Project imported' : `${created.length} projects imported`, {
-      action: created.length === 1 ? { label: 'Open', onClick: () => openProject(created[0]!) } : undefined,
+    toast.success(t('dashboard.toast.imported', { count: created.length }), {
+      action: created.length === 1 ? { label: t('common.open'), onClick: () => openProject(created[0]!) } : undefined,
     });
   }
   if (zips.length) await importZips(zips, { open: false });
@@ -269,17 +270,17 @@ export async function downloadProjectZip(id: string) {
     const { name, data } = await exportProjectZip(id);
     downloadBlob(data, name, 'application/zip');
   } catch (err) {
-    toast.error('Could not export the project', { description: errMsg(err) });
+    toast.error(t('dashboard.toast.exportError'), { description: errMsg(err) });
   }
 }
 
 export async function duplicate(id: string) {
   try {
     const copy = await duplicateProject(id);
-    toast.success('Project duplicated', { action: { label: 'Open', onClick: () => openProject(copy) } });
+    toast.success(t('dashboard.toast.duplicated'), { action: { label: t('common.open'), onClick: () => openProject(copy) } });
     return copy;
   } catch (err) {
-    toast.error('Could not duplicate the project', { description: errMsg(err) });
+    toast.error(t('dashboard.toast.duplicateError'), { description: errMsg(err) });
   }
 }
 
@@ -289,7 +290,7 @@ export async function rename(id: string, name: string) {
   try {
     await renameProject(id, n);
   } catch (err) {
-    toast.error('Could not rename the project', { description: errMsg(err) });
+    toast.error(t('dashboard.toast.renameError'), { description: errMsg(err) });
   }
 }
 
@@ -310,14 +311,14 @@ export async function moveToTrash(ids: string[]) {
   const projects = useProjects.getState().projects;
   for (const id of ids) await trashProject(id, true);
   const first = projects.find((p) => p.id === ids[0]);
-  toast(ids.length === 1 ? `Moved “${first?.name ?? 'project'}” to trash` : `Moved ${ids.length} projects to trash`, {
-    action: { label: 'Undo', onClick: () => void restore(ids, true) },
+  toast(ids.length === 1 ? t('dashboard.toast.movedOne', { name: first?.name ?? t('dashboard.toast.projectFallback') }) : t('dashboard.toast.movedMany', { count: ids.length }), {
+    action: { label: t('common.undo'), onClick: () => void restore(ids, true) },
   });
 }
 
 export async function restore(ids: string[], silent = false) {
   for (const id of ids) await trashProject(id, false);
-  if (!silent) toast.success(ids.length === 1 ? 'Project restored' : `${ids.length} projects restored`);
+  if (!silent) toast.success(t('dashboard.toast.restored', { count: ids.length }));
 }
 
 export async function deleteForever(ids: string[]): Promise<boolean> {
@@ -325,14 +326,15 @@ export async function deleteForever(ids: string[]): Promise<boolean> {
   const projects = useProjects.getState().projects;
   const one = ids.length === 1 ? projects.find((p) => p.id === ids[0]) : undefined;
   const ok = await confirmDialog({
-    title: one ? `Delete “${one.name}” forever?` : `Delete ${ids.length} projects forever?`,
-    message: 'This permanently removes the files from this device. Collaborators keep their own copies. This cannot be undone.',
-    confirmLabel: 'Delete forever',
+    title: one ? t('dashboard.confirm.deleteOne', { name: one.name }) : t('dashboard.confirm.deleteMany', { count: ids.length }),
+    message: t('dashboard.confirm.deleteMessage'),
+    confirmLabel: t('dashboard.confirm.deleteLabel'),
+    cancelLabel: t('common.cancel'),
     danger: true,
   });
   if (!ok) return false;
   for (const id of ids) await deleteProjectForever(id);
-  toast.success(ids.length === 1 ? 'Project deleted' : `${ids.length} projects deleted`);
+  toast.success(t('dashboard.toast.deleted', { count: ids.length }));
   return true;
 }
 
@@ -362,6 +364,6 @@ export function parseJoinLink(raw: string): string | null {
 
 export function projectsByTag(projects: ProjectSummary[]) {
   const map = new Map<string, number>();
-  for (const p of projects) if (!p.trashed) for (const t of p.tags ?? []) map.set(t, (map.get(t) ?? 0) + 1);
+  for (const p of projects) if (!p.trashed) for (const tag of p.tags ?? []) map.set(tag, (map.get(tag) ?? 0) + 1);
   return [...map.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
 }

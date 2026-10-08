@@ -1,12 +1,13 @@
 import { useSettings, type PdfSettings } from '@/state/settings';
 import { cn } from '@/lib/cn';
+import { useT } from '@/lib/i18n';
 import { Segmented } from '@/ui';
 import { Card, Row, Tile, ToggleRow } from '../parts';
 
-const styles: { value: PdfSettings['darkMode']; label: string; description: string; page: string; ink: string; accent: string }[] = [
-  { value: 'off', label: 'Original', description: 'Always show the real page colors.', page: '#ffffff', ink: '#2b2b33', accent: '#4f46e5' },
-  { value: 'dim', label: 'Dimmed', description: 'Softer paper in dark mode, colors kept.', page: '#c9c9cf', ink: '#1f1f25', accent: '#4338ca' },
-  { value: 'invert', label: 'Inverted', description: 'Dark paper, light ink. Easiest at night.', page: '#1b1b21', ink: '#d9d9e0', accent: '#a5b4fc' },
+const styles: { value: PdfSettings['darkMode']; page: string; ink: string; accent: string }[] = [
+  { value: 'off', page: '#ffffff', ink: '#2b2b33', accent: '#4f46e5' },
+  { value: 'dim', page: '#c9c9cf', ink: '#1f1f25', accent: '#4338ca' },
+  { value: 'invert', page: '#1b1b21', ink: '#d9d9e0', accent: '#a5b4fc' },
 ];
 
 function Page({ page, ink, accent }: { page: string; ink: string; accent: string }) {
@@ -31,12 +32,13 @@ function Page({ page, ink, accent }: { page: string; ink: string; accent: string
 export function PdfSection() {
   const p = useSettings((s) => s.pdf);
   const setPdf = useSettings((s) => s.setPdf);
+  const t = useT();
   return (
     <>
-      <Card title="Dark mode" description="Only applies while TexIt uses the dark theme. Exported PDFs are never modified.">
-        <div role="radiogroup" aria-label="PDF dark mode" className="grid grid-cols-3 gap-3 p-4">
+      <Card title={t('settings.pdf.darkMode')} description={t('settings.pdf.darkModeHint')}>
+        <div role="radiogroup" aria-label={t('settings.pdf.darkModeAria')} className="grid grid-cols-3 gap-3 p-4">
           {styles.map((s) => (
-            <Tile key={s.value} selected={p.darkMode === s.value} onSelect={() => setPdf({ darkMode: s.value })} label={s.label} description={s.description}>
+            <Tile key={s.value} selected={p.darkMode === s.value} onSelect={() => setPdf({ darkMode: s.value })} label={t(`settings.pdf.${s.value}`)} description={t(`settings.pdf.${s.value}Hint`)}>
               <div className={cn('aspect-[16/10] w-full overflow-hidden border-b border-border')}>
                 <Page page={s.page} ink={s.ink} accent={s.accent} />
               </div>
@@ -45,21 +47,21 @@ export function PdfSection() {
         </div>
       </Card>
 
-      <Card title="Viewer">
-        <Row title="Default zoom">
+      <Card title={t('settings.pdf.viewer')}>
+        <Row title={t('settings.pdf.defaultZoom')}>
           <Segmented
             size="sm"
             value={p.defaultZoom}
             onChange={(v) => setPdf({ defaultZoom: v })}
             options={[
-              { value: 'page-width', label: 'Fit width' },
-              { value: 'page-fit', label: 'Whole page' },
-              { value: 'auto', label: 'Auto' },
+              { value: 'page-width', label: t('settings.pdf.fitWidth') },
+              { value: 'page-fit', label: t('settings.pdf.wholePage') },
+              { value: 'auto', label: t('common.auto') },
             ]}
           />
         </Row>
-        <ToggleRow title="Follow cursor" description="After each compile, scroll the PDF to where you are typing." checked={p.followCursor} onChange={(v) => setPdf({ followCursor: v })} />
-        <ToggleRow title="Double-click to source" description="Double-click anywhere in the PDF to jump to that line in the editor." checked={p.doubleClickToSource} onChange={(v) => setPdf({ doubleClickToSource: v })} />
+        <ToggleRow title={t('settings.pdf.followCursor')} description={t('settings.pdf.followCursorHint')} checked={p.followCursor} onChange={(v) => setPdf({ followCursor: v })} />
+        <ToggleRow title={t('settings.pdf.doubleClick')} description={t('settings.pdf.doubleClickHint')} checked={p.doubleClickToSource} onChange={(v) => setPdf({ doubleClickToSource: v })} />
       </Card>
     </>
   );

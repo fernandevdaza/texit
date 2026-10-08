@@ -4,6 +4,8 @@ import { StatusButton } from '@/features/workspace/StatusBar';
 import { cn } from '@/lib/cn';
 import { openShareDialog, useCollab, type CollabUiStatus } from './session';
 import { strategyInfo } from './settings';
+import { useT, type TFunction } from '@/lib/i18n';
+import './i18n';
 
 export function StatusDot({ status, className }: { status: CollabUiStatus; className?: string }) {
   const color =
@@ -24,25 +26,26 @@ export function StatusDot({ status, className }: { status: CollabUiStatus; class
   );
 }
 
-export function statusLabel(status: CollabUiStatus, others: number, strategy?: string): string {
+export function statusLabel(t: TFunction, status: CollabUiStatus, others: number, strategy?: string): string {
   switch (status) {
     case 'live':
-      return `Live · ${others}`;
+      return t('collab.statusLive', { count: others });
     case 'waiting':
-      return 'Shared · waiting for peers';
+      return t('collab.statusWaiting');
     case 'connecting':
-      return strategy ? `Connecting to ${strategy}…` : 'Connecting…';
+      return strategy ? t('collab.statusConnectingTo', { network: strategy }) : t('collab.statusConnecting');
     case 'offline':
-      return 'Offline';
+      return t('collab.statusOffline');
     case 'paused':
-      return 'Paused';
+      return t('collab.statusPaused');
     default:
-      return 'Not shared';
+      return t('collab.statusOff');
   }
 }
 
 /** Status-bar item: offline / connecting / "Live · N" with a pulsing dot. */
 export function CollabStatusItem() {
+  const t = useT();
   const { status, peers, connectedPeers, record, signaling } = useCollab(
     useShallow((s) => ({ status: s.status, peers: s.peers.length, connectedPeers: s.connectedPeers, record: s.record, signaling: s.signaling })),
   );
@@ -51,21 +54,21 @@ export function CollabStatusItem() {
   const strategy = strategyInfo[record.strategy]?.short;
   const title =
     status === 'live'
-      ? `${others} collaborator${others === 1 ? '' : 's'} connected peer-to-peer (end-to-end encrypted)`
+      ? t('collab.titleLive', { count: others })
       : status === 'waiting'
-        ? `Connected to ${signaling.connected} ${strategy} relay${signaling.connected === 1 ? '' : 's'} — edits sync as soon as a collaborator opens the project`
+        ? t('collab.titleWaiting', { count: signaling.connected, network: strategy })
         : status === 'connecting'
-          ? `Reaching ${strategy} signaling relays…`
+          ? t('collab.titleConnecting', { network: strategy })
           : status === 'paused'
-            ? 'Collaboration paused — your edits are kept locally'
-            : 'You are offline — edits are kept locally and sync when you reconnect';
+            ? t('collab.titlePaused')
+            : t('collab.titleOffline');
   return (
     <StatusButton onClick={() => openShareDialog()} title={title} className={cn(status === 'live' && 'text-fg-muted')}>
       <StatusDot status={status} className="mr-0.5" />
-      {statusLabel(status, others, strategy)}
+      {statusLabel(t, status, others, strategy)}
       {record.viewOnly && (
         <span className="ml-1 inline-flex items-center gap-0.5 rounded bg-surface-2 px-1 text-[10px] ring-1 ring-border">
-          <Eye /> View-only
+          <Eye /> {t('collab.viewOnlyBadge')}
         </span>
       )}
     </StatusButton>

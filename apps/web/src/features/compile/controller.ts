@@ -22,12 +22,13 @@ import { normalizePath, parseSyncTex, resolveProjectPath } from '@texit/core';
 import type { BibTool, Diagnostic, Disposable, ProjectDoc, ProjectFile, SyncTexData, TexEngine } from '@texit/core';
 import { create } from 'zustand';
 import { host } from '@/lib/platform';
-import { formatDuration } from '@/lib/format';
 import { setCompileController, type CompileController } from '@/services/compile';
 import { loadCachedResult, saveCachedResult } from './pdfCache';
 import { useSettings, type CompileSettings as AppCompileSettings } from '@/state/settings';
 import { useLayout, useWorkspace } from '@/state/workspace';
+import { t } from '@/lib/i18n';
 import { toast } from '@/ui';
+import { formatDurationL, localizeDetail } from './format';
 
 export type CompileReason = 'manual' | 'auto' | 'ai' | 'plugin' | 'open';
 
@@ -341,9 +342,9 @@ class AppCompileController implements CompileController {
     this.cancel();
     try {
       await this.busytex.clearCache();
-      toast.success('TeX Live cache cleared', { description: 'Packages are downloaded again on the next compile.' });
+      toast.success(t('compile.cacheCleared'), { description: t('compile.cacheClearedDesc') });
     } catch (err) {
-      toast.error('Could not clear the cache', { description: err instanceof Error ? err.message : String(err) });
+      toast.error(t('compile.cacheClearFailed'), { description: err instanceof Error ? err.message : String(err) });
     }
     await this.compile({ reason: 'manual' });
   }
@@ -404,8 +405,8 @@ class AppCompileController implements CompileController {
     const title = st.detail.replace(/\s*·.*$/, '').replace(/…$/, '');
     const size = /\/ ([\d.]+ [KM]B)$/.exec(st.detail)?.[1];
     if (this.downloadToast === null) {
-      this.downloadToast = toast.loading(title, {
-        description: `One-time download${size ? ` (${size})` : ''}. It is cached in your browser, so later compiles start instantly and work offline.`,
+      this.downloadToast = toast.loading(localizeDetail(title), {
+        description: t('compile.download.desc', { size: size ? ` (${size})` : '' }),
       });
     }
   }
@@ -414,8 +415,8 @@ class AppCompileController implements CompileController {
     if (this.downloadToast === null) return;
     const id = this.downloadToast;
     this.downloadToast = null;
-    if (failed) toast.error('TeX Live download failed', { id, description: 'Check your connection and try again.' });
-    else toast.success('TeX Live is ready', { id, description: 'Cached for offline use.' });
+    if (failed) toast.error(t('compile.download.failed'), { id, description: t('compile.download.failedDesc') });
+    else toast.success(t('compile.download.ready'), { id, description: t('compile.download.readyDesc') });
   }
 
   /** Push a result into the workspace store (keeps the last good PDF on failure). */
@@ -470,9 +471,9 @@ class AppCompileController implements CompileController {
 
     this.finishDownloadToast(result.status === 'error' && /download|fetch|network/i.test(result.log) && !result.pdf);
     if (isBackendFailure(result)) {
-      toast.error('Compilation could not run', {
+      toast.error(t('compile.couldNotRun'), {
         description: result.log.split('\n')[0].slice(0, 220),
-        action: { label: 'Show log', onClick: () => useLayout.getState().showBottomPanel('log') },
+        action: { label: t('compile.showLog'), onClick: () => useLayout.getState().showBottomPanel('log') },
       });
     }
     for (const l of this.didListeners) {
@@ -575,5 +576,5 @@ export function startCompileController(): () => void {
 export function formatResultSummary(): string | null {
   const ui = useCompileUi.getState();
   if (!ui.lastOutcome || ui.lastDurationMs === undefined) return null;
-  return `${ui.lastOutcome === 'success' ? 'Compiled' : 'Failed'} in ${formatDuration(ui.lastDurationMs)}`;
+  return t(ui.lastOutcome === 'success' ? 'compile.status.compiledIn' : 'compile.status.failedIn', { duration: formatDurationL(ui.lastDurationMs) });
 }

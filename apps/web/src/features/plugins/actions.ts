@@ -1,25 +1,29 @@
 /** User-facing plugin actions shared by the panel, settings and commands. */
+import type { PluginManifest } from '@texit/plugin-api';
 import { confirmDialog, promptDialog, toast } from '@/ui';
 import { quickPick } from '@/ui/QuickPick';
 import { useLayout } from '@/state/workspace';
 import { getEntry, installFromFile, installFromRegistry, installFromUrl, reloadPlugin, uninstallPlugin, usePlugins } from './manager';
 import type { RegistryEntry } from './registry';
+import { pluginName } from './localize';
+import { t } from '@/lib/i18n';
+import './i18n';
 
 const errMsg = (err: unknown) => (err instanceof Error ? err.message : String(err));
 
 export async function promptInstallFromUrl(initial = ''): Promise<void> {
   const url = await promptDialog({
-    title: 'Install plugin from URL',
-    message: 'URL of an ES module whose default export is a TexIt plugin (e.g. a raw GitHub file, a CDN like esm.sh, or http://localhost while developing).',
+    title: t('plugins.installFromUrlTitle'),
+    message: t('plugins.installFromUrlMessage'),
     placeholder: 'https://example.com/my-plugin.js',
     value: initial,
-    confirmLabel: 'Install',
+    confirmLabel: t('plugins.install'),
     validate: (v) => {
       try {
         const u = new URL(v.trim(), location.href);
-        return /^(https?|blob):$/.test(u.protocol) ? null : 'Use an http(s) URL';
+        return /^(https?|blob):$/.test(u.protocol) ? null : t('plugins.useHttpUrl');
       } catch {
-        return 'Not a valid URL';
+        return t('plugins.invalidUrl');
       }
     },
   });
@@ -44,14 +48,15 @@ export async function installRegistryEntry(entry: RegistryEntry) {
   await runInstall(() => installFromRegistry(entry));
 }
 
-async function runInstall(fn: () => Promise<{ manifest: { name: string; version: string }; status: string; error?: string } | null>) {
+async function runInstall(fn: () => Promise<{ manifest: PluginManifest; status: string; error?: string } | null>) {
   try {
     const entry = await fn();
     if (!entry) return;
-    if (entry.status === 'active') toast.success(`Installed ${entry.manifest.name} ${entry.manifest.version}`);
-    else if (entry.status === 'error') toast.error(`${entry.manifest.name} was installed but failed to start`, { description: entry.error });
+    const name = pluginName(entry.manifest);
+    if (entry.status === 'active') toast.success(t('plugins.installedToast', { name, version: entry.manifest.version }));
+    else if (entry.status === 'error') toast.error(t('plugins.installedButFailed', { name }), { description: entry.error });
   } catch (err) {
-    toast.error('Could not install the plugin', { description: errMsg(err) });
+    toast.error(t('plugins.couldNotInstall'), { description: errMsg(err) });
   }
 }
 
@@ -59,14 +64,14 @@ export async function confirmUninstall(id: string) {
   const e = getEntry(id);
   if (!e) return;
   const ok = await confirmDialog({
-    title: `Uninstall “${e.manifest.name}”?`,
-    message: 'The plugin, its settings and its stored data will be removed.',
-    confirmLabel: 'Uninstall',
+    title: t('plugins.uninstallConfirm', { name: pluginName(e.manifest) }),
+    message: t('plugins.uninstallMessage'),
+    confirmLabel: t('plugins.uninstall'),
     danger: true,
   });
   if (!ok) return;
   await uninstallPlugin(id);
-  toast.success(`Uninstalled ${e.manifest.name}`);
+  toast.success(t('plugins.uninstalled', { name: pluginName(e.manifest) }));
 }
 
 export async function reloadWithToast(id: string) {
@@ -74,15 +79,16 @@ export async function reloadWithToast(id: string) {
   if (!e) return;
   const ok = await reloadPlugin(id);
   const after = getEntry(id);
-  if (ok && after?.status !== 'error') toast.success(`Reloaded ${e.manifest.name}`);
-  else toast.error(`${e.manifest.name} failed to reload`, { description: after?.error });
+  const name = pluginName(e.manifest);
+  if (ok && after?.status !== 'error') toast.success(t('plugins.reloaded', { name }));
+  else toast.error(t('plugins.failedToReload', { name }), { description: after?.error });
 }
 
 export async function pickAndReload() {
   const { entries, order } = usePlugins.getState();
   const id = await quickPick(
-    order.map((i) => entries[i]).filter((e) => e?.enabled).map((e) => ({ label: e.manifest.name, description: `${e.id} · v${e.manifest.version}`, value: e.id })),
-    { placeholder: 'Reload which plugin?' },
+    order.map((i) => entries[i]).filter((e) => e?.enabled).map((e) => ({ label: pluginName(e.manifest), description: `${e.id} · v${e.manifest.version}`, value: e.id })),
+    { placeholder: t('plugins.reloadWhich') },
   );
   if (id) await reloadWithToast(id);
 }

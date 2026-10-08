@@ -20,6 +20,9 @@ import { useSettings } from '@/state/settings';
 import { executeCommand } from '@/services/commands';
 import { IconButton, Spinner, type MenuEntry } from '@/ui';
 import { cn } from '@/lib/cn';
+import { useT } from '@/lib/i18n';
+import { localizeDetail } from '@/features/compile/format';
+import './i18n';
 import { PdfViewer } from './PdfViewer';
 import type { PdfView } from './engine';
 import { PdfEmptyState, ProgressTrack, compilePercent } from './PdfEmptyState';
@@ -49,6 +52,7 @@ function PreviewViewer({ id, detached, pdf }: { id: 'pane' | 'popout'; detached?
   const pdfSettings = useSettings((s) => s.pdf);
   const setPdf = useSettings((s) => s.setPdf);
   const thumbnails = usePdfPane((s) => s.thumbnails);
+  const t = useT();
   const [view, setView] = useState<PdfView | null>(null);
   const viewRef = useRef<PdfView | null>(null);
 
@@ -160,42 +164,42 @@ function PreviewViewer({ id, detached, pdf }: { id: 'pane' | 'popout'; detached?
   };
 
   const menuItems: MenuEntry[] = [
-    { label: 'Download PDF', icon: <Download />, onSelect: () => void downloadPdf() },
-    ...(!detached ? [{ label: 'Open in new window', icon: <ExternalLink />, onSelect: () => openPdfWindow() } as MenuEntry] : []),
+    { label: t('pdf.download'), icon: <Download />, onSelect: () => void downloadPdf() },
+    ...(!detached ? [{ label: t('pdf.openInNewWindow'), icon: <ExternalLink />, onSelect: () => openPdfWindow() } as MenuEntry] : []),
     { type: 'separator' },
-    { label: 'Go to source', icon: <ArrowLeftToLine />, onSelect: syncToSource },
-    { label: 'Show cursor in PDF', icon: <ArrowRightToLine />, onSelect: syncFromCursor },
-    { label: 'Follow cursor', icon: <LocateFixed />, checked: pdfSettings.followCursor, onSelect: toggleFollowCursor },
+    { label: t('pdf.goToSource'), icon: <ArrowLeftToLine />, onSelect: syncToSource },
+    { label: t('pdf.showCursor'), icon: <ArrowRightToLine />, onSelect: syncFromCursor },
+    { label: t('pdf.followCursor'), icon: <LocateFixed />, checked: pdfSettings.followCursor, onSelect: toggleFollowCursor },
     {
-      label: 'Double-click jumps to source',
+      label: t('pdf.doubleClickToSource'),
       icon: <MousePointerClick />,
       checked: pdfSettings.doubleClickToSource,
       onSelect: () => setPdf({ doubleClickToSource: !pdfSettings.doubleClickToSource }),
     },
     { type: 'separator' },
     {
-      label: 'PDF in dark mode',
+      label: t('pdf.darkMode'),
       icon: <Moon />,
       submenu: [
-        { label: 'Original colors', checked: pdfSettings.darkMode === 'off', onSelect: () => setPdf({ darkMode: 'off' }) },
-        { label: 'Dimmed paper', checked: pdfSettings.darkMode === 'dim', onSelect: () => setPdf({ darkMode: 'dim' }) },
-        { label: 'Inverted (dark paper)', checked: pdfSettings.darkMode === 'invert', onSelect: () => setPdf({ darkMode: 'invert' }) },
+        { label: t('pdf.darkOff'), checked: pdfSettings.darkMode === 'off', onSelect: () => setPdf({ darkMode: 'off' }) },
+        { label: t('pdf.darkDim'), checked: pdfSettings.darkMode === 'dim', onSelect: () => setPdf({ darkMode: 'dim' }) },
+        { label: t('pdf.darkInvert'), checked: pdfSettings.darkMode === 'invert', onSelect: () => setPdf({ darkMode: 'invert' }) },
       ],
     },
-    { label: 'Page thumbnails', icon: <PanelLeft />, checked: thumbnails, onSelect: () => usePdfPane.setState({ thumbnails: !thumbnails }) },
+    { label: t('pdf.pageThumbnails'), icon: <PanelLeft />, checked: thumbnails, onSelect: () => usePdfPane.setState({ thumbnails: !thumbnails }) },
   ];
 
   const nt = detached;
   const toolbarEnd = (
     <>
-      <IconButton label="Go to source (center of view)" size="sm" onClick={syncToSource} noTooltip={nt} className="hidden @[440px]:inline-flex">
+      <IconButton label={t('pdf.goToSourceCenter')} size="sm" onClick={syncToSource} noTooltip={nt} className="hidden @[440px]:inline-flex">
         <ArrowLeftToLine />
       </IconButton>
-      <IconButton label="Show cursor in PDF" size="sm" onClick={syncFromCursor} noTooltip={nt} className="hidden @[440px]:inline-flex">
+      <IconButton label={t('pdf.showCursor')} size="sm" onClick={syncFromCursor} noTooltip={nt} className="hidden @[440px]:inline-flex">
         <ArrowRightToLine />
       </IconButton>
       <IconButton
-        label={pdfSettings.followCursor ? 'Following cursor' : 'Follow cursor'}
+        label={pdfSettings.followCursor ? t('pdf.followingCursor') : t('pdf.followCursor')}
         size="sm"
         active={pdfSettings.followCursor}
         onClick={toggleFollowCursor}
@@ -205,11 +209,11 @@ function PreviewViewer({ id, detached, pdf }: { id: 'pane' | 'popout'; detached?
         <LocateFixed />
       </IconButton>
       <div className="mx-0.5 hidden h-4 w-px bg-border @[380px]:block" />
-      <IconButton label="Download PDF" size="sm" onClick={() => void downloadPdf()} noTooltip={nt} className="hidden @[380px]:inline-flex">
+      <IconButton label={t('pdf.download')} size="sm" onClick={() => void downloadPdf()} noTooltip={nt} className="hidden @[380px]:inline-flex">
         <Download />
       </IconButton>
       {!detached && (
-        <IconButton label="Open in new window" size="sm" onClick={() => openPdfWindow()} className="hidden @[480px]:inline-flex">
+        <IconButton label={t('pdf.openInNewWindow')} size="sm" onClick={() => openPdfWindow()} className="hidden @[480px]:inline-flex">
           <ExternalLink />
         </IconButton>
       )}
@@ -244,6 +248,7 @@ function CompileOverlay() {
   const progress = useWorkspace((s) => s.compile.progress);
   const result = useWorkspace((s) => s.compile.result);
   const dismissed = usePdfPane((s) => s.dismissedResult);
+  const t = useT();
   const busy = status === 'preparing' || status === 'compiling';
 
   // Only show the status chip for compiles that take a while (no flashing on fast builds).
@@ -269,8 +274,8 @@ function CompileOverlay() {
         <div className="pointer-events-none absolute inset-x-0 top-3 z-20 flex justify-center px-4">
           <div className="flex max-w-full animate-slide-up items-center gap-2 rounded-full border border-border bg-elevated/95 py-1 pl-2.5 pr-3 text-[12px] text-fg-muted shadow-pop backdrop-blur-xl">
             <Spinner className="size-3.5 shrink-0 text-accent" />
-            <span className="truncate">{detail || (status === 'preparing' ? 'Preparing TeX engine…' : 'Compiling…')}</span>
-            {pct != null && status === 'preparing' && <span className="tabular-nums text-fg-subtle">{pct}%</span>}
+            <span className="truncate">{detail ? localizeDetail(detail, t) : status === 'preparing' ? t('pdf.preparingEngine') : t('pdf.compiling')}</span>
+            {pct != null && status === 'preparing' && <span className="tabular-nums text-fg-subtle">{t('pdf.percent', { pct: String(pct) })}</span>}
           </div>
         </div>
       )}
@@ -281,19 +286,19 @@ function CompileOverlay() {
               <AlertTriangle className="size-3.5" />
             </span>
             <span className="min-w-0 flex-1 leading-snug text-fg">
-              <span className="font-medium">Last compile failed</span>
-              <span className="text-fg-muted"> — showing the last successful PDF</span>
+              <span className="font-medium">{t('pdf.lastFailed')}</span>
+              <span className="text-fg-muted">{t('pdf.showingLastGood')}</span>
             </span>
             <button
               type="button"
               onClick={() => executeCommand('view.problems')}
               className="shrink-0 rounded-md px-2 py-1 text-[12px] font-medium text-danger transition-colors hover:bg-danger-soft"
             >
-              View problems
+              {t('pdf.viewProblems')}
             </button>
             <button
               type="button"
-              aria-label="Dismiss"
+              aria-label={t('pdf.dismiss')}
               onClick={() => usePdfPane.setState({ dismissedResult: result })}
               className="flex size-6 shrink-0 items-center justify-center rounded-md text-fg-subtle transition-colors hover:bg-hover hover:text-fg"
             >

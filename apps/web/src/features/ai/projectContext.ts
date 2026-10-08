@@ -9,6 +9,7 @@ import { getCompileController } from '@/services/compile';
 import { getEditorBridge } from '@/services/editor';
 import { useWorkspace } from '@/state/workspace';
 import { confirmDialog } from '@/ui';
+import { t } from '@/lib/i18n';
 
 export interface WorkspaceContextOptions {
   reviewEdit?: (path: string, before: string, after: string) => Promise<boolean>;
@@ -148,9 +149,9 @@ export function createWorkspaceToolContext(opts: WorkspaceContextOptions = {}): 
     confirmAction: opts.confirm
       ? (a) =>
           confirmDialog({
-            title: a.kind === 'delete' ? `Delete ${a.path}?` : `Rename ${a.path}?`,
-            message: a.kind === 'delete' ? 'The AI assistant wants to delete this file.' : `The AI assistant wants to rename it to ${a.newPath}.`,
-            confirmLabel: a.kind === 'delete' ? 'Delete' : 'Rename',
+            title: a.kind === 'delete' ? t('ai.confirm.deleteTitle', { path: a.path }) : t('ai.confirm.renameTitle', { path: a.path }),
+            message: a.kind === 'delete' ? t('ai.confirm.deleteMessage') : t('ai.confirm.renameMessage', { newPath: a.newPath }),
+            confirmLabel: a.kind === 'delete' ? t('common.delete') : t('common.rename'),
             danger: a.kind === 'delete',
           })
       : undefined,

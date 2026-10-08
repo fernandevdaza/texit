@@ -2,9 +2,11 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { ArrowDownToLine, ChevronDown, ChevronUp, Copy, Download, ScrollText, Search, X } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { downloadBlob } from '@/lib/format';
+import { useT } from '@/lib/i18n';
 import { executeCommand } from '@/services/commands';
 import { useWorkspace } from '@/state/workspace';
 import { Button, EmptyState, IconButton, Segmented, toast } from '@/ui';
+import './i18n';
 
 const LINE_H = 18;
 const OVERSCAN = 30;
@@ -29,6 +31,7 @@ const TONE_CLS: Record<Tone, string> = {
 };
 
 export function LogPanel() {
+  const t = useT();
   const status = useWorkspace((s) => s.compile.status);
   const liveLog = useWorkspace((s) => s.compile.liveLog);
   const resultLog = useWorkspace((s) => s.compile.result?.log ?? '');
@@ -99,9 +102,9 @@ export function LogPanel() {
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(text);
-      toast.success('Log copied', { duration: 1500 });
+      toast.success(t('compile.log.copied'), { duration: 1500 });
     } catch {
-      toast.error('Could not copy the log');
+      toast.error(t('compile.log.copyFailed'));
     }
   };
   const download = () => {
@@ -127,8 +130,8 @@ export function LogPanel() {
           value={busy ? 'output' : view}
           onChange={(v) => setView(v)}
           options={[
-            { value: 'log', label: 'TeX log', title: 'The .log file of the last TeX run (+ bibliography tools)' },
-            { value: 'output', label: busy ? 'Live output' : 'Build output', title: 'Everything the compiler printed' },
+            { value: 'log', label: t('compile.log.texLog'), title: t('compile.log.texLogTitle') },
+            { value: 'output', label: busy ? t('compile.log.liveOutput') : t('compile.log.buildOutput'), title: t('compile.log.outputTitle') },
           ]}
         />
         {searchOpen ? (
@@ -137,7 +140,7 @@ export function LogPanel() {
             <input
               autoFocus
               value={query}
-              placeholder="Search log"
+              placeholder={t('compile.log.search')}
               onChange={(e) => {
                 setQuery(e.target.value);
                 setMatchIdx(0);
@@ -154,14 +157,14 @@ export function LogPanel() {
             <span className="min-w-[44px] text-right text-[11px] tabular-nums text-fg-subtle">
               {q ? (matches.length ? `${Math.min(matchIdx, matches.length - 1) + 1}/${matches.length}` : '0/0') : ''}
             </span>
-            <IconButton label="Previous match" size="xs" onClick={() => step(-1)} noTooltip>
+            <IconButton label={t('compile.log.prevMatch')} size="xs" onClick={() => step(-1)} noTooltip>
               <ChevronUp />
             </IconButton>
-            <IconButton label="Next match" size="xs" onClick={() => step(1)} noTooltip>
+            <IconButton label={t('compile.log.nextMatch')} size="xs" onClick={() => step(1)} noTooltip>
               <ChevronDown />
             </IconButton>
             <IconButton
-              label="Close search"
+              label={t('compile.log.closeSearch')}
               size="xs"
               noTooltip
               onClick={() => {
@@ -173,19 +176,19 @@ export function LogPanel() {
             </IconButton>
           </div>
         ) : (
-          <IconButton label="Search log" shortcut="Mod-f" size="xs" onClick={() => setSearchOpen(true)}>
+          <IconButton label={t('compile.log.search')} shortcut="Mod-f" size="xs" onClick={() => setSearchOpen(true)}>
             <Search />
           </IconButton>
         )}
         <div className="flex-1" />
-        <span className="mr-1 text-[11px] tabular-nums text-fg-subtle">{lines.length ? `${lines.length.toLocaleString()} lines` : ''}</span>
-        <IconButton label={follow ? 'Auto-scroll on' : 'Auto-scroll off'} size="xs" active={follow} onClick={() => setFollow(!follow)}>
+        <span className="mr-1 text-[11px] tabular-nums text-fg-subtle">{lines.length ? t('compile.log.lines', { count: lines.length }) : ''}</span>
+        <IconButton label={follow ? t('compile.log.autoScrollOn') : t('compile.log.autoScrollOff')} size="xs" active={follow} onClick={() => setFollow(!follow)}>
           <ArrowDownToLine />
         </IconButton>
-        <IconButton label="Copy log" size="xs" onClick={copy} disabled={!text}>
+        <IconButton label={t('compile.log.copy')} size="xs" onClick={copy} disabled={!text}>
           <Copy />
         </IconButton>
-        <IconButton label="Download .log" size="xs" onClick={download} disabled={!text}>
+        <IconButton label={t('compile.log.download')} size="xs" onClick={download} disabled={!text}>
           <Download />
         </IconButton>
       </div>
@@ -194,12 +197,12 @@ export function LogPanel() {
         {lines.length === 0 ? (
           <EmptyState
             icon={<ScrollText />}
-            title={busy ? 'Waiting for output…' : 'No log yet'}
-            description={busy ? undefined : 'The raw compiler log appears here after a compile.'}
+            title={busy ? t('compile.log.waiting') : t('compile.log.empty')}
+            description={busy ? undefined : t('compile.log.emptyDesc')}
             action={
               busy ? undefined : (
                 <Button size="sm" onClick={() => executeCommand('compile.run')}>
-                  Compile
+                  {t('compile.compile')}
                 </Button>
               )
             }

@@ -1,5 +1,41 @@
 /** Lorem ipsum / blindtext generator and "Insert date". */
 import { definePlugin, type PluginAPI } from '@texit/plugin-api';
+import { createTr, type Catalog, type Tr } from './i18n';
+
+const MESSAGES: Catalog = {
+  en: {
+    paragraphs_one: '{count} paragraph',
+    paragraphs_other: '{count} paragraphs',
+    sentence: '1 sentence',
+    plain: 'Plain lorem ipsum text',
+    needsPackage: 'Command — needs {pkg}',
+    longNeedsPackage: 'Long text — needs {pkg}',
+    placeholderText: 'Insert placeholder text…',
+    long: 'Long (UI language)',
+    short: 'Short (UI language)',
+    enUS: 'English (US)',
+    enGB: 'English (UK)',
+    dateTime: 'Date and time',
+    compileDate: 'Date of compilation (LaTeX)',
+    chooseFormat: 'Choose a date format',
+  },
+  es: {
+    paragraphs_one: '{count} párrafo',
+    paragraphs_other: '{count} párrafos',
+    sentence: '1 oración',
+    plain: 'Texto lorem ipsum simple',
+    needsPackage: 'Comando: requiere {pkg}',
+    longNeedsPackage: 'Texto largo: requiere {pkg}',
+    placeholderText: 'Insertar texto de relleno…',
+    long: 'Largo (idioma de la interfaz)',
+    short: 'Corto (idioma de la interfaz)',
+    enUS: 'Inglés (EE. UU.)',
+    enGB: 'Inglés (Reino Unido)',
+    dateTime: 'Fecha y hora',
+    compileDate: 'Fecha de compilación (LaTeX)',
+    chooseFormat: 'Elige un formato de fecha',
+  },
+};
 
 const LOREM_START = 'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.';
 const WORDS = (
@@ -34,32 +70,35 @@ export function lorem(paragraphs: number, seed = Date.now()): string {
   }).join('\n\n');
 }
 
-function dateFormats(d: Date) {
+function dateFormats(d: Date, tr: Tr, locale: string) {
+  const long = d.toLocaleDateString(locale, { year: 'numeric', month: 'long', day: 'numeric' });
+  const short = d.toLocaleDateString(locale, { dateStyle: 'short' } as Intl.DateTimeFormatOptions);
   const pad = (n: number) => String(n).padStart(2, '0');
   const iso = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
   return [
     { label: iso, description: 'ISO 8601', value: iso },
-    { label: d.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' }), description: 'Long (your locale)', value: d.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' }) },
-    { label: d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }), description: 'English (US)', value: d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) },
-    { label: d.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }), description: 'English (UK)', value: d.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) },
-    { label: d.toLocaleDateString(undefined, { dateStyle: 'short' } as Intl.DateTimeFormatOptions), description: 'Short (your locale)', value: d.toLocaleDateString(undefined, { dateStyle: 'short' } as Intl.DateTimeFormatOptions) },
-    { label: `${iso} ${pad(d.getHours())}:${pad(d.getMinutes())}`, description: 'Date and time', value: `${iso} ${pad(d.getHours())}:${pad(d.getMinutes())}` },
-    { label: '\\today', description: 'Date of compilation (LaTeX)', value: '\\today' },
+    { label: long, description: tr('long'), value: long },
+    { label: d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }), description: tr('enUS'), value: d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) },
+    { label: d.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }), description: tr('enGB'), value: d.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) },
+    { label: short, description: tr('short'), value: short },
+    { label: `${iso} ${pad(d.getHours())}:${pad(d.getMinutes())}`, description: tr('dateTime'), value: `${iso} ${pad(d.getHours())}:${pad(d.getMinutes())}` },
+    { label: '\\today', description: tr('compileDate'), value: '\\today' },
   ];
 }
 
 async function insertLorem(api: PluginAPI) {
+  const tr = createTr(api, MESSAGES);
   const choice = await api.ui.quickPick(
     [
-      { label: '1 paragraph', description: 'Plain lorem ipsum text', value: 'p1' },
-      { label: '3 paragraphs', description: 'Plain lorem ipsum text', value: 'p3' },
-      { label: '5 paragraphs', description: 'Plain lorem ipsum text', value: 'p5' },
-      { label: '1 sentence', description: 'Plain lorem ipsum text', value: 's1' },
-      { label: '\\lipsum[1-3]', description: 'Command — needs \\usepackage{lipsum}', value: 'lipsum' },
-      { label: '\\blindtext', description: 'Command — needs \\usepackage{blindtext}', value: 'blindtext' },
-      { label: '\\Blindtext', description: 'Long text — needs \\usepackage{blindtext}', value: 'Blindtext' },
+      { label: tr('paragraphs', { count: 1 }), description: tr('plain'), value: 'p1' },
+      { label: tr('paragraphs', { count: 3 }), description: tr('plain'), value: 'p3' },
+      { label: tr('paragraphs', { count: 5 }), description: tr('plain'), value: 'p5' },
+      { label: tr('sentence'), description: tr('plain'), value: 's1' },
+      { label: '\\lipsum[1-3]', description: tr('needsPackage', { pkg: '\\usepackage{lipsum}' }), value: 'lipsum' },
+      { label: '\\blindtext', description: tr('needsPackage', { pkg: '\\usepackage{blindtext}' }), value: 'blindtext' },
+      { label: '\\Blindtext', description: tr('longNeedsPackage', { pkg: '\\usepackage{blindtext}' }), value: 'Blindtext' },
     ],
-    { placeholder: 'Insert placeholder text…' },
+    { placeholder: tr('placeholderText') },
   );
   if (!choice) return;
   let text: string;
@@ -81,6 +120,13 @@ export default definePlugin({
   description: 'Insert placeholder text (lorem ipsum, \\lipsum, \\blindtext) and the current date in several formats.',
   permissions: ['editor'],
   tags: ['insert', 'writing'],
+  locales: {
+    es: {
+      name: 'Lorem ipsum y fecha',
+      description: 'Inserta texto de relleno (lorem ipsum, \\lipsum, \\blindtext) y la fecha actual en varios formatos.',
+      commands: { lorem: 'Insertar lorem ipsum…', date: 'Insertar fecha…' },
+    },
+  },
   activate(api) {
     api.commands.register({ id: 'lorem', title: 'Insert lorem ipsum…', category: 'Insert', icon: 'pilcrow', when: 'editor', run: () => insertLorem(api) });
     api.commands.register({
@@ -90,7 +136,8 @@ export default definePlugin({
       icon: 'calendar-days',
       when: 'editor',
       run: async () => {
-        const v = await api.ui.quickPick(dateFormats(new Date()), { placeholder: 'Choose a date format' });
+        const tr = createTr(api, MESSAGES);
+        const v = await api.ui.quickPick(dateFormats(new Date(), tr, api.ui.getLocale()), { placeholder: tr('chooseFormat') });
         if (v) {
           api.editor.insertText(v);
           api.editor.focus();

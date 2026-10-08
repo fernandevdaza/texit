@@ -1,9 +1,11 @@
 import { useMemo } from 'react';
 import { encode } from 'uqr';
 import { cn } from '@/lib/cn';
+import { useT } from '@/lib/i18n';
 
 /** Crisp SVG QR code (single path, no canvas). Always dark-on-light for scanner compatibility. */
 export function QrCode({ value, size = 160, className, ecc = 'M' }: { value: string; size?: number; className?: string; ecc?: 'L' | 'M' | 'Q' | 'H' }) {
+  const t = useT();
   const { path, dim } = useMemo(() => {
     const qr = encode(value, { ecc, border: 2 });
     let d = '';
@@ -30,7 +32,7 @@ export function QrCode({ value, size = 160, className, ecc = 'M' }: { value: str
       shapeRendering="crispEdges"
       className={cn('rounded-lg bg-white', className)}
       role="img"
-      aria-label="QR code"
+      aria-label={t('ui.qrCode')}
     >
       <path d={path} fill="#111" />
     </svg>

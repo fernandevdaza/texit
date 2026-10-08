@@ -9,6 +9,78 @@ import { definePlugin, type PluginAPI } from '@texit/plugin-api';
 import { Badge, Button, Segmented } from '@/ui';
 import { formatBib, formatEntry, parseBib, uniqueKey, type BibNode } from '@/plugins/lib/bibtex';
 import { mountReact } from './mount';
+import { createTr, useTr, type Catalog } from './i18n';
+
+const MESSAGES: Catalog = {
+  en: {
+    noBibFile: 'This project has no .bib file',
+    createBibTitle: 'Create a bibliography file',
+    chooseBib: 'Choose a .bib file',
+    addTitle: 'Add reference from DOI, arXiv id or ISBN',
+    unrecognized: 'Unrecognized identifier',
+    unrecognizedHint: 'Enter a DOI (10.xxxx/…), an arXiv id (2101.00001) or an ISBN.',
+    couldNotFetch: 'Could not fetch {kind} {id}',
+    noEntry: 'The service returned no BibTeX entry',
+    alreadyIn: 'Already in {path} as “{key}”',
+    added: 'Added “{key}” to {path}',
+    keyCopied: 'The key was copied to the clipboard.',
+    couldNotParse: 'Could not parse {path}',
+    alreadyFormatted: '{path} is already formatted',
+    formatted: 'Formatted {path}',
+    entries_one: '{count} entry',
+    entries_other: '{count} entries',
+    citedKeys_one: '{count} cited key',
+    citedKeys_other: '{count} cited keys',
+    bibEntries_one: '{count} bibliography entry',
+    bibEntries_other: '{count} bibliography entries',
+    allGood: 'Every citation is defined and every entry is used.',
+    missing: 'Missing ({count})',
+    unused: 'Unused ({count})',
+    duplicates: 'Duplicates ({count})',
+    missingHint: 'Cited in the text but not defined in any .bib file.',
+    unusedHint: 'Defined in a .bib file but never cited.',
+    duplicatesHint: 'Keys defined more than once.',
+    nothingHere: 'Nothing here.',
+    more: '+{count} more',
+    keysCopied: 'Keys copied',
+    copyKeys: 'Copy keys',
+    citationCheck: 'Citation check',
+  },
+  es: {
+    noBibFile: 'Este proyecto no tiene ningún archivo .bib',
+    createBibTitle: 'Crear un archivo de bibliografía',
+    chooseBib: 'Elige un archivo .bib',
+    addTitle: 'Añadir referencia desde DOI, id de arXiv o ISBN',
+    unrecognized: 'Identificador no reconocido',
+    unrecognizedHint: 'Escribe un DOI (10.xxxx/…), un id de arXiv (2101.00001) o un ISBN.',
+    couldNotFetch: 'No se pudo obtener {kind} {id}',
+    noEntry: 'El servicio no devolvió ninguna entrada BibTeX',
+    alreadyIn: 'Ya está en {path} como “{key}”',
+    added: 'Se añadió “{key}” a {path}',
+    keyCopied: 'La clave se copió al portapapeles.',
+    couldNotParse: 'No se pudo analizar {path}',
+    alreadyFormatted: '{path} ya tiene formato',
+    formatted: 'Se formateó {path}',
+    entries_one: '{count} entrada',
+    entries_other: '{count} entradas',
+    citedKeys_one: '{count} clave citada',
+    citedKeys_other: '{count} claves citadas',
+    bibEntries_one: '{count} entrada de bibliografía',
+    bibEntries_other: '{count} entradas de bibliografía',
+    allGood: 'Todas las citas están definidas y todas las entradas se usan.',
+    missing: 'Faltantes ({count})',
+    unused: 'Sin usar ({count})',
+    duplicates: 'Duplicadas ({count})',
+    missingHint: 'Citadas en el texto, pero no definidas en ningún archivo .bib.',
+    unusedHint: 'Definidas en un archivo .bib, pero nunca citadas.',
+    duplicatesHint: 'Claves definidas más de una vez.',
+    nothingHere: 'No hay nada aquí.',
+    more: '+{count} más',
+    keysCopied: 'Claves copiadas',
+    copyKeys: 'Copiar claves',
+    citationCheck: 'Revisión de citas',
+  },
+};
 
 type Entry = Extract<BibNode, { kind: 'entry' }>;
 
@@ -142,6 +214,7 @@ const bibFiles = (api: PluginAPI) => api.project.listFiles().filter((f) => /\.bi
 const texFiles = (api: PluginAPI) => api.project.listFiles().filter((f) => /\.(tex|ltx|latex)$/i.test(f.path)).map((f) => f.path);
 
 async function chooseBibFile(api: PluginAPI, opts: { allowCreate: boolean }): Promise<string | undefined> {
+  const tr = createTr(api, MESSAGES);
   const files = bibFiles(api);
   const active = api.editor.getActivePath();
   if (active && files.includes(active) && !opts.allowCreate) return active;
@@ -154,10 +227,10 @@ async function chooseBibFile(api: PluginAPI, opts: { allowCreate: boolean }): Pr
   }
   if (!files.length) {
     if (!opts.allowCreate) {
-      api.ui.toast('This project has no .bib file', { type: 'warning' });
+      api.ui.toast(tr('noBibFile'), { type: 'warning' });
       return undefined;
     }
-    const name = await api.ui.prompt({ title: 'Create a bibliography file', value: 'references.bib' });
+    const name = await api.ui.prompt({ title: tr('createBibTitle'), value: 'references.bib' });
     if (!name) return undefined;
     const path = /\.bib$/i.test(name) ? name : `${name}.bib`;
     await api.project.writeFile(path, '');
@@ -165,25 +238,26 @@ async function chooseBibFile(api: PluginAPI, opts: { allowCreate: boolean }): Pr
   }
   return api.ui.quickPick(
     files.map((f) => ({ label: f, value: f })),
-    { placeholder: 'Choose a .bib file' },
+    { placeholder: tr('chooseBib') },
   );
 }
 
 // ───────────────────────────── commands ─────────────────────────────
 
 async function addReference(api: PluginAPI) {
-  const input = await api.ui.prompt({ title: 'Add reference from DOI, arXiv id or ISBN', placeholder: '10.1038/nature14539 · 1706.03762 · 978-0262035613' });
+  const tr = createTr(api, MESSAGES);
+  const input = await api.ui.prompt({ title: tr('addTitle'), placeholder: '10.1038/nature14539 · 1706.03762 · 978-0262035613' });
   if (!input) return;
   const id = detectIdentifier(input);
-  if (!id) return api.ui.toast('Unrecognized identifier', { type: 'error', description: 'Enter a DOI (10.xxxx/…), an arXiv id (2101.00001) or an ISBN.' });
+  if (!id) return api.ui.toast(tr('unrecognized'), { type: 'error', description: tr('unrecognizedHint') });
   let text: string;
   try {
     text = await fetchBibtex(id);
   } catch (err) {
-    return api.ui.toast(`Could not fetch ${id.kind.toUpperCase()} ${id.id}`, { type: 'error', description: err instanceof Error ? err.message : String(err) });
+    return api.ui.toast(tr('couldNotFetch', { kind: id.kind === 'arxiv' ? 'arXiv' : id.kind.toUpperCase(), id: id.id }), { type: 'error', description: err instanceof Error ? err.message : String(err) });
   }
   const entry = parseBib(text).find((n): n is Entry => n.kind === 'entry');
-  if (!entry) return api.ui.toast('The service returned no BibTeX entry', { type: 'error' });
+  if (!entry) return api.ui.toast(tr('noEntry'), { type: 'error' });
   const path = await chooseBibFile(api, { allowCreate: true });
   if (!path) return;
   void api.storage.set('lastBib', path);
@@ -196,7 +270,7 @@ async function addReference(api: PluginAPI) {
     const dup = parseBib(src).find(
       (n): n is Entry => n.kind === 'entry' && n.fields.some((f) => f.name === 'doi' && f.value.replace(/^[{"]|[}"]$/g, '').toLowerCase() === doiField),
     );
-    if (dup) return api.ui.toast(`Already in ${path} as “${dup.key}”`, { type: 'info' });
+    if (dup) return api.ui.toast(tr('alreadyIn', { path, key: dup.key }), { type: 'info' });
   }
   if (api.settings.get('rekey', true)) entry.key = generateKey(entry);
   entry.key = uniqueKey(entry.key, keys);
@@ -206,10 +280,11 @@ async function addReference(api: PluginAPI) {
   const active = api.editor.getActivePath();
   if (api.settings.get('insertCite', false) && active && /\.tex$/i.test(active)) api.editor.insertText(`\\cite{${entry.key}}`);
   else void navigator.clipboard?.writeText(entry.key).catch(() => {});
-  api.ui.toast(`Added “${entry.key}” to ${path}`, { type: 'success', description: api.settings.get('insertCite', false) ? undefined : 'The key was copied to the clipboard.' });
+  api.ui.toast(tr('added', { key: entry.key, path }), { type: 'success', description: api.settings.get('insertCite', false) ? undefined : tr('keyCopied') });
 }
 
 async function formatBibFile(api: PluginAPI) {
+  const tr = createTr(api, MESSAGES);
   const path = await chooseBibFile(api, { allowCreate: false });
   if (!path) return;
   const src = await api.project.readFile(path);
@@ -218,12 +293,12 @@ async function formatBibFile(api: PluginAPI) {
   try {
     out = formatBib(src, { sortEntries: api.settings.get('sortEntries', false) });
   } catch (err) {
-    return api.ui.toast(`Could not parse ${path}`, { type: 'error', description: err instanceof Error ? err.message : String(err) });
+    return api.ui.toast(tr('couldNotParse', { path }), { type: 'error', description: err instanceof Error ? err.message : String(err) });
   }
-  if (out === src) return api.ui.toast(`${path} is already formatted`, { type: 'info' });
+  if (out === src) return api.ui.toast(tr('alreadyFormatted', { path }), { type: 'info' });
   await api.project.writeFile(path, out);
   const n = parseBib(out).filter((x) => x.kind === 'entry').length;
-  api.ui.toast(`Formatted ${path}`, { type: 'success', description: `${n} entr${n === 1 ? 'y' : 'ies'}` });
+  api.ui.toast(tr('formatted', { path }), { type: 'success', description: tr('entries', { count: n }) });
 }
 
 export interface CitationReport {
@@ -268,6 +343,7 @@ export async function analyzeCitations(api: PluginAPI): Promise<CitationReport> 
 }
 
 function CitationReportView({ api, report, close }: { api: PluginAPI; report: CitationReport; close: () => void }) {
+  const tr = useTr(api, MESSAGES);
   const [tab, setTab] = useState<'missing' | 'unused' | 'duplicates'>(report.missing.length ? 'missing' : report.unused.length ? 'unused' : 'duplicates');
   const open = (path: string, line: number) => {
     api.editor.open(path, line);
@@ -284,13 +360,13 @@ function CitationReportView({ api, report, close }: { api: PluginAPI; report: Ci
     <div className="space-y-3 pb-1">
       <div className="flex items-center gap-2 text-[12.5px] text-fg-muted">
         <span>
-          {report.citedCount} cited key{report.citedCount === 1 ? '' : 's'} · {report.definedCount} bibliography entr{report.definedCount === 1 ? 'y' : 'ies'}
+          {tr('citedKeys', { count: report.citedCount })} · {tr('bibEntries', { count: report.definedCount })}
         </span>
         {report.nociteAll && <Badge tone="info">\nocite{'{*}'}</Badge>}
       </div>
       {allGood ? (
         <div className="flex items-center gap-2 rounded-lg bg-success-soft px-3 py-3 text-[13px] text-success">
-          <CheckCircle2 className="size-4" /> Every citation is defined and every entry is used.
+          <CheckCircle2 className="size-4" /> {tr('allGood')}
         </div>
       ) : (
         <>
@@ -298,20 +374,16 @@ function CitationReportView({ api, report, close }: { api: PluginAPI; report: Ci
             value={tab}
             onChange={setTab}
             options={[
-              { value: 'missing', label: `Missing (${report.missing.length})` },
-              { value: 'unused', label: `Unused (${report.unused.length})` },
-              { value: 'duplicates', label: `Duplicates (${report.duplicates.length})` },
+              { value: 'missing', label: tr('missing', { count: report.missing.length }) },
+              { value: 'unused', label: tr('unused', { count: report.unused.length }) },
+              { value: 'duplicates', label: tr('duplicates', { count: report.duplicates.length }) },
             ]}
           />
           <p className="text-[12px] text-fg-subtle">
-            {tab === 'missing'
-              ? 'Cited in the text but not defined in any .bib file.'
-              : tab === 'unused'
-                ? 'Defined in a .bib file but never cited.'
-                : 'Keys defined more than once.'}
+            {tab === 'missing' ? tr('missingHint') : tab === 'unused' ? tr('unusedHint') : tr('duplicatesHint')}
           </p>
           <ul className="max-h-[50vh] divide-y divide-border overflow-y-auto rounded-lg ring-1 ring-inset ring-border">
-            {!rows.length && <li className="px-3 py-6 text-center text-[12.5px] text-fg-subtle">Nothing here.</li>}
+            {!rows.length && <li className="px-3 py-6 text-center text-[12.5px] text-fg-subtle">{tr('nothingHere')}</li>}
             {rows.map((r) => (
               <li key={r.key} className="flex items-start gap-3 px-3 py-2">
                 {tab === 'missing' ? <AlertCircle className="mt-0.5 size-3.5 text-danger" /> : <CircleDashed className="mt-0.5 size-3.5 text-warning" />}
@@ -323,7 +395,7 @@ function CitationReportView({ api, report, close }: { api: PluginAPI; report: Ci
                         {l.path}:{l.line}
                       </button>
                     ))}
-                    {r.locs.length > 6 && <span className="text-[11px] text-fg-subtle">+{r.locs.length - 6} more</span>}
+                    {r.locs.length > 6 && <span className="text-[11px] text-fg-subtle">{tr('more', { count: r.locs.length - 6 })}</span>}
                   </div>
                 </div>
               </li>
@@ -337,10 +409,10 @@ function CitationReportView({ api, report, close }: { api: PluginAPI; report: Ci
                 icon={<CopyIcon />}
                 onClick={() => {
                   void navigator.clipboard?.writeText(rows.map((r) => r.key).join(', '));
-                  api.ui.toast('Keys copied', { type: 'success' });
+                  api.ui.toast(tr('keysCopied'), { type: 'success' });
                 }}
               >
-                Copy keys
+                {tr('copyKeys')}
               </Button>
             </div>
           )}
@@ -353,7 +425,7 @@ function CitationReportView({ api, report, close }: { api: PluginAPI; report: Ci
 async function checkCitations(api: PluginAPI) {
   const report = await analyzeCitations(api);
   await api.ui.modal({
-    title: 'Citation check',
+    title: createTr(api, MESSAGES)('citationCheck'),
     width: 640,
     render: (el, close) => mountReact(el, <CitationReportView api={api} report={report} close={close} />),
   });
@@ -368,6 +440,22 @@ export default definePlugin({
   description: 'Add references from a DOI, arXiv id or ISBN, format .bib files and find unused or missing citations.',
   permissions: ['project:read', 'project:write', 'editor', 'ui', 'network', 'storage'],
   tags: ['bibliography', 'references', 'citations'],
+  locales: {
+    es: {
+      name: 'Herramientas BibTeX',
+      description: 'Añade referencias desde un DOI, un id de arXiv o un ISBN, da formato a archivos .bib y encuentra citas sin usar o faltantes.',
+      commands: {
+        addReference: 'Añadir referencia desde DOI / arXiv / ISBN…',
+        format: 'Dar formato al archivo .bib',
+        checkCitations: 'Buscar citas sin usar y faltantes',
+      },
+      settings: {
+        rekey: { title: 'Generar claves de cita', description: 'Usa claves “apellido + año + palabra del título” (p. ej., vaswani2017attention).' },
+        insertCite: { title: 'Insertar \\cite{key} después de añadir', description: 'Si no, la clave se copia al portapapeles.' },
+        sortEntries: { title: 'Ordenar entradas por clave al dar formato' },
+      },
+    },
+  },
   settings: [
     { key: 'rekey', title: 'Generate citation keys', description: 'Use “lastname + year + title word” keys (e.g. vaswani2017attention).', type: 'boolean', default: true },
     { key: 'insertCite', title: 'Insert \\cite{key} after adding', description: 'Otherwise the key is copied to the clipboard.', type: 'boolean', default: false },

@@ -1,5 +1,7 @@
 /** Loading third-party plugin modules (URL or local file) + manifest validation. */
 import { PLUGIN_API_VERSION, type PluginManifest, type PluginPermission, type TexitPlugin } from '@texit/plugin-api';
+import { t } from '@/lib/i18n';
+import './i18n';
 
 const KNOWN_PERMISSIONS: PluginPermission[] = ['project:read', 'project:write', 'editor', 'ui', 'compiler', 'ai', 'network', 'storage'];
 
@@ -35,7 +37,7 @@ export function validateManifest(p: any): asserts p is PluginManifest {
     if (unknown.length) throw new PluginLoadError(`Unknown permission(s): ${unknown.join(', ')}`);
   }
   if (!isApiCompatible(p.apiVersion))
-    throw new PluginLoadError(`This plugin requires plugin API ${p.apiVersion}; TexIt provides ${PLUGIN_API_VERSION}.`);
+    throw new PluginLoadError(t('plugins.apiIncompatible', { required: String(p.apiVersion), host: PLUGIN_API_VERSION }));
 }
 
 /** `required` (from the manifest) is satisfied when majors match and required minor ≤ host minor. */
@@ -60,6 +62,7 @@ export function manifestOf(p: TexitPlugin | PluginManifest): PluginManifest {
     permissions: p.permissions ? [...p.permissions] : undefined,
     tags: p.tags ? [...p.tags] : undefined,
     settings: p.settings ? JSON.parse(JSON.stringify(p.settings)) : undefined,
+    locales: p.locales && typeof p.locales === 'object' ? JSON.parse(JSON.stringify(p.locales)) : undefined,
   };
   return JSON.parse(JSON.stringify(m));
 }
@@ -80,10 +83,7 @@ export async function importPluginModule(spec: { url?: string; code?: string }, 
     try {
       mod = await import(/* @vite-ignore */ abs.href);
     } catch (err) {
-      throw new PluginLoadError(
-        `Could not load ${spec.url}: ${err instanceof Error ? err.message : String(err)}. ` +
-          'The URL must serve an ES module with a JavaScript MIME type and allow CORS.',
-      );
+      throw new PluginLoadError(t('plugins.couldNotLoadUrl', { url: spec.url, error: err instanceof Error ? err.message : String(err) }));
     }
   } else throw new PluginLoadError('Nothing to load.');
   return extractPlugin(mod);

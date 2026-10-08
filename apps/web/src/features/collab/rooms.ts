@@ -8,6 +8,7 @@
 import { createStore, del, get, set, values } from 'idb-keyval';
 import { fromBase64Url, toBase64Url } from './crypto';
 import type { SignalingStrategy } from './transport';
+import { t } from '@/lib/i18n';
 
 export interface RoomRecord {
   projectId: string;
@@ -90,7 +91,7 @@ export function parseInvite(routeRoom: string, hash = location.hash, search = lo
     room,
     secret,
     secretB64: toBase64Url(secret),
-    name: (params.get('n') ?? '').trim().slice(0, 200) || 'Shared project',
+    name: (params.get('n') ?? '').trim().slice(0, 200) || t('collab.sharedProject'),
     viewOnly: params.get('v') === '1',
     strategy: s && STRATEGIES.includes(s) ? s : 'nostr',
   };

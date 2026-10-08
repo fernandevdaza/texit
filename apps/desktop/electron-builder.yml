@@ -95,6 +95,7 @@ linux:
   icon: build/icons
   category: Office
   synopsis: Collaborative, local-first LaTeX editor
+  maintainer: Fernando Daza <fernandevdaza@users.noreply.github.com>
   description: TexIt — open-source, local-first, real-time collaborative LaTeX editor with AI agents.
   mimeTypes: [text/x-tex, x-scheme-handler/texit]
   target: [AppImage, deb, rpm]
@@ -111,6 +112,6 @@ rpm:
 
 publish:
   provider: github
-  owner: texit-app
+  owner: fernandevdaza
   repo: texit
   releaseType: draft

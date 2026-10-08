@@ -5,6 +5,7 @@ import { useWorkspace } from '@/state/workspace';
 import { downloadBlob, formatBytes } from '@/lib/format';
 import { Button, IconButton, Kbd, Logo } from '@/ui';
 import { executeCommand } from '@/services/commands';
+import { useT } from '@/lib/i18n';
 import { FileIcon, fileTypeLabel } from '@/features/files/FileIcon';
 import { PdfViewer } from '@/features/pdf/PdfViewer';
 
@@ -39,6 +40,7 @@ export function ImageViewer({ file }: { file: FileNode }) {
   const [zoom, setZoom] = useState<number | 'fit'>('fit');
   const box = useRef<HTMLDivElement>(null);
   const [fitScale, setFitScale] = useState(1);
+  const t = useT();
 
   useEffect(() => {
     const el = box.current;
@@ -62,22 +64,22 @@ export function ImageViewer({ file }: { file: FileNode }) {
             {formatBytes(file.size)}
           </span>
         </span>
-        <IconButton size="xs" label="Zoom out" onClick={() => step(-1)}>
+        <IconButton size="xs" label={t('editor.zoomOut')} onClick={() => step(-1)}>
           <Minus />
         </IconButton>
-        <button onClick={() => setZoom(1)} className="h-6 min-w-12 rounded-md px-1.5 text-[11.5px] tabular-nums hover:bg-hover" title="Actual size">
+        <button onClick={() => setZoom(1)} className="h-6 min-w-12 rounded-md px-1.5 text-[11.5px] tabular-nums hover:bg-hover" title={t('editor.actualSize')}>
           {Math.round(scale * 100)}%
         </button>
-        <IconButton size="xs" label="Zoom in" onClick={() => step(1)}>
+        <IconButton size="xs" label={t('editor.zoomIn')} onClick={() => step(1)}>
           <Plus />
         </IconButton>
-        <IconButton size="xs" label="Fit to window" active={zoom === 'fit'} onClick={() => setZoom('fit')}>
+        <IconButton size="xs" label={t('editor.fitToWindow')} active={zoom === 'fit'} onClick={() => setZoom('fit')}>
           <Scan />
         </IconButton>
-        <IconButton size="xs" label="Actual size" active={zoom === 1} onClick={() => setZoom(1)}>
+        <IconButton size="xs" label={t('editor.actualSize')} active={zoom === 1} onClick={() => setZoom(1)}>
           <Maximize />
         </IconButton>
-        <IconButton size="xs" label="Download" onClick={() => data && downloadBlob(data, file.name, mime[extname(file.path)])}>
+        <IconButton size="xs" label={t('common.download')} onClick={() => data && downloadBlob(data, file.name, mime[extname(file.path)])}>
           <Download />
         </IconButton>
       </div>
@@ -118,6 +120,7 @@ export function PdfFileView({ file }: { file: FileNode }) {
 
 export function BinaryCard({ file }: { file: FileNode }) {
   const project = useWorkspace((s) => s.project);
+  const t = useT();
   return (
     <div className="flex h-full items-center justify-center bg-surface p-6">
       <div className="flex w-full max-w-sm flex-col items-center rounded-2xl border border-border bg-surface-2/40 px-8 py-9 text-center shadow-card">
@@ -128,25 +131,27 @@ export function BinaryCard({ file }: { file: FileNode }) {
         <div className="mt-1 text-[12px] text-fg-subtle">
           {fileTypeLabel(file.path)} · {formatBytes(file.size)}
         </div>
-        <p className="mt-3 text-[12.5px] leading-relaxed text-fg-muted">This is a binary file, so it can’t be edited here. It’s still part of the project and is used when compiling.</p>
+        <p className="mt-3 text-[12.5px] leading-relaxed text-fg-muted">{t('editor.binaryFile')}</p>
         <Button className="mt-5" size="sm" icon={<Download />} onClick={() => project && downloadBlob(project.readBinary(file.id), file.name)}>
-          Download
+          {t('common.download')}
         </Button>
       </div>
     </div>
   );
 }
 
+/** `label` is an i18n key. */
 const shortcuts: { label: string; keys: string; command?: string }[] = [
-  { label: 'Open file', keys: 'Mod-p', command: 'view.quickOpen' },
-  { label: 'Command palette', keys: 'Mod-Shift-p', command: 'view.commandPalette' },
-  { label: 'Compile', keys: 'Mod-Enter', command: 'compile.run' },
-  { label: 'Ask AI', keys: 'Mod-l', command: 'view.toggleAi' },
-  { label: 'Find in project', keys: 'Mod-Shift-f', command: 'edit.findInProject' },
-  { label: 'Toggle sidebar', keys: 'Mod-Shift-b', command: 'view.toggleSidebar' },
+  { label: 'editor.shortcut.openFile', keys: 'Mod-p', command: 'view.quickOpen' },
+  { label: 'editor.shortcut.commandPalette', keys: 'Mod-Shift-p', command: 'view.commandPalette' },
+  { label: 'editor.shortcut.compile', keys: 'Mod-Enter', command: 'compile.run' },
+  { label: 'editor.shortcut.askAi', keys: 'Mod-l', command: 'view.toggleAi' },
+  { label: 'editor.shortcut.findInProject', keys: 'Mod-Shift-f', command: 'edit.findInProject' },
+  { label: 'editor.shortcut.toggleSidebar', keys: 'Mod-Shift-b', command: 'view.toggleSidebar' },
 ];
 
 export function EmptyEditor() {
+  const t = useT();
   return (
     <div className="flex h-full select-none items-center justify-center bg-surface p-6">
       <div className="flex w-full max-w-[340px] flex-col items-center">
@@ -154,8 +159,8 @@ export function EmptyEditor() {
           <div className="absolute inset-0 -z-0 scale-150 rounded-full bg-accent/15 blur-2xl" />
           <Logo size={52} className="relative opacity-90 drop-shadow-sm" />
         </div>
-        <div className="text-[15px] font-semibold tracking-tight text-fg">No file open</div>
-        <div className="mt-1 text-[12.5px] text-fg-subtle">Pick a file from the sidebar, or use a shortcut.</div>
+        <div className="text-[15px] font-semibold tracking-tight text-fg">{t('editor.noFileOpen')}</div>
+        <div className="mt-1 text-[12.5px] text-fg-subtle">{t('editor.noFileOpenHint')}</div>
         <div className="mt-6 w-full space-y-0.5">
           {shortcuts.map((s) => (
             <button
@@ -163,7 +168,7 @@ export function EmptyEditor() {
               onClick={() => s.command && void executeCommand(s.command)}
               className="group flex h-8 w-full items-center justify-between rounded-lg px-3 text-[12.5px] text-fg-muted transition-colors hover:bg-hover hover:text-fg"
             >
-              <span>{s.label}</span>
+              <span>{t(s.label)}</span>
               <Kbd keys={s.keys} className="opacity-80 group-hover:opacity-100" />
             </button>
           ))}

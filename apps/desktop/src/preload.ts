@@ -160,6 +160,9 @@ function createHost(boot: BootstrapInfo): TexitHost {
       },
       setTitle: (title) => ipcRenderer.send(Send.appSetTitle, String(title ?? '')),
       setDocumentEdited: (edited) => ipcRenderer.send(Send.appSetDocumentEdited, !!edited),
+      setLocale: (locale) => {
+        if (locale === 'en' || locale === 'es') ipcRenderer.send(Send.appSetLocale, locale);
+      },
       getPathForFile: (file) => webUtils.getPathForFile(file),
       checkForUpdates: () => invoke(Invoke.appCheckForUpdates),
       setTitleBarOverlay: (opts) => invoke(Invoke.appSetTitleBarOverlay, opts),

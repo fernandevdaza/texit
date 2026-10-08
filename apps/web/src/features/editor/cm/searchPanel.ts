@@ -14,9 +14,10 @@ import {
   SearchQuery,
   setSearchQuery,
 } from '@codemirror/search';
-import type { Extension } from '@codemirror/state';
+import { EditorState, type Extension } from '@codemirror/state';
 import { EditorView, type Panel, type ViewUpdate } from '@codemirror/view';
 import { isMac } from '@/lib/platform';
+import { t } from '@/lib/i18n';
 
 const icons = {
   chevron: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>',
@@ -54,6 +55,11 @@ class TexitSearchPanel implements Panel {
   private count: HTMLElement;
   private replaceRow: HTMLElement;
   private expandBtn: HTMLButtonElement;
+  private prevBtn: HTMLButtonElement;
+  private nextBtn: HTMLButtonElement;
+  private closeBtn: HTMLButtonElement;
+  private replOneBtn: HTMLButtonElement;
+  private replAllBtn: HTMLButtonElement;
   private showReplace = false;
   private countTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -61,7 +67,7 @@ class TexitSearchPanel implements Panel {
     this.query = getSearchQuery(view.state);
     this.dom = h('div', { class: 'cm-tx-search flex items-start gap-1 px-2 py-1.5 font-sans', role: 'search' });
 
-    this.expandBtn = h('button', { class: `${btnCls} mt-0.5 transition-transform`, title: 'Toggle replace', 'aria-label': 'Toggle replace', type: 'button' }, icons.chevron);
+    this.expandBtn = h('button', { class: `${btnCls} mt-0.5 transition-transform`, type: 'button' }, icons.chevron);
     this.expandBtn.onclick = () => this.setReplaceVisible(!this.showReplace, true);
 
     const rows = h('div', { class: 'flex min-w-0 flex-1 flex-col gap-1' });
@@ -69,15 +75,15 @@ class TexitSearchPanel implements Panel {
     // Find row
     const findRow = h('div', { class: 'flex items-center gap-1' });
     const findWrap = h('div', { class: inputWrapCls });
-    this.searchInput = h('input', { class: inputCls, placeholder: 'Find', 'main-field': 'true', 'aria-label': 'Find', spellcheck: 'false', autocomplete: 'off' });
-    this.caseBtn = h('button', { class: toggleCls, title: 'Match case (Alt+C)', 'aria-pressed': 'false', type: 'button' }, 'Aa');
-    this.wordBtn = h('button', { class: toggleCls, title: 'Whole word (Alt+W)', 'aria-pressed': 'false', type: 'button' }, '<span class="underline decoration-1 underline-offset-2">ab</span>');
-    this.reBtn = h('button', { class: toggleCls, title: 'Regular expression (Alt+R)', 'aria-pressed': 'false', type: 'button' }, '.*');
+    this.searchInput = h('input', { class: inputCls, 'main-field': 'true', spellcheck: 'false', autocomplete: 'off' });
+    this.caseBtn = h('button', { class: toggleCls, 'aria-pressed': 'false', type: 'button' }, 'Aa');
+    this.wordBtn = h('button', { class: toggleCls, 'aria-pressed': 'false', type: 'button' }, '<span class="underline decoration-1 underline-offset-2">ab</span>');
+    this.reBtn = h('button', { class: toggleCls, 'aria-pressed': 'false', type: 'button' }, '.*');
     findWrap.append(this.searchInput, this.caseBtn, this.wordBtn, this.reBtn);
     this.count = h('span', { class: 'w-[74px] shrink-0 text-center text-[11px] tabular-nums text-fg-subtle' });
-    const prev = h('button', { class: btnCls, title: 'Previous match (Shift+Enter)', 'aria-label': 'Previous match', type: 'button' }, icons.up);
-    const next = h('button', { class: btnCls, title: 'Next match (Enter)', 'aria-label': 'Next match', type: 'button' }, icons.down);
-    const close = h('button', { class: btnCls, title: 'Close (Escape)', 'aria-label': 'Close', type: 'button' }, icons.close);
+    const prev = (this.prevBtn = h('button', { class: btnCls, type: 'button' }, icons.up));
+    const next = (this.nextBtn = h('button', { class: btnCls, type: 'button' }, icons.down));
+    const close = (this.closeBtn = h('button', { class: btnCls, type: 'button' }, icons.close));
     prev.onclick = () => findPrevious(this.view);
     next.onclick = () => findNext(this.view);
     close.onclick = () => {
@@ -89,10 +95,10 @@ class TexitSearchPanel implements Panel {
     // Replace row
     this.replaceRow = h('div', { class: 'hidden items-center gap-1' });
     const replWrap = h('div', { class: inputWrapCls });
-    this.replaceInput = h('input', { class: inputCls, placeholder: 'Replace', 'aria-label': 'Replace', spellcheck: 'false', autocomplete: 'off' });
+    this.replaceInput = h('input', { class: inputCls, spellcheck: 'false', autocomplete: 'off' });
     replWrap.append(this.replaceInput);
-    const replOne = h('button', { class: btnCls, title: 'Replace (Enter)', 'aria-label': 'Replace', type: 'button' }, icons.replace);
-    const replAll = h('button', { class: btnCls, title: `Replace all (${isMac ? '⌥' : 'Alt+'}Enter)`, 'aria-label': 'Replace all', type: 'button' }, icons.replaceAll);
+    const replOne = (this.replOneBtn = h('button', { class: btnCls, type: 'button' }, icons.replace));
+    const replAll = (this.replAllBtn = h('button', { class: btnCls, type: 'button' }, icons.replaceAll));
     replOne.onclick = () => replaceNext(this.view);
     replAll.onclick = () => replaceAll(this.view);
     const spacer = h('span', { class: 'w-[74px] shrink-0' });
@@ -100,6 +106,7 @@ class TexitSearchPanel implements Panel {
 
     rows.append(findRow, this.replaceRow);
     this.dom.append(this.expandBtn, rows);
+    this.relabel();
 
     // Events
     const commit = () => this.commit();
@@ -119,6 +126,27 @@ class TexitSearchPanel implements Panel {
     this.dom.addEventListener('keydown', (e) => this.onKey(e));
     this.syncFromQuery(this.query);
     if (this.query.replace) this.setReplaceVisible(true, false);
+  }
+
+  /** (Re)apply translated labels — on creation and when the app language changes. */
+  private relabel() {
+    const label = (el: HTMLElement, text: string, hint?: string) => {
+      el.title = hint ? `${text} (${hint})` : text;
+      el.setAttribute('aria-label', text);
+    };
+    label(this.expandBtn, t('editor.find.toggleReplace'));
+    this.searchInput.placeholder = t('editor.find.find');
+    this.searchInput.setAttribute('aria-label', t('editor.find.find'));
+    this.caseBtn.title = `${t('editor.find.matchCase')} (Alt+C)`;
+    this.wordBtn.title = `${t('editor.find.wholeWord')} (Alt+W)`;
+    this.reBtn.title = `${t('editor.find.regex')} (Alt+R)`;
+    label(this.prevBtn, t('editor.find.prevMatch'), 'Shift+Enter');
+    label(this.nextBtn, t('editor.find.nextMatch'), 'Enter');
+    label(this.closeBtn, t('common.close'), 'Escape');
+    this.replaceInput.placeholder = t('editor.find.replace');
+    this.replaceInput.setAttribute('aria-label', t('editor.find.replace'));
+    label(this.replOneBtn, t('editor.find.replace'), 'Enter');
+    label(this.replAllBtn, t('editor.find.replaceAll'), `${isMac ? '⌥' : 'Alt+'}Enter`);
   }
 
   private onKey(e: KeyboardEvent) {
@@ -197,7 +225,7 @@ class TexitSearchPanel implements Panel {
       return;
     }
     if (!q.valid) {
-      this.count.textContent = 'Invalid';
+      this.count.textContent = t('editor.find.invalid');
       return;
     }
     const state = this.view.state;
@@ -212,8 +240,9 @@ class TexitSearchPanel implements Panel {
       if (v.from === sel.from && v.to === sel.to) current = total;
       if (total > LIMIT) break;
     }
-    if (!total) this.count.textContent = 'No results';
-    else this.count.textContent = `${current ? `${current} of ` : ''}${total > LIMIT ? `${LIMIT}+` : total}`;
+    const totalText = total > LIMIT ? `${LIMIT}+` : String(total);
+    if (!total) this.count.textContent = t('editor.find.noResults');
+    else this.count.textContent = current ? t('editor.find.countOf', { current: String(current), total: totalText }) : totalText;
     this.count.classList.toggle('text-danger', total === 0);
   }
 
@@ -229,7 +258,10 @@ class TexitSearchPanel implements Panel {
         if (e.is(setSearchQuery) && !e.value.eq(this.query)) this.syncFromQuery(e.value);
       }
     }
-    if (u.docChanged || u.selectionSet) this.scheduleCount();
+    if (u.startState.facet(EditorState.phrases) !== u.state.facet(EditorState.phrases)) {
+      this.relabel();
+      this.scheduleCount();
+    } else if (u.docChanged || u.selectionSet) this.scheduleCount();
   }
 
   destroy() {

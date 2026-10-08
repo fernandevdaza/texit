@@ -38,6 +38,7 @@ import { useWorkspace, type RevealRequest } from '@/state/workspace';
 import { promptDialog } from '@/ui';
 import { Emitter } from '@/lib/emitter';
 import { isMac } from '@/lib/platform';
+import { t } from '@/lib/i18n';
 import { editorTheme, fontTheme, highlightStyle } from './theme';
 import { languageFor, languageIdFor, texLanguage, type LanguageId } from './language';
 import { latexCompletionSource } from './completion';
@@ -48,6 +49,7 @@ import { richText } from './richText';
 import { flash, flashField, latexEditing } from './editing';
 import { searchExtension } from './searchPanel';
 import { fileInfo } from './fileInfo';
+import { cmPhrases } from './phrases';
 
 interface Session {
   id: string;
@@ -67,10 +69,10 @@ const latexCompletionData = texLanguage.data.of({ autocomplete: latexCompletionS
 
 export const gotoLineCommand = (view: EditorView) => {
   void promptDialog({
-    title: 'Go to line',
-    message: `Line number (1–${view.state.doc.lines}), optionally followed by :column.`,
+    title: t('editor.gotoLine.title'),
+    message: t('editor.gotoLine.message', { max: String(view.state.doc.lines) }),
     placeholder: `${view.state.doc.lineAt(view.state.selection.main.head).number}`,
-    validate: (v) => (/^\s*\d+(\s*[:,]\s*\d+)?\s*$/.test(v) ? null : 'Enter a line number, e.g. 42 or 42:7'),
+    validate: (v) => (/^\s*\d+(\s*[:,]\s*\d+)?\s*$/.test(v) ? null : t('editor.gotoLine.invalid')),
   }).then((v) => {
     if (!v) return;
     const [l, c] = v.split(/[:,]/).map((x) => parseInt(x.trim(), 10));
@@ -116,6 +118,7 @@ export class EditorController {
     hover: new Compartment(),
     collab: new Compartment(),
     contributed: new Compartment(),
+    phrases: new Compartment(),
   };
 
   // ───────────────────────── view ─────────────────────────
@@ -194,6 +197,7 @@ export class EditorController {
     hover: (s: Session) => (s.lang === 'latex' ? hoverExtensions({ mathPreview: this.settings().mathPreview }) : []),
     collab: (s: Session) => yCollab(s.ytext, getAwareness(), { undoManager: s.undo }),
     contributed: () => getContributedExtensions(),
+    phrases: () => cmPhrases(),
   };
 
   private extensionsFor(s: Session): Extension {
@@ -217,6 +221,7 @@ export class EditorController {
       c.hover.of(this.cfg.hover(s)),
       c.collab.of(this.cfg.collab(s)),
       c.contributed.of(this.cfg.contributed()),
+      c.phrases.of(this.cfg.phrases()),
       // static
       tooltips({ parent: document.body, position: 'fixed' }),
       highlightSpecialChars(),
@@ -481,6 +486,11 @@ export class EditorController {
   applyAwareness() {
     this.reconfigure((s) => [this.c.collab.reconfigure(this.cfg.collab(s))]);
     this.publishFileToAwareness();
+  }
+
+  /** Re-apply CodeMirror's UI phrases after the app language changed. */
+  applyLocale() {
+    this.reconfigure(() => [this.c.phrases.reconfigure(this.cfg.phrases())]);
   }
 
   applyContributed() {

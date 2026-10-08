@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import type { TexEngine } from '@texit/core';
 import { cn } from '@/lib/cn';
+import { useT } from '@/lib/i18n';
 import { isDesktop } from '@/lib/platform';
 import { executeCommand } from '@/services/commands';
 import { useSettings } from '@/state/settings';
@@ -26,11 +27,13 @@ import { DropdownMenu, Kbd, Spinner, Tooltip, type MenuEntry } from '@/ui';
 import { ENGINE_LABELS, getController, useCompileUi } from './controller';
 import { formatElapsed, useElapsed } from './hooks';
 import { setProjectBackend, setProjectEngine } from './actions';
+import { formatPercent, localizeBackendDetail, localizeEngineReason } from './format';
 
+/** `labelKey` → `compile.backend.<id>`. */
 const BACKEND_ITEMS = [
-  { id: 'busytex', label: 'In-browser (WASM)', icon: Globe },
-  { id: 'native', label: 'Native TeX', icon: Cpu },
-  { id: 'remote', label: 'Remote server', icon: Cloud },
+  { id: 'busytex', icon: Globe },
+  { id: 'native', icon: Cpu },
+  { id: 'remote', icon: Cloud },
 ] as const;
 
 /** Top-bar split button: Compile / Stop + options menu. */
@@ -43,8 +46,9 @@ export function CompileButton() {
   const busy = status === 'preparing' || status === 'compiling';
   const elapsed = useElapsed(startedAt, busy, 100);
   const flash = useFlash();
+  const t = useT();
 
-  const label = busy ? 'Stop' : hasPdf ? 'Recompile' : 'Compile';
+  const label = busy ? t('compile.stop') : hasPdf ? t('compile.recompile') : t('compile.compile');
   const onClick = () => {
     if (busy) getController()?.cancel();
     else void executeCommand('compile.run');
@@ -58,7 +62,7 @@ export function CompileButton() {
         flash === 'error' && 'ring-2 ring-danger/60',
       )}
     >
-      <Tooltip content={busy ? 'Stop compilation' : 'Compile the project'} shortcut={busy ? 'Mod-.' : 'Mod-Enter'}>
+      <Tooltip content={busy ? t('compile.tooltipStop') : t('compile.tooltipCompile')} shortcut={busy ? 'Mod-.' : 'Mod-Enter'}>
         <button
           type="button"
           disabled={!hasProject}
@@ -89,7 +93,7 @@ export function CompileButton() {
             )}
             <span>{label}</span>
             {busy ? (
-              <span className="tabular-nums opacity-75">{progress !== undefined ? `${Math.round(progress * 100)}%` : formatElapsed(elapsed)}</span>
+              <span className="tabular-nums opacity-75">{progress !== undefined ? formatPercent(progress * 100, t) : formatElapsed(elapsed, t)}</span>
             ) : (
               <Kbd keys="Mod-Enter" className="ml-0.5 opacity-70 [&_kbd]:border-white/20 [&_kbd]:bg-white/15 [&_kbd]:text-accent-fg" />
             )}
@@ -121,6 +125,7 @@ function useFlash(): 'success' | 'error' | null {
 }
 
 function CompileMenu({ disabled }: { disabled: boolean }) {
+  const t = useT();
   const auto = useSettings((s) => s.compile.auto);
   const draft = useSettings((s) => s.compile.draftWhileTyping);
   const appBackend = useSettings((s) => s.compile.backend);
@@ -138,28 +143,36 @@ function CompileMenu({ disabled }: { disabled: boolean }) {
   const engineItems: MenuEntry[] = (['pdflatex', 'xelatex', 'lualatex'] as TexEngine[]).map((e) => ({
     label: ENGINE_LABELS[e],
     checked: projectEngine === e,
-    hint: lastEngine === e && lastEngine !== projectEngine ? 'in use' : undefined,
+    hint: lastEngine === e && lastEngine !== projectEngine ? t('compile.inUse') : undefined,
     onSelect: () => setProjectEngine(e),
   }));
   if (engineReason && lastEngine && lastEngine !== projectEngine) {
-    engineItems.push({ type: 'separator' }, { type: 'label', label: `Using ${ENGINE_LABELS[lastEngine]}: ${engineReason}` });
+    engineItems.push({ type: 'separator' }, { type: 'label', label: t('compile.usingEngine', { engine: ENGINE_LABELS[lastEngine], reason: localizeEngineReason(engineReason, t) }) });
   }
 
   const pluginBackends = backends.filter((b) => !['busytex', 'native', 'remote'].includes(b.id));
-  const appDefaultLabel = appBackend === 'auto' ? 'Automatic' : (BACKEND_ITEMS.find((b) => b.id === appBackend)?.label ?? appBackend);
+  const backendName = (id: string) => (BACKEND_ITEMS.some((b) => b.id === id) ? t(`compile.backend.${id}`) : id);
+  const appDefaultLabel = appBackend === 'auto' ? t('compile.automatic') : backendName(appBackend);
   const backendItems: MenuEntry[] = [
-    { label: `App default (${appDefaultLabel})`, icon: <Sparkles />, checked: projectBackend === 'auto', onSelect: () => setProjectBackend('auto') },
+    { label: t('compile.appDefault', { backend: appDefaultLabel }), icon: <Sparkles />, checked: projectBackend === 'auto', onSelect: () => setProjectBackend('auto') },
     { type: 'separator' },
     ...BACKEND_ITEMS.map((b): MenuEntry => {
       const st = statusOf(b.id);
       const unavailable =
         (b.id === 'native' && !isDesktop) || (b.id === 'remote' && !remoteUrl.trim()) || (st ? !st.available : b.id !== 'busytex');
       return {
-        label: b.label,
+        label: t(`compile.backend.${b.id}`),
         icon: <b.icon />,
         checked: projectBackend === b.id,
         disabled: b.id === 'native' ? !isDesktop : b.id === 'remote' ? !remoteUrl.trim() : false,
-        hint: b.id === 'native' && !isDesktop ? 'desktop' : b.id === 'remote' && !remoteUrl.trim() ? 'not set up' : unavailable ? 'offline' : undefined,
+        hint:
+          b.id === 'native' && !isDesktop
+            ? t('compile.hint.desktop')
+            : b.id === 'remote' && !remoteUrl.trim()
+              ? t('compile.hint.notSetUp')
+              : unavailable
+                ? t('compile.hint.offline')
+                : undefined,
         onSelect: () => setProjectBackend(b.id),
       };
     }),
@@ -167,35 +180,35 @@ function CompileMenu({ disabled }: { disabled: boolean }) {
       label: b.label,
       icon: <Puzzle />,
       checked: projectBackend === b.id,
-      hint: b.status && !b.status.available ? 'unavailable' : undefined,
+      hint: b.status && !b.status.available ? t('compile.hint.unavailable') : undefined,
       onSelect: () => setProjectBackend(b.id),
     })),
     { type: 'separator' },
-    { label: 'Compiler settings…', icon: <Settings2 />, onSelect: () => executeCommand('app.settings', 'compiler') },
+    { label: t('compile.compilerSettings'), icon: <Settings2 />, onSelect: () => executeCommand('app.settings', 'compiler') },
   ];
   const usedBackend = useWorkspace.getState().compile.backendId;
   const backendLabel =
     projectBackend === 'auto'
       ? usedBackend
-        ? `Auto (${BACKEND_ITEMS.find((b) => b.id === usedBackend)?.label ?? usedBackend})`
-        : 'Auto'
-      : (BACKEND_ITEMS.find((b) => b.id === projectBackend)?.label ?? projectBackend);
+        ? t('compile.autoWith', { backend: backendName(usedBackend) })
+        : t('compile.auto')
+      : backendName(projectBackend);
   const nativeDetail = statusOf('native')?.detail;
-  if (isDesktop && nativeDetail) backendItems.splice(backendItems.length - 2, 0, { type: 'label', label: nativeDetail });
+  if (isDesktop && nativeDetail) backendItems.splice(backendItems.length - 2, 0, { type: 'label', label: localizeBackendDetail(nativeDetail, t) });
 
   const items: MenuEntry[] = [
-    { label: 'Compile', icon: <Play />, shortcut: 'Mod-Enter', onSelect: () => executeCommand('compile.run') },
-    { label: 'Fast draft pass', icon: <Zap />, shortcut: 'Mod-Alt-Enter', onSelect: () => executeCommand('compile.draft') },
+    { label: t('compile.compile'), icon: <Play />, shortcut: 'Mod-Enter', onSelect: () => executeCommand('compile.run') },
+    { label: t('compile.fastDraft'), icon: <Zap />, shortcut: 'Mod-Alt-Enter', onSelect: () => executeCommand('compile.draft') },
     { type: 'separator' },
-    { label: 'Auto-compile', icon: <Repeat />, checked: auto, onSelect: () => setCompile({ auto: !auto }) },
-    { label: 'Draft passes while typing', icon: <Zap />, checked: draft, disabled: !auto, onSelect: () => setCompile({ draftWhileTyping: !draft }) },
+    { label: t('compile.autoCompile'), icon: <Repeat />, checked: auto, onSelect: () => setCompile({ auto: !auto }) },
+    { label: t('compile.draftWhileTyping'), icon: <Zap />, checked: draft, disabled: !auto, onSelect: () => setCompile({ draftWhileTyping: !draft }) },
     { type: 'separator' },
-    { label: `Engine · ${ENGINE_LABELS[lastEngine ?? projectEngine]}`, icon: <Cpu />, submenu: engineItems },
-    { label: `Backend · ${backendLabel}`, icon: <Globe />, submenu: backendItems },
+    { label: t('compile.engineMenu', { engine: ENGINE_LABELS[lastEngine ?? projectEngine] }), icon: <Cpu />, submenu: engineItems },
+    { label: t('compile.backendMenu', { backend: backendLabel }), icon: <Globe />, submenu: backendItems },
     { type: 'separator' },
-    { label: 'Problems', icon: <ListChecks />, shortcut: 'F8', onSelect: () => useLayout.getState().showBottomPanel('problems') },
-    { label: 'Raw log', icon: <ScrollText />, onSelect: () => useLayout.getState().showBottomPanel('log') },
-    { label: 'Clear cache & recompile', icon: <Eraser />, onSelect: () => executeCommand('compile.clearCache') },
+    { label: t('compile.problems'), icon: <ListChecks />, shortcut: 'F8', onSelect: () => useLayout.getState().showBottomPanel('problems') },
+    { label: t('compile.rawLog'), icon: <ScrollText />, onSelect: () => useLayout.getState().showBottomPanel('log') },
+    { label: t('compile.clearCacheRecompile'), icon: <Eraser />, onSelect: () => executeCommand('compile.clearCache') },
   ];
 
   return (
@@ -208,7 +221,7 @@ function CompileMenu({ disabled }: { disabled: boolean }) {
           type="button"
           disabled={disabled}
           data-compile-menu
-          aria-label="Compile options"
+          aria-label={t('compile.options')}
           className="flex w-6 items-center justify-center border-l border-white/20 bg-accent text-accent-fg transition-colors hover:bg-accent-hover disabled:opacity-50 data-[state=open]:bg-accent-hover [&_svg]:size-3.5"
         >
           <ChevronDown />

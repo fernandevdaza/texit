@@ -35,7 +35,9 @@ import { getCompileController } from '@/services/compile';
 import { getAiBridge } from '@/services/ai';
 import { registerTemplate } from '@/services/templates';
 import { useLayout, useWorkspace } from '@/state/workspace';
-import { useResolvedTheme } from '@/state/settings';
+import { useResolvedTheme, useSettings } from '@/state/settings';
+import { getLocale, registerMessages, t, type Locale } from '@/lib/i18n';
+import './i18n';
 import { latexApi } from './latexApi';
 import { completionSourceExtension, snippetsExtension } from './completion';
 import { createStatusItemComponent } from './StatusItem';
@@ -92,7 +94,7 @@ export class PluginPermissionError extends Error {
     readonly permission: PluginPermission,
     what: string,
   ) {
-    super(`"${pluginName}" needs the "${permission}" permission to use ${what}.`);
+    super(t('plugins.needsPermission', { name: pluginName, permission, what }));
     this.name = 'PluginPermissionError';
   }
 }
@@ -111,6 +113,25 @@ export function lucideByName(name?: string): LucideIcon | undefined {
   return icons[pascal];
 }
 
+/**
+ * Feed the manifest's translated command/panel titles (`locales`) into the app
+ * catalogs as `cmd.<qualifiedId>` / `panel.<qualifiedId>`, so the command
+ * palette and panel tabs show them in the current language.
+ */
+export function registerManifestMessages(manifest: PluginManifest): void {
+  const locales = manifest.locales;
+  if (!locales || typeof locales !== 'object') return;
+  const out: Partial<Record<Locale, Record<string, string>>> = {};
+  for (const [tag, loc] of Object.entries(locales)) {
+    const base = tag.toLowerCase().split('-')[0] as Locale;
+    if ((base !== 'en' && base !== 'es') || !loc) continue;
+    const msgs = (out[base] ??= {});
+    for (const [id, title] of Object.entries(loc.commands ?? {})) if (typeof title === 'string') msgs[`cmd.${qualifyId(manifest.id, id)}`] = title;
+    for (const [id, title] of Object.entries(loc.panels ?? {})) if (typeof title === 'string') msgs[`panel.${qualifyId(manifest.id, id)}`] = title;
+  }
+  if (Object.values(out).some((m) => m && Object.keys(m).length)) registerMessages(out);
+}
+
 function isPromiseLike(v: unknown): v is PromiseLike<unknown> {
   return !!v && typeof (v as { then?: unknown }).then === 'function';
 }
@@ -122,6 +143,7 @@ export function createPluginHost(opts: PluginHostOptions): PluginHostHandle {
   const pollMs = opts.bridgePollMs ?? 1000;
   let disposed = false;
   const disposables = new Set<Disposable>();
+  registerManifestMessages(manifest);
   const warned = new Set<string>();
 
   const warnOnce = (key: string, msg: string) => {
@@ -231,7 +253,7 @@ export function createPluginHost(opts: PluginHostOptions): PluginHostHandle {
   const project = () => useWorkspace.getState().project;
   const requireProject = () => {
     const p = project();
-    if (!p) throw new Error('No project is open.');
+    if (!p) throw new Error(t('plugins.noProject'));
     return p;
   };
   const activePath = (): string | null => {
@@ -307,7 +329,7 @@ export function createPluginHost(opts: PluginHostOptions): PluginHostHandle {
                 el.innerHTML = '';
                 const msg = document.createElement('div');
                 msg.style.cssText = 'padding:16px;font-size:12px;color:var(--tx-danger)';
-                msg.textContent = `This panel failed to render: ${err instanceof Error ? err.message : String(err)}`;
+                msg.textContent = t('plugins.panelFailed', { error: err instanceof Error ? err.message : String(err) });
                 el.append(msg);
               }
               return () => {
@@ -340,6 +362,12 @@ export function createPluginHost(opts: PluginHostOptions): PluginHostHandle {
       onThemeChange(cb) {
         const safe = guard(cb, 'theme listener');
         return track(useResolvedTheme.subscribe((s, p) => s.theme !== p.theme && safe(s.theme)));
+      },
+      getLocale: () => getLocale(),
+      onLocaleChange(cb) {
+        const safe = guard(cb, 'locale listener');
+        const norm = (l: string) => (l === 'es' ? 'es' : 'en');
+        return track(useSettings.subscribe((s, p) => norm(s.locale) !== norm(p.locale) && safe(norm(s.locale))));
       },
       toast(message, o) {
         ui.toast(String(message), o);

@@ -18,6 +18,8 @@ import {
 } from './comments';
 import { useCollab } from './session';
 import { useCollabSettings } from './settings';
+import { t as tr, useLocale, useT } from '@/lib/i18n';
+import { richText } from './i18n';
 
 interface ThreadView extends CommentThread {
   path: string;
@@ -66,7 +68,7 @@ function computeThreads(project: ProjectDoc): ThreadView[] {
       if (text == null) textCache.set(t.fileId, (text = project.readText(t.fileId)));
       line = lineCol(text, r.from).line;
     }
-    out.push({ ...t, path: node?.path ?? '(deleted file)', line, from: r?.from ?? 0, to: r?.to ?? 0, orphaned: !r || r.orphaned });
+    out.push({ ...t, path: node?.path ?? tr('collab.comments.deletedFile'), line, from: r?.from ?? 0, to: r?.to ?? 0, orphaned: !r || r.orphaned });
   }
   return out.sort((a, b) => a.path.localeCompare(b.path) || a.from - b.from || a.ts - b.ts);
 }
@@ -101,7 +103,7 @@ function Composer({
   onSubmit,
   onCancel,
   autoFocus,
-  submitLabel = 'Comment',
+  submitLabel,
 }: {
   placeholder: string;
   onSubmit: (text: string) => void;
@@ -109,6 +111,7 @@ function Composer({
   autoFocus?: boolean;
   submitLabel?: string;
 }) {
+  const t = useT();
   const [text, setText] = useState('');
   const ref = useRef<HTMLTextAreaElement>(null);
   useEffect(() => {
@@ -141,14 +144,14 @@ function Composer({
         className="w-full resize-y rounded-md border border-border bg-surface px-2 py-1.5 text-[12.5px] leading-relaxed text-fg outline-none placeholder:text-fg-subtle focus:border-accent focus:ring-3 focus:ring-accent/15"
       />
       <div className="mt-1.5 flex items-center justify-end gap-1.5">
-        <span className="mr-auto text-[10.5px] text-fg-subtle">Enter to send · Shift+Enter for a new line</span>
+        <span className="mr-auto text-[10.5px] text-fg-subtle">{t('collab.comments.hint')}</span>
         {onCancel && (
           <Button size="xs" variant="ghost" onClick={onCancel}>
-            Cancel
+            {t('common.cancel')}
           </Button>
         )}
         <Button size="xs" variant="primary" disabled={!text.trim()} onClick={submit}>
-          {submitLabel}
+          {submitLabel ?? t('collab.comments.comment')}
         </Button>
       </div>
     </div>
@@ -156,6 +159,7 @@ function Composer({
 }
 
 function Message({ name, color, ts, text, mine }: { name: string; color: string; ts: number; text: string; mine: boolean }) {
+  const t = useT();
   return (
     <div className="flex gap-2">
       <Avatar name={name} color={color} size={20} className="mt-0.5" />
@@ -163,7 +167,7 @@ function Message({ name, color, ts, text, mine }: { name: string; color: string;
         <div className="flex items-baseline gap-1.5">
           <span className="truncate text-[12px] font-semibold text-fg">
             {name}
-            {mine && <span className="font-normal text-fg-subtle"> (you)</span>}
+            {mine && <span className="font-normal text-fg-subtle"> {t('collab.you')}</span>}
           </span>
           <span className="shrink-0 text-[10.5px] text-fg-subtle">{formatRelative(ts)}</span>
         </div>
@@ -174,6 +178,7 @@ function Message({ name, color, ts, text, mine }: { name: string; color: string;
 }
 
 function ThreadCard({ t, project, active }: { t: ThreadView; project: ProjectDoc; active: boolean }) {
+  const tx = useT();
   const me = useCollabSettings((s) => s.localUserId);
   const [replying, setReplying] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -201,21 +206,21 @@ function ThreadCard({ t, project, active }: { t: ThreadView; project: ProjectDoc
         <div className="flex-1" />
         <div className="flex items-center opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100" onClick={(e) => e.stopPropagation()}>
           {t.resolved ? (
-            <IconButton label="Reopen" size="xs" onClick={() => setCommentResolved(project, t.id, false)}>
+            <IconButton label={tx('collab.comments.reopen')} size="xs" onClick={() => setCommentResolved(project, t.id, false)}>
               <RotateCcw />
             </IconButton>
           ) : (
-            <IconButton label="Resolve" size="xs" onClick={() => setCommentResolved(project, t.id, true)}>
+            <IconButton label={tx('collab.comments.resolve')} size="xs" onClick={() => setCommentResolved(project, t.id, true)}>
               <Check />
             </IconButton>
           )}
           {t.uid === me && (
             <IconButton
-              label="Delete thread"
+              label={tx('collab.comments.deleteThread')}
               size="xs"
               onClick={() => {
                 deleteComment(project, t.id);
-                toast.message('Comment deleted');
+                toast.message(tx('collab.comments.deleted'));
               }}
             >
               <Trash2 />
@@ -229,7 +234,7 @@ function ThreadCard({ t, project, active }: { t: ThreadView; project: ProjectDoc
             'mb-2 line-clamp-3 border-l-2 pl-2 font-mono text-[11.5px] leading-relaxed text-fg-muted',
             t.orphaned ? 'border-border line-through decoration-fg-subtle/50' : 'border-warning/70',
           )}
-          title={t.orphaned ? 'The commented text was deleted' : undefined}
+          title={t.orphaned ? tx('collab.comments.textDeleted') : undefined}
         >
           {t.quote}
         </div>
@@ -242,7 +247,7 @@ function ThreadCard({ t, project, active }: { t: ThreadView; project: ProjectDoc
       </div>
       {t.resolved && (
         <div className="mt-2 flex items-center gap-1 text-[11px] text-success">
-          <CheckCheck className="size-3.5" /> Resolved{t.resolvedBy ? ` by ${t.resolvedBy}` : ''}
+          <CheckCheck className="size-3.5" /> {t.resolvedBy ? tx('collab.comments.resolvedBy', { name: t.resolvedBy }) : tx('collab.comments.resolved')}
         </div>
       )}
       {!t.resolved && (
@@ -250,8 +255,8 @@ function ThreadCard({ t, project, active }: { t: ThreadView; project: ProjectDoc
           {replying ? (
             <Composer
               autoFocus
-              placeholder="Reply…"
-              submitLabel="Reply"
+              placeholder={tx('collab.comments.replyPlaceholder')}
+              submitLabel={tx('collab.comments.reply')}
               onCancel={() => setReplying(false)}
               onSubmit={(text) => {
                 replyToComment(project, t.id, text);
@@ -266,7 +271,7 @@ function ThreadCard({ t, project, active }: { t: ThreadView; project: ProjectDoc
                 setReplying(true);
               }}
             >
-              Reply
+              {tx('collab.comments.reply')}
             </button>
           )}
         </div>
@@ -276,6 +281,7 @@ function ThreadCard({ t, project, active }: { t: ThreadView; project: ProjectDoc
 }
 
 function DraftCard({ project }: { project: ProjectDoc }) {
+  const t = useT();
   const draft = useCollab((s) => s.commentDraft);
   const path = useWorkspace((s) => (draft ? s.files.find((f) => f.id === draft.fileId)?.path : undefined));
   if (!draft) return null;
@@ -287,14 +293,14 @@ function DraftCard({ project }: { project: ProjectDoc }) {
           {path}:{draft.line}
         </span>
         <div className="flex-1" />
-        <IconButton label="Discard" size="xs" onClick={() => useCollab.setState({ commentDraft: null })}>
+        <IconButton label={t('collab.comments.discard')} size="xs" onClick={() => useCollab.setState({ commentDraft: null })}>
           <X />
         </IconButton>
       </div>
       {draft.quote && <div className="mb-2 line-clamp-3 border-l-2 border-accent/60 pl-2 font-mono text-[11.5px] text-fg-muted">{draft.quote}</div>}
       <Composer
         autoFocus
-        placeholder="Add a comment…"
+        placeholder={t('collab.comments.addPlaceholder')}
         onCancel={() => useCollab.setState({ commentDraft: null })}
         onSubmit={(text) => {
           const id = addComment(project, { fileId: draft.fileId, from: draft.from, to: draft.to, text, quote: draft.quote });
@@ -306,13 +312,15 @@ function DraftCard({ project }: { project: ProjectDoc }) {
 }
 
 export function CommentsPanel() {
+  const t = useT();
+  const locale = useLocale();
   const project = useWorkspace((s) => s.project);
   const version = useCommentsVersion(project);
   const treeVersion = useWorkspace((s) => s.treeVersion);
   const active = useCollab((s) => s.activeCommentId);
   const hasDraft = useCollab((s) => !!s.commentDraft);
   const [tab, setTab] = useState<'open' | 'resolved'>('open');
-  const threads = useMemo(() => (project ? computeThreads(project) : []), [project, version, treeVersion]);
+  const threads = useMemo(() => (project ? computeThreads(project) : []), [project, version, treeVersion, locale]);
   const open = threads.filter((t) => !t.resolved);
   const resolved = threads.filter((t) => t.resolved);
   const list = tab === 'open' ? open : resolved;
@@ -320,7 +328,7 @@ export function CommentsPanel() {
   if (!project) return null;
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <PanelHeader title="Comments" />
+      <PanelHeader title={t('collab.comments.title')} />
       <div className="px-3 pb-2">
         <Segmented
           size="sm"
@@ -328,8 +336,8 @@ export function CommentsPanel() {
           onChange={setTab}
           className="[&>div]:w-full [&_button]:flex-1 [&_button]:justify-center"
           options={[
-            { value: 'open', label: `Open${open.length ? ` · ${open.length}` : ''}` },
-            { value: 'resolved', label: `Resolved${resolved.length ? ` · ${resolved.length}` : ''}` },
+            { value: 'open', label: `${t('collab.comments.tabOpen')}${open.length ? ` · ${open.length}` : ''}` },
+            { value: 'resolved', label: `${t('collab.comments.tabResolved')}${resolved.length ? ` · ${resolved.length}` : ''}` },
           ]}
         />
       </div>
@@ -338,15 +346,11 @@ export function CommentsPanel() {
         {list.length === 0 && !hasDraft ? (
           <EmptyState
             icon={<MessageSquareText />}
-            title={tab === 'open' ? 'No open comments' : 'No resolved comments'}
+            title={tab === 'open' ? t('collab.comments.noOpen') : t('collab.comments.noResolved')}
             description={
-              tab === 'open' ? (
-                <>
-                  Select text in the editor and press <Kbd keys="Mod-Alt-m" className="align-middle" /> to start a review thread.
-                </>
-              ) : (
-                'Resolved threads show up here.'
-              )
+              tab === 'open'
+                ? richText(t('collab.comments.emptyOpen'), { kbd: <Kbd keys="Mod-Alt-m" className="align-middle" /> })
+                : t('collab.comments.emptyResolved')
             }
           />
         ) : (
