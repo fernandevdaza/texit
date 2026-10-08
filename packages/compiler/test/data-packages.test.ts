@@ -108,8 +108,9 @@ I couldn't open style file IEEEtran.bst
 // Real BusyTeX listings (only when the assets were downloaded).
 const assets = fileURLToPath(new URL('../../../apps/web/public/busytex/', import.meta.url));
 describe.skipIf(!existsSync(`${assets}texlive-extra.txt`))('real BusyTeX listings', () => {
-  const real = buildIndexFromFileLists(tiers, tiers.map((t) => readFileSync(`${assets}${t}.txt`, 'utf8')));
   it('classifies common packages', () => {
+    // Read lazily: skipped describe bodies still run during collection.
+    const real = buildIndexFromFileLists(tiers, tiers.map((t) => readFileSync(`${assets}${t}.txt`, 'utf8')));
     const tierOf = (files: string[]) => tiers[selectDataPackageTier(files, real).tier];
     expect(tierOf(['article.cls', 'amsmath.sty', 'graphicx.sty', 'hyperref.sty', 'geometry.sty'])).toBe('texlive-basic');
     expect(tierOf(['tikz.sty', 'xcolor.sty', 'booktabs.sty', 'fontspec.sty', 'beamer.cls'])).toBe('texlive-recommended');

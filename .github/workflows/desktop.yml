@@ -1,7 +1,7 @@
 name: Desktop apps
 
-# Builds the Electron installers for macOS, Windows and Linux on every push and pull request
-# (downloadable from the run's "Artifacts" section for 14 days). Pushing a tag vX.Y.Z also
+# Builds the Electron installers for macOS, Windows and Linux on pushes to main and on pull requests
+# that touch the desktop app or shared packages (downloadable from the run's "Artifacts" section for 14 days). Pushing a tag vX.Y.Z also
 # attaches them to a draft GitHub release (electron-builder.yml → publish), published by hand
 # from the Releases tab. The apps are not code-signed (CSC_IDENTITY_AUTO_DISCOVERY=false).
 #
@@ -10,9 +10,14 @@ name: Desktop apps
 # (latexmk / tectonic) or a remote compile server.
 on:
   push:
-    branches: ["**"]
+    branches: [main]
     tags: ["v*"]
   pull_request:
+    paths:
+      - "apps/desktop/**"
+      - "packages/**"
+      - "pnpm-lock.yaml"
+      - ".github/workflows/desktop.yml"
   workflow_dispatch:
 
 permissions:
