@@ -30,6 +30,8 @@
  * even with a modified client.
  */
 
+import * as ed from '@noble/ed25519';
+
 const te = new TextEncoder();
 const ENVELOPE_VERSION = 1;
 const IV_BYTES = 12;
@@ -89,13 +91,22 @@ export type RoomCredentials =
   /** Signed room, reader: read secret + the editors' public key (cannot sign). */
   | { protocol: 2; read: Uint8Array; publicKey: Uint8Array };
 
+/** Ed25519 signing with the editors' private key (native WebCrypto or the pure-JS fallback). */
+export interface Ed25519Signer {
+  sign(data: Uint8Array): Promise<Uint8Array>;
+}
+/** Ed25519 verification against the editors' public key. */
+export interface Ed25519Verifier {
+  verify(data: Uint8Array, signature: Uint8Array): Promise<boolean>;
+}
+
 export interface RoomKeys {
   roomId: string;
   protocol: 1 | 2;
   /** Editors' private signing key (protocol 2 editors only). */
-  signKey: CryptoKey | null;
+  signKey: Ed25519Signer | null;
   /** Editors' public key (protocol 2). */
-  verifyKey: CryptoKey | null;
+  verifyKey: Ed25519Verifier | null;
   /** May this participant change the document (and have peers accept it)? */
   canWrite: boolean;
   /** AES-GCM-256 key for all payloads (non-extractable). */
@@ -111,6 +122,69 @@ export interface RoomKeys {
 async function hkdfBits(base: CryptoKey, salt: Uint8Array, info: string, bits: number): Promise<Uint8Array> {
   const out = await subtle().deriveBits({ name: 'HKDF', hash: 'SHA-256', salt: bytes(salt), info: te.encode(info) }, base, bits);
   return new Uint8Array(out);
+}
+
+// ───────────────────────────── Ed25519 ─────────────────────────────
+//
+// WebCrypto Ed25519 is missing in some browsers (e.g. Brave / older Chromium on
+// Android, older Safari). Ed25519 is deterministic, so the pure-JS
+// implementation (@noble/ed25519, audited) produces byte-identical keys and
+// signatures: native and fallback peers interoperate in the same room.
+
+let ed25519Backend: 'auto' | 'native' | 'js' = 'auto';
+let nativeSupport: Promise<boolean> | null = null;
+
+/** Test hook: force a backend. */
+export function setEd25519Backend(b: 'auto' | 'native' | 'js') {
+  ed25519Backend = b;
+}
+
+function hasNativeEd25519(): Promise<boolean> {
+  if (ed25519Backend !== 'auto') return Promise.resolve(ed25519Backend === 'native');
+  nativeSupport ??= (async () => {
+    try {
+      const pub = await ed.getPublicKeyAsync(new Uint8Array(32).fill(7));
+      await subtle().importKey('raw', bytes(pub), { name: 'Ed25519' }, false, ['verify']);
+      return true;
+    } catch {
+      return false;
+    }
+  })();
+  return nativeSupport;
+}
+
+async function ed25519FromSeed(seed: Uint8Array): Promise<{ publicKey: Uint8Array; signer: Ed25519Signer }> {
+  if (await hasNativeEd25519()) {
+    const s = subtle();
+    const pkcs8 = new Uint8Array(ED25519_PKCS8_PREFIX.length + 32);
+    pkcs8.set(ED25519_PKCS8_PREFIX);
+    pkcs8.set(seed, ED25519_PKCS8_PREFIX.length);
+    // Extractable only to read the public half (JWK "x").
+    const key = await s.importKey('pkcs8', bytes(pkcs8), { name: 'Ed25519' }, true, ['sign']);
+    pkcs8.fill(0);
+    const jwk = await s.exportKey('jwk', key);
+    return {
+      publicKey: fromBase64Url(jwk.x!),
+      signer: { sign: async (data) => new Uint8Array(await s.sign({ name: 'Ed25519' }, key, bytes(data))) },
+    };
+  }
+  const secret = new Uint8Array(seed);
+  return {
+    publicKey: await ed.getPublicKeyAsync(secret),
+    signer: { sign: (data) => ed.signAsync(data, secret) },
+  };
+}
+
+async function ed25519Verifier(publicKey: Uint8Array): Promise<Ed25519Verifier> {
+  if (publicKey.length !== 32) throw new Error('Invalid room public key');
+  if (await hasNativeEd25519()) {
+    const s = subtle();
+    const key = await s.importKey('raw', bytes(publicKey), { name: 'Ed25519' }, false, ['verify']);
+    return { verify: (data, sig) => s.verify({ name: 'Ed25519' }, key, bytes(sig), bytes(data)) };
+  }
+  const pub = new Uint8Array(publicKey);
+  // zip215: false → strict RFC 8032 verification, the same rules as WebCrypto.
+  return { verify: (data, sig) => ed.verifyAsync(sig, data, pub, { zip215: false }) };
 }
 
 const ED25519_PKCS8_PREFIX = Uint8Array.from([0x30, 0x2e, 0x02, 0x01, 0x00, 0x30, 0x05, 0x06, 0x03, 0x2b, 0x65, 0x70, 0x04, 0x22, 0x04, 0x20]);
@@ -155,36 +229,25 @@ export async function deriveRoomKeys(secret: Uint8Array, roomId: string): Promis
 }
 
 /** Read secret + Ed25519 key pair of a signed room, from its master secret. */
-export async function deriveShareSecrets(master: Uint8Array, roomId: string): Promise<{ read: Uint8Array; publicKey: Uint8Array; signKey: CryptoKey }> {
+export async function deriveShareSecrets(master: Uint8Array, roomId: string): Promise<{ read: Uint8Array; publicKey: Uint8Array; signKey: Ed25519Signer }> {
   if (master.length < 16) throw new Error('The master secret of a signed room must be at least 128 bits');
-  const s = subtle();
-  const base = await s.importKey('raw', bytes(master), 'HKDF', false, ['deriveBits']);
+  const base = await subtle().importKey('raw', bytes(master), 'HKDF', false, ['deriveBits']);
   const salt = te.encode(`texit/collab/v2/${roomId}`);
   const read = await hkdfBits(base, salt, 'read-secret', 256);
   const seed = await hkdfBits(base, salt, 'sign/ed25519-seed', 256);
-  const pkcs8 = new Uint8Array(ED25519_PKCS8_PREFIX.length + 32);
-  pkcs8.set(ED25519_PKCS8_PREFIX);
-  pkcs8.set(seed, ED25519_PKCS8_PREFIX.length);
-  // Extractable only to read the public half (JWK "x"); the CryptoKey never leaves this module otherwise.
-  const signKey = await s.importKey('pkcs8', bytes(pkcs8), { name: 'Ed25519' }, true, ['sign']);
-  const jwk = await s.exportKey('jwk', signKey);
+  const { publicKey, signer } = await ed25519FromSeed(seed);
   seed.fill(0);
-  pkcs8.fill(0);
-  return { read, publicKey: fromBase64Url(jwk.x!), signKey };
+  return { read, publicKey, signKey: signer };
 }
 
 /** Derive the keys for any kind of credentials. */
 export async function deriveKeysFor(creds: RoomCredentials, roomId: string): Promise<RoomKeys> {
   if (creds.protocol === 1) return deriveRoomKeys(creds.secret, roomId);
-  const s = subtle();
   if ('master' in creds) {
     const { read, publicKey, signKey } = await deriveShareSecrets(creds.master, roomId);
-    const verifyKey = await s.importKey('raw', bytes(publicKey), { name: 'Ed25519' }, false, ['verify']);
-    return { roomId, protocol: 2, signKey, verifyKey, canWrite: true, ...(await payloadKeys(read, roomId, 2)) };
+    return { roomId, protocol: 2, signKey, verifyKey: await ed25519Verifier(publicKey), canWrite: true, ...(await payloadKeys(read, roomId, 2)) };
   }
-  if (creds.publicKey.length !== 32) throw new Error('Invalid room public key');
-  const verifyKey = await s.importKey('raw', bytes(creds.publicKey), { name: 'Ed25519' }, false, ['verify']);
-  return { roomId, protocol: 2, signKey: null, verifyKey, canWrite: false, ...(await payloadKeys(creds.read, roomId, 2)) };
+  return { roomId, protocol: 2, signKey: null, verifyKey: await ed25519Verifier(creds.publicKey), canWrite: false, ...(await payloadKeys(creds.read, roomId, 2)) };
 }
 
 function signingInput(keys: Pick<RoomKeys, 'roomId'>, message: Uint8Array): Uint8Array {
@@ -198,13 +261,13 @@ function signingInput(keys: Pick<RoomKeys, 'roomId'>, message: Uint8Array): Uint
 /** Ed25519 signature of a protocol message (editors only). */
 export async function signMessage(keys: Pick<RoomKeys, 'roomId' | 'signKey'>, message: Uint8Array): Promise<Uint8Array> {
   if (!keys.signKey) throw new Error('This participant cannot sign (read-only)');
-  return new Uint8Array(await subtle().sign({ name: 'Ed25519' }, keys.signKey, bytes(signingInput(keys, message))));
+  return keys.signKey.sign(signingInput(keys, message));
 }
 
 export async function verifyMessage(keys: Pick<RoomKeys, 'roomId' | 'verifyKey'>, message: Uint8Array, signature: Uint8Array): Promise<boolean> {
   if (!keys.verifyKey || signature.length !== 64) return false;
   try {
-    return await subtle().verify({ name: 'Ed25519' }, keys.verifyKey, bytes(signature), bytes(signingInput(keys, message)));
+    return await keys.verifyKey.verify(signingInput(keys, message), signature);
   } catch {
     return false;
   }

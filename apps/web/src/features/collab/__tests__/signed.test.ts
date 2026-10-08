@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import * as Y from 'yjs';
 import { TrysteroProvider, type TrysteroProviderOptions } from '../provider';
-import { deriveKeysFor, deriveShareSecrets, generateSecret, signMessage, verifyMessage, type RoomCredentials } from '../crypto';
+import { deriveKeysFor, deriveShareSecrets, generateSecret, setEd25519Backend, signMessage, verifyMessage, type RoomCredentials } from '../crypto';
 import { FakeHub, sleep, waitFor } from './fakeTransport';
 
 const ROOM = 'room-signed-1';
@@ -109,7 +109,7 @@ describe('signed rooms (protocol 2)', () => {
     await r.whenSynced(3000);
     // Tampered client signs with a key of its own making (not the editors').
     const forged = await deriveKeysFor({ protocol: 2, master: generateSecret() }, ROOM);
-    const k = (r as unknown as { keys: { canWrite: boolean; signKey: CryptoKey | null } }).keys;
+    const k = (r as unknown as { keys: { canWrite: boolean; signKey: unknown } }).keys;
     k.canWrite = true;
     k.signKey = forged.signKey;
     r.doc.getText('main').insert(0, 'HACK ');
@@ -146,5 +146,42 @@ describe('signed rooms (protocol 2)', () => {
     await waitFor(() => text(b) === 'abc', 2000, 'B receives');
     b.doc.getText('main').insert(3, 'def');
     await waitFor(() => text(a) === 'abcdef', 2000, 'A receives');
+  });
+});
+
+describe('Ed25519 backends', () => {
+  afterEach(() => setEd25519Backend('auto'));
+
+  it('the pure-JS fallback derives the same public key and signatures as WebCrypto', async () => {
+    const master = generateSecret();
+    setEd25519Backend('native');
+    const native = await deriveShareSecrets(master, ROOM);
+    const kn = await deriveKeysFor({ protocol: 2, master }, ROOM);
+    setEd25519Backend('js');
+    const js = await deriveShareSecrets(master, ROOM);
+    const kj = await deriveKeysFor({ protocol: 2, read: js.read, publicKey: js.publicKey }, ROOM);
+    expect(Array.from(js.publicKey)).toEqual(Array.from(native.publicKey));
+    const msg = new TextEncoder().encode('sync update');
+    const sigNative = await signMessage(kn, msg);
+    const sigJs = await signMessage(await deriveKeysFor({ protocol: 2, master }, ROOM), msg);
+    expect(Array.from(sigJs)).toEqual(Array.from(sigNative));
+    expect(await verifyMessage(kj, msg, sigNative)).toBe(true);
+    expect(await verifyMessage(kj, new TextEncoder().encode('tampered'), sigNative)).toBe(false);
+  });
+
+  it('a JS-fallback reader syncs with a native editor', async () => {
+    const hub = new FakeHub();
+    const master = generateSecret();
+    setEd25519Backend('native');
+    const e = peer(hub, 'E', { protocol: 2, master });
+    e.doc.getText('main').insert(0, 'desde escritorio');
+    await sleep(20);
+    setEd25519Backend('js');
+    const { read, publicKey } = await deriveShareSecrets(master, ROOM);
+    const r = peer(hub, 'R', { protocol: 2, read, publicKey }, { viewOnly: true });
+    await r.whenSynced(3000);
+    expect(text(r)).toBe('desde escritorio');
+    e.doc.getText('main').insert(0, '¡');
+    await waitFor(() => text(r) === '¡desde escritorio', 2000, 'live update verified with the JS fallback');
   });
 });
