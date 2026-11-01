@@ -29,11 +29,11 @@
     "@modelcontextprotocol/sdk": "^1.32.1",
     "@texit/core": "workspace:*",
     "@types/cross-spawn": "^6.0.6",
-    "chokidar": "^5.0.0",
+    "chokidar": "^6.0.0",
     "cross-spawn": "^7.0.6",
-    "electron": "^44.6.0",
-    "electron-builder": "^26.15.3",
-    "electron-updater": "^6.8.9",
+    "electron": "^44.10.0",
+    "electron-builder": "^26.18.0",
+    "electron-updater": "^6.8.11",
     "esbuild": "^0.28.2",
     "zod": "^4.6.5"
   }
