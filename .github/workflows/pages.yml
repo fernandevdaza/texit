@@ -40,7 +40,7 @@ jobs:
         id: busytex
         run: echo "version=$(node -p "require('./packages/compiler/node_modules/texlyre-busytex/package.json').version")" >> "$GITHUB_OUTPUT"
       - name: Cache the BusyTeX assets (~520 MB download)
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: .cache/busytex
           key: busytex-${{ steps.busytex.outputs.version }}
